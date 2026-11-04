@@ -3095,6 +3095,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.engines.select.sub": "eraser, SlimSAM",
   "lx.engines.portrait": "Portrait",
   "lx.engines.portrait.sub": "background blur",
+  "lx.engines.eraser": "Eraser",
+  "lx.engines.eraser.sub": "small objects, MI-GAN",
   "lx.engines.eraserHd": "HD eraser",
   "lx.engines.eraserHd.sub": "large objects, LaMa",
   "lx.engines.film": "Burst mini-film",
@@ -3102,4 +3104,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.engines.later": "on first use",
   "lx.engines.all": "Download all now (≈{mb} MB)",
   "lx.engines.confirm": "Download all missing engines (≈{mb} MB)? On mobile data this may cost. Continue?",
+  'lx.magic.zoomHint': 'Pinch with two fingers to zoom',
+  'lx.magic.tapFailed': "Selection didn't download: paint with your finger",
+  'lx.magic.zoomReset': 'Reset',
 };

@@ -911,7 +911,10 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 
 /* „Magie”: poza pe care pictezi cu degetul ce dispare. */
 .lx-magic-canvas { max-width: 100%; max-height: calc(100dvh - 330px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); touch-action: none; border-radius: 6px; }
-.lx-magic .lx-enhance-stage { position: relative; }
+.lx-magic .lx-enhance-stage { position: relative; overflow: hidden; touch-action: none; }
+.lx-magic-zoom { transform-origin: 0 0; will-change: transform; max-width: 100%; display: flex; justify-content: center; }
+.lx-magic-canvas { display: block; }
+.lx-magic-zoomreset { position: absolute; top: 10px; right: 10px; z-index: 2; border: 0; border-radius: 999px; padding: 8px 14px; background: rgb(6 7 10 / .7); color: #fff; font: inherit; font-size: 13px; font-weight: 600; backdrop-filter: blur(8px); }
 .lx-magic-busy { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; justify-items: center; background: rgb(6 7 10 / .55); color: #fff; font-weight: 600; }
 
 /* Colajele cu modele: previzualizări 4:5, câte două pe rând. */
@@ -1319,3 +1322,38 @@ html, body { overflow-x: hidden; }
 .lx-engine-name b { font-size: 14px; }
 .lx-engine-name small { font-size: 12px; color: var(--text-dim); }
 .lx-engines .lx-btn { margin-top: 10px; }
+
+/* Galerie, partea de sus — aliniată pe o singură grilă (cerut: „mai ordonată, mai profesională”).
+   Toate rândurile au aceeași înălțime (40 px), aceleași colțuri (12 px) și aceleași distanțe. */
+.lx-screen:has(> .lx-seg.scroll) { gap: 12px; }
+.lx-screen > .lx-head { min-height: 48px; align-items: center; }
+.lx-screen > .lx-head .lx-title { font-size: 28px; line-height: 1; }
+.lx-screen > .lx-head .lx-head-actions { flex-wrap: nowrap; gap: 8px; }
+.lx-screen > .lx-head .lx-head-actions .lx-btn.small { min-height: 40px; height: 40px; padding: 0 14px; border-radius: 12px; white-space: nowrap; }
+/* File: text cu linie dedesubt, nu cinci pastile; se lipesc sus. */
+.lx-screen > .lx-seg.scroll { padding: 0 18px; gap: 4px; border-bottom: 1px solid var(--lx-line); }
+.lx-screen > .lx-seg.scroll button, :root[data-theme="light"] .lx-screen > .lx-seg.scroll button {
+  position: relative; height: 42px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--text-dim); font-size: 14.5px; font-weight: 500;
+}
+.lx-screen > .lx-seg.scroll button.on, :root[data-theme="light"] .lx-screen > .lx-seg.scroll button.on { background: transparent; color: var(--text); font-weight: 650; }
+.lx-screen > .lx-seg.scroll button.on::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2.5px; border-radius: 2px; background: var(--lx-grad); }
+.lx-screen > .lx-seg.scroll button:first-child { padding-left: 0; }
+.lx-screen > .lx-seg.scroll button:first-child.on::after { left: 0; }
+/* Căutarea și rândurile de sub ea. */
+.lx-wall-wrap { gap: 12px; }
+.lx-wall-wrap > .lx-search { height: 46px; border-radius: 14px; padding: 0 6px 0 14px; }
+.lx-wall-wrap > .lx-search > span { font-size: 18px; }
+.lx-wall-wrap .lx-folders { gap: 8px; }
+.lx-wall-wrap .lx-folders .lx-chip-btn { min-height: 36px; height: 36px; padding: 0 12px; border-radius: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.lx-wall-wrap .lx-folders .lx-chip-btn b { margin-left: 0; font-size: 12px; }
+/* Filtrele: un control segmentat pe toată lățimea + butonul de grilă, aceeași înălțime. */
+.lx-wall-bar { gap: 8px; }
+.lx-wall-seg { flex: 1; min-width: 0; display: flex; gap: 2px; height: 40px; padding: 3px; box-sizing: border-box; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--lx-line); }
+.lx-wall-seg button { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 6px; border: 0; border-radius: 9px; background: transparent; color: var(--text-dim); font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.lx-wall-seg button span { overflow: hidden; text-overflow: ellipsis; }
+.lx-wall-seg button b { font-family: var(--mono); font-size: 11px; font-weight: 500; opacity: .65; }
+.lx-wall-seg button.on { background: var(--lx-grad); color: #06070a; }
+.lx-wall-seg button.on b { opacity: .8; }
+.lx-density-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 40px; min-width: 52px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--lx-line); background: var(--surface-2); color: var(--text); }
+.lx-density-btn b { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text-dim); }
+@media (max-width: 370px) { .lx-wall-seg button { font-size: 12px; padding: 0 4px; } .lx-wall-seg button b { font-size: 10px; } }

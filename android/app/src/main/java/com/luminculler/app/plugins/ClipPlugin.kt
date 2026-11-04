@@ -153,7 +153,7 @@ class ClipPlugin : Plugin() {
     fun files(call: PluginCall) {
         val out = JSObject()
         val map = JSObject()
-        context.filesDir.listFiles()?.forEach { f -> if (f.isFile && (f.name.endsWith(".onnx") || f.name.endsWith(".json") || f.name.endsWith(".txt"))) map.put(f.name, f.length()) }
+        context.filesDir.listFiles()?.forEach { f -> if (f.isFile && (f.name.endsWith(".onnx") || f.name.endsWith(".json") || f.name.endsWith(".txt") || f.name.endsWith(".tflite"))) map.put(f.name, f.length()) }
         out.put("files", map)
         call.resolve(out)
     }

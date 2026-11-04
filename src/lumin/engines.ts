@@ -29,6 +29,7 @@ export const ENGINES: Engine[] = [
   { id: 'portrait', mb: 34, files: [
     { file: 'modnet_q.onnx', url: `${HF}/Xenova/modnet/resolve/main/onnx/model_quantized.onnx`, min: 5e6 },
     { file: 'depth_anything_v2_small_q.onnx', url: `${HF}/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx`, min: 20e6 }] },
+  { id: 'eraser', mb: 14, files: [{ file: 'migan_fp16.tflite', url: `${HF}/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite`, min: 10e6 }] },
   { id: 'eraserHd', mb: 208, files: [{ file: 'lama_fp32.onnx', url: `${HF}/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx`, min: 200e6 }] },
   { id: 'film', mb: 21, files: [{ file: 'rife49.onnx', url: `${HF}/yuvraj108c/rife-onnx/resolve/main/rife49_ensemble_True_scale_1_sim.onnx`, min: 18e6 }] }
 ];
@@ -83,4 +84,20 @@ export async function downloadAllEngines(): Promise<void> {
     await refreshEngines();
   }
   set({ busy: null, progress: 0 });
+}
+
+/** Un singur motor, chiar acum (de ex. selecția la deschiderea gumei). `true` dacă e gata. */
+export async function fetchEngine(id: string): Promise<boolean> {
+  const e = ENGINES.find(x => x.id === id);
+  if (!e || !isClipPlatform()) return false;
+  await refreshEngines();
+  if (engineReady(e)) return true;
+  try {
+    for (const f of e.files) {
+      if ((state.have[f.file] ?? 0) > f.min) continue;
+      await Native.fetchModel(f);
+    }
+  } catch { /* se vede mai jos */ }
+  await refreshEngines();
+  return engineReady(e);
 }

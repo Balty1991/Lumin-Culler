@@ -3181,6 +3181,8 @@ export const ro = {
   "lx.engines.select.sub": "guma, SlimSAM",
   "lx.engines.portrait": "Portret",
   "lx.engines.portrait.sub": "fundal estompat",
+  "lx.engines.eraser": "Gumă",
+  "lx.engines.eraser.sub": "obiecte mici, MI-GAN",
   "lx.engines.eraserHd": "Gumă HD",
   "lx.engines.eraserHd.sub": "obiecte mari, LaMa",
   "lx.engines.film": "Mini-film din serie",
@@ -3188,6 +3190,9 @@ export const ro = {
   "lx.engines.later": "la prima folosire",
   "lx.engines.all": "Descarcă tot acum (≈{mb} MB)",
   "lx.engines.confirm": "Descarc toate motoarele care lipsesc (≈{mb} MB). Pe date mobile poate costa. Continui?",
+  'lx.magic.zoomHint': 'Mărește cu două degete',
+  'lx.magic.tapFailed': 'Selecția nu s-a descărcat: colorează cu degetul',
+  'lx.magic.zoomReset': 'Înapoi',
 };
 
 export type TranslationKey = keyof typeof ro;

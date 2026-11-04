@@ -134,3 +134,33 @@ export function aiSize(w: number, h: number): { width: number; height: number } 
   const r64 = (v: number) => Math.max(256, Math.min(768, Math.round(v / 64) * 64));
   return { width: r64(w * k), height: r64(h * k) };
 }
+
+/**
+ * Zonele marcate separat (celule ale măștii micșorate). Semnele aflate la mai
+ * puțin de `gap` celule unul de altul țin de aceeași zonă. Fiecare zonă se
+ * șterge pe rând, cu decupajul ei, ca un obiect mic să nu se piardă într-o
+ * cutie uriașă cu toate semnele.
+ */
+export function maskComponents(mask: Uint8Array, w: number, h: number, gap = 3): Rect[] {
+  const seen = new Uint8Array(w * h);
+  const out: Rect[] = [];
+  for (let s = 0; s < mask.length; s++) {
+    if (!mask[s] || seen[s]) continue;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    const stack = [s];
+    seen[s] = 1;
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w, y = (i - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (let dy = -gap; dy <= gap; dy++) for (let dx = -gap; dx <= gap; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const n = ny * w + nx;
+        if (mask[n] && !seen[n]) { seen[n] = 1; stack.push(n); }
+      }
+    }
+    out.push({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+  }
+  return out;
+}

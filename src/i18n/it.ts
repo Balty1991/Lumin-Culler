@@ -1062,6 +1062,8 @@ export const dict: Record<string, string> = {
   "lx.engines.select.sub": "gomma, SlimSAM",
   "lx.engines.portrait": "Ritratto",
   "lx.engines.portrait.sub": "sfondo sfocato",
+  "lx.engines.eraser": "Gomma",
+  "lx.engines.eraser.sub": "oggetti piccoli, MI-GAN",
   "lx.engines.eraserHd": "Gomma HD",
   "lx.engines.eraserHd.sub": "oggetti grandi, LaMa",
   "lx.engines.film": "Mini-film dalla raffica",
@@ -1069,4 +1071,7 @@ export const dict: Record<string, string> = {
   "lx.engines.later": "al primo uso",
   "lx.engines.all": "Scarica tutto ora (≈{mb} MB)",
   "lx.engines.confirm": "Scaricare tutti i motori mancanti (≈{mb} MB)? Con i dati mobili può costare. Continuare?",
+  'lx.magic.zoomHint': 'Ingrandisci con due dita',
+  'lx.magic.tapFailed': 'Selezione non scaricata: colora con il dito',
+  'lx.magic.zoomReset': 'Indietro',
 };

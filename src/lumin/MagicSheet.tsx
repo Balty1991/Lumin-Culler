@@ -10,7 +10,8 @@ import { samAvailable, samPrepare, samSelect } from '../core/samSelect';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
-import { aiSize, fillMasked, maskBounds, type Rect } from './magic';
+import { aiSize, fillMasked, maskBounds, maskComponents, type Rect } from './magic';
+import { fetchEngine } from './engines';
 import { canSharpen, sharpUrl } from './sharp';
 
 /**
@@ -62,14 +63,27 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   const mask = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   /** „Atinge obiectul” (SlimSAM): pregătit o dată per poză, apoi fiecare atingere selectează. */
-  const [sam, setSam] = useState<'off' | 'busy' | 'ready'>(samAvailable() ? 'busy' : 'off');
+  const [sam, setSam] = useState<'off' | 'busy' | 'ready' | 'fail'>(samAvailable() ? 'busy' : 'off');
   const down = useRef<{ x: number; y: number; t: number } | null>(null);
-  useEffect(() => { prepareLargeEraser(); }, []);
+  const started = useRef(false);
+  /** Zoom cu două degete: `s` mărirea, `x/y` mutarea (px pe ecran). */
+  const [zoom, setZoom] = useState({ s: 1, x: 0, y: 0 });
+  const zoomRef = useRef(zoom);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; ox: number; oy: number; s: number; ux: number; uy: number } | null>(null);
+  const pinched = useRef(false);
+  useEffect(() => { void fetchEngine('eraser').catch(() => false); prepareLargeEraser(); }, []);
   useEffect(() => {
     if (!img || !samAvailable()) return;
     let alive = true;
     setSam('busy');
-    void samPrepare(img).then(ok => { if (alive) setSam(ok ? 'ready' : 'off'); });
+    // Modelul de selecție vine prin aceeași descărcare ca restul motoarelor (cu reluare);
+    // dacă nu merge, plugin-ul mai încearcă singur, iar la final se vede starea.
+    void (async () => {
+      await fetchEngine('select').catch(() => false);
+      const ok = await samPrepare(img);
+      if (alive) setSam(ok ? 'ready' : 'fail');
+    })();
     return () => { alive = false; };
   }, [img]);
 
@@ -124,19 +138,74 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     setPainted(false);
   };
 
-  const paint = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current || !mask.current || !img || result) return;
-    const box = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - box.left) / box.width) * img.width;
-    const y = ((e.clientY - box.top) / box.height) * img.height;
+  /** Pensula: aceeași grosime pe ecran, oricât de mult ai mărit (la zoom, semne mai fine). */
+  const paintAt = (el: HTMLCanvasElement, cx: number, cy: number) => {
+    if (!mask.current || !img || result) return;
+    const box = el.getBoundingClientRect();
+    const x = ((cx - box.left) / box.width) * img.width;
+    const y = ((cy - box.top) / box.height) * img.height;
     const ctx = mask.current.getContext('2d')!;
     ctx.fillStyle = 'rgb(255,60,90)';
     ctx.beginPath();
-    ctx.arc(x, y, Math.max(img.width, img.height) * 0.028, 0, Math.PI * 2);
+    ctx.arc(x, y, (Math.max(img.width, img.height) * 0.028) / zoomRef.current.s, 0, Math.PI * 2);
     ctx.fill();
     setPainted(true);
     redraw();
   };
+
+  // Degete: unul pictează (doar după ce se mișcă, ca atingerea să rămână „selectează”),
+  // două măresc și mută poza.
+  const onDown = (e: PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size >= 2) {
+      drawing.current = false; down.current = null; pinched.current = true;
+      const [a, b] = [...pointers.current.values()];
+      const z = zoomRef.current;
+      const wrap = e.currentTarget.parentElement!.getBoundingClientRect();
+      const ox = wrap.left - z.x, oy = wrap.top - z.y;
+      const cx = (a.x + b.x) / 2 - ox, cy = (a.y + b.y) / 2 - oy;
+      pinch.current = { d: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), ox, oy, s: z.s, ux: (cx - z.x) / z.s, uy: (cy - z.y) / z.s };
+      return;
+    }
+    if (pinched.current) return;
+    drawing.current = true; started.current = false;
+    down.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+  };
+  const onMove = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = pinch.current;
+    if (p && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const s = Math.max(1, Math.min(6, (p.s * Math.hypot(a.x - b.x, a.y - b.y)) / p.d));
+      const cx = (a.x + b.x) / 2 - p.ox, cy = (a.y + b.y) / 2 - p.oy;
+      const z = s === 1 ? { s: 1, x: 0, y: 0 } : { s, x: cx - p.ux * s, y: cy - p.uy * s };
+      zoomRef.current = z; setZoom(z);
+      return;
+    }
+    const d = down.current;
+    if (!drawing.current || !d) return;
+    if (!started.current) {
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+      started.current = true;
+      paintAt(e.currentTarget, d.x, d.y);
+    }
+    paintAt(e.currentTarget, e.clientX, e.clientY);
+  };
+  const onUp = (e: PointerEvent<HTMLCanvasElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 0 && pinched.current) { pinched.current = false; drawing.current = false; down.current = null; return; }
+    const d = down.current;
+    const was = drawing.current && !started.current;
+    drawing.current = false; down.current = null;
+    if (!was || !d || e.type === 'pointercancel') return;
+    // Atingere fără tras: selectează obiectul; fără selecție, lasă un semn de pensulă.
+    if (sam === 'ready' && performance.now() - d.t < 450) void tapSelect(e);
+    else paintAt(e.currentTarget, d.x, d.y);
+  };
+  const resetZoom = () => { zoomRef.current = { s: 1, x: 0, y: 0 }; setZoom(zoomRef.current); };
 
   const finishLocal = (mode: InpaintMode) => {
     if (!img || !mask.current) return false;
@@ -159,17 +228,82 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     return true;
   };
 
+  /** Bucata `r` din `src`, cu masca ei, trecută prin AI. Întoarce bucata redesenată (mărimea AI) sau null. */
+  const fillRegion = async (src: CanvasImageSource, r: Rect, how: 'native' | 'web' | 'cloud', mode: InpaintMode): Promise<ImageBitmap | HTMLCanvasElement | null> => {
+    if (!mask.current) return null;
+    const size = aiSize(r.w, r.h);
+    const [ic, ictx] = canvasOf(size.width, size.height);
+    ictx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, size.width, size.height);
+    const [mc, mctx] = canvasOf(size.width, size.height);
+    mctx.fillStyle = '#000';
+    mctx.fillRect(0, 0, size.width, size.height);
+    // Masca puțin mai lată decât zona pictată: marginea obiectului dispare și ea.
+    mctx.filter = 'blur(2px)';
+    mctx.drawImage(mask.current, r.x, r.y, r.w, r.h, 0, 0, size.width, size.height);
+    mctx.filter = 'none';
+    const md = mctx.getImageData(0, 0, size.width, size.height);
+    for (let i = 0; i < md.data.length; i += 4) {
+      const on = md.data[i] > 40 || md.data[i + 1] > 40 ? 255 : 0;
+      md.data[i] = md.data[i + 1] = md.data[i + 2] = on;
+      md.data[i + 3] = 255;
+    }
+    mctx.putImageData(md, 0, 0);
+    if (how === 'web') return eraseInBrowser(ic, mc).catch(() => null);
+    const [imageBlob, maskBlob] = await Promise.all([toBlob(ic, 'image/jpeg', 0.92), toBlob(mc, 'image/png')]);
+    if (!imageBlob || !maskBlob) return null;
+    const out = how === 'native'
+      ? await eraseOnDevice(imageBlob, maskBlob).then(b => (b ? { ok: true as const, image: b } : { ok: false as const }))
+      : await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
+    return out.ok ? createImageBitmap(out.image) : null;
+  };
+
+  /** Bucata redesenată, înapoi în poză: doar unde e masca, cu marginea estompată. */
+  const paste = (fctx: CanvasRenderingContext2D, ai: CanvasImageSource, r: Rect) => {
+    if (!mask.current) return;
+    const [patch, pctx] = canvasOf(r.w, r.h);
+    pctx.drawImage(ai, 0, 0, r.w, r.h);
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.filter = `blur(${Math.max(2, Math.round(Math.max(r.w, r.h) * 0.01))}px)`;
+    pctx.drawImage(mask.current, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+    pctx.filter = 'none';
+    fctx.drawImage(patch, r.x, r.y);
+  };
+
   const run = async (mode: InpaintMode) => {
     if (!img || !mask.current) return;
     setBusy(true);
     try {
-      // Guma merge pe telefon (MI-GAN), gratuit și fără internet; serverul doar pentru cer.
+      // Guma merge pe telefon (MI-GAN / LaMa), gratuit și fără internet.
       const native = mode === 'erase' && (await onDeviceEditAvailable()).erase;
       // În browser: același tip de model (MI-GAN), rulat în pagină, fără server.
       const web = mode === 'erase' && !native && !Capacitor.isNativePlatform();
       const online = !native && !web && cloudAvailable() && await ensureCloud(askConfirm, tr);
       if (!native && !web && !online) { finishLocal(mode); return; }
-      // Bucata trimisă: pentru gumă, cutia din jurul zonei (cu context); pentru cer, toată poza.
+      const [final, fctx] = canvasOf(img.width, img.height);
+      fctx.drawImage(img, 0, 0);
+      if (native || web) {
+        // Fiecare zonă marcată separat, cu decupajul ei (~2,2× zona, cu context în jur):
+        // un obiect mic rămâne mare în fața modelului, deci chiar dispare.
+        const step = 8;
+        const s = sampledMask(mask.current, step);
+        const zones = maskComponents(s.data, s.w, s.h, 3);
+        if (!zones.length) return;
+        let done = 0;
+        for (const z of zones) {
+          const bw = z.w * step, bh = z.h * step;
+          const side = Math.min(Math.max(img.width, img.height), Math.max(192, Math.max(bw, bh) * 2.2));
+          const w = Math.min(img.width, side), h = Math.min(img.height, side);
+          const x = Math.max(0, Math.min(img.width - w, z.x * step + bw / 2 - w / 2));
+          const y = Math.max(0, Math.min(img.height - h, z.y * step + bh / 2 - h / 2));
+          const r = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+          // Din poza deja curățată: zonele vecine nu-și aduc înapoi obiectele una alteia.
+          const ai = await fillRegion(final, r, native ? 'native' : 'web', mode);
+          if (ai) { paste(fctx, ai, r); done++; }
+        }
+        if (!done) { finishLocal(mode); return; }
+        setResult(final);
+        return;
+      }
       let r: Rect = { x: 0, y: 0, w: img.width, h: img.height };
       if (mode === 'erase') {
         const step = 8;
@@ -177,56 +311,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         const b = maskBounds(s.data, s.w, s.h);
         if (!b) return;
         r = { x: b.x * step, y: b.y * step, w: Math.min(img.width - b.x * step, b.w * step), h: Math.min(img.height - b.y * step, b.h * step) };
-        // Modelul de pe telefon are nevoie de context în jurul zonei: cutie cam pătrată, de ~2,2× zona.
-        if (native || web) {
-          const side = Math.min(Math.max(img.width, img.height), Math.max(160, Math.max(r.w, r.h) * 2.2));
-          const w = Math.min(img.width, side), h = Math.min(img.height, side);
-          const x = Math.max(0, Math.min(img.width - w, r.x + r.w / 2 - w / 2));
-          const y = Math.max(0, Math.min(img.height - h, r.y + r.h / 2 - h / 2));
-          r = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
-        }
       }
-      const size = aiSize(r.w, r.h);
-      const [ic, ictx] = canvasOf(size.width, size.height);
-      ictx.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, size.width, size.height);
-      const [mc, mctx] = canvasOf(size.width, size.height);
-      mctx.fillStyle = '#000';
-      mctx.fillRect(0, 0, size.width, size.height);
-      // Masca puțin mai lată decât zona pictată: marginea obiectului dispare și ea.
-      mctx.filter = 'blur(2px)';
-      mctx.drawImage(mask.current, r.x, r.y, r.w, r.h, 0, 0, size.width, size.height);
-      mctx.filter = 'none';
-      const md = mctx.getImageData(0, 0, size.width, size.height);
-      for (let i = 0; i < md.data.length; i += 4) {
-        const on = md.data[i] > 40 || md.data[i + 1] > 40 ? 255 : 0;
-        md.data[i] = md.data[i + 1] = md.data[i + 2] = on;
-        md.data[i + 3] = 255;
-      }
-      mctx.putImageData(md, 0, 0);
-      let ai: ImageBitmap | HTMLCanvasElement;
-      if (web) {
-        const filled = await eraseInBrowser(ic, mc).catch(() => null);
-        if (!filled) { finishLocal(mode); return; }
-        ai = filled;
-      } else {
-      const [imageBlob, maskBlob] = await Promise.all([toBlob(ic, 'image/jpeg', 0.92), toBlob(mc, 'image/png')]);
-      if (!imageBlob || !maskBlob) return;
-      const out = native
-        ? await eraseOnDevice(imageBlob, maskBlob).then(b => (b ? { ok: true as const, image: b } : { ok: false as const }))
-        : await cloudInpaint(mode, imageBlob, maskBlob, size.width, size.height);
-      if (!out.ok) { finishLocal(mode); return; }
-      ai = await createImageBitmap(out.image);
-      }
-      // Înapoi în poză: rezultatul, doar unde e masca, cu marginea estompată.
-      const [final, fctx] = canvasOf(img.width, img.height);
-      fctx.drawImage(img, 0, 0);
-      const [patch, pctx] = canvasOf(r.w, r.h);
-      pctx.drawImage(ai, 0, 0, r.w, r.h);
-      pctx.globalCompositeOperation = 'destination-in';
-      pctx.filter = `blur(${Math.max(2, Math.round(Math.max(r.w, r.h) * 0.01))}px)`;
-      pctx.drawImage(mask.current, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
-      pctx.filter = 'none';
-      fctx.drawImage(patch, r.x, r.y);
+      const ai = await fillRegion(img, r, 'cloud', mode);
+      if (!ai) { finishLocal(mode); return; }
+      paste(fctx, ai, r);
       setResult(final);
     } finally { setBusy(false); }
   };
@@ -262,22 +350,18 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         {!img && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {img && (
-          <canvas ref={view} className="lx-magic-canvas"
-            onPointerDown={e => { drawing.current = true; down.current = { x: e.clientX, y: e.clientY, t: performance.now() }; e.currentTarget.setPointerCapture(e.pointerId); paint(e); }}
-            onPointerMove={paint}
-            onPointerUp={e => {
-              drawing.current = false;
-              const d = down.current; down.current = null;
-              if (sam === 'ready' && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10 && performance.now() - d.t < 350) void tapSelect(e);
-            }}
-            onPointerCancel={() => { drawing.current = false; down.current = null; }} />
+          <div className="lx-magic-zoom" style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})` }}>
+            <canvas ref={view} className="lx-magic-canvas"
+              onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+          </div>
         )}
+        {img && zoom.s > 1 && <button className="lx-magic-zoomreset" onClick={resetZoom}>⤢ {tr('lx.magic.zoomReset')}</button>}
         {busy && <div className="lx-magic-busy"><span className="lx-spinner" />{tr('lx.magic.working')}</div>}
       </div>
       <div className="lx-viewer-info">
         {!result ? (
           <>
-            <p className="lx-hint center">{tr(sam === 'ready' ? 'lx.magic.tapHint' : 'lx.magic.eraseHint')}{sam === 'busy' && <> · {tr('lx.magic.tapPreparing')}</>}</p>
+            <p className="lx-hint center">{tr(sam === 'ready' ? 'lx.magic.tapHint' : 'lx.magic.eraseHint')}{sam === 'busy' && <> · {tr('lx.magic.tapPreparing')}</>}{sam === 'fail' && <> · {tr('lx.magic.tapFailed')}</>} · {tr('lx.magic.zoomHint')}</p>
             <div className="lx-decide-actions">
               <button className="lx-btn ghost" disabled={!painted || busy} onClick={() => { clearMask(); redraw(); }}>{tr('lx.magic.clear')}</button>
               <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('erase')}>{tr('lx.magic.eraseGo')}</button>

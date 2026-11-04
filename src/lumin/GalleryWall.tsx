@@ -447,18 +447,19 @@ export function GalleryWall() {
       )}
       {plain && (
         <div className="lx-wall-bar">
-          <div className="lx-chips lx-wall-filters">
+          <div className="lx-wall-seg" role="tablist">
             {(['all', 'kept', 'notToday'] as Filter[]).map(f => (
-              <button key={f} className={filter === f ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f))}>
-                {tr(`lx.wall.${f}`)} <b>{count(f)}</b>
+              <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'on' : ''} onClick={() => withTransition(() => setFilter(f))}>
+                <span>{tr(`lx.wall.${f}`)}</span> <b>{count(f)}</b>
               </button>
             ))}
           </div>
-          <div className="lx-density" role="group" aria-label={tr('lx.wall.density')}>
-            <button onClick={e => setDensity(Math.min(5, density + 1) as Density, e.currentTarget)} disabled={density >= 5} aria-label={tr('lx.wall.smaller')}>−</button>
-            <span aria-hidden="true">{density}</span>
-            <button onClick={e => setDensity(Math.max(2, density - 1) as Density, e.currentTarget)} disabled={density <= 2} aria-label={tr('lx.wall.bigger')}>+</button>
-          </div>
+          {/* Mărimea grilei: un singur buton care trece prin 2→5 coloane (și ciupitul merge). */}
+          <button className="lx-density-btn" aria-label={`${tr('lx.wall.density')}: ${density}`}
+            onClick={e => setDensity((density >= 5 ? 2 : density + 1) as Density, e.currentTarget)}>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" d="M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z"/></svg>
+            <b>{density}</b>
+          </button>
         </div>
       )}
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}

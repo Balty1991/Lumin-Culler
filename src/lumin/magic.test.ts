@@ -52,3 +52,15 @@ describe('magic', () => {
     expect(aiSize(1000, 1000)).toEqual({ width: 512, height: 512 });
   });
 });
+
+describe('maskComponents', () => {
+  it('separă semnele depărtate și le unește pe cele apropiate', async () => {
+    const { maskComponents } = await import('./magic');
+    const w = 40, h = 20, m = new Uint8Array(w * h);
+    m[2 * w + 2] = 1; m[2 * w + 4] = 1; // aproape: o zonă
+    m[15 * w + 35] = 1; // departe: altă zonă
+    const c = maskComponents(m, w, h, 3);
+    expect(c.length).toBe(2);
+    expect(c[0]).toEqual({ x: 2, y: 2, w: 3, h: 1 });
+  });
+});

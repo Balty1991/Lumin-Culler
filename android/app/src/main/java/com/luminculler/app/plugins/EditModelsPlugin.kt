@@ -17,6 +17,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 private const val MIGAN_FILE = "migan_fp16.tflite"
+private const val MIGAN_URL = "https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite"
 private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
@@ -144,8 +145,10 @@ class EditModelsPlugin : Plugin() {
         if (hasAsset(file)) return context.assets.open(file).use { it.readBytes() }
         val f = java.io.File(context.filesDir, file)
         if (f.length() > minSize) return f.readBytes()
-        val conn = java.net.URL("$MODELS_URL/$file").openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 15000; conn.readTimeout = 90000
+        // MI-GAN direct de pe Hugging Face (ca restul motoarelor); celelalte, de pe site.
+        val url = if (file == MIGAN_FILE) MIGAN_URL else "$MODELS_URL/$file"
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 15000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
         try {
             if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
             val tmp = java.io.File(context.filesDir, "$file.part")
