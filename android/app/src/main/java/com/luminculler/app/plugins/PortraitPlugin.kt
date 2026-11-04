@@ -41,6 +41,11 @@ class PortraitPlugin : Plugin() {
     private var modnet: OrtSession? = null
     private var depth: OrtSession? = null
     private var lastDepth: FloatArray? = null
+    /** Ultima poză: subiectul și adâncimea, ca schimbarea tăriei/focusului să fie instantă. */
+    private var cacheKey: String? = null
+    private var cacheMatte: FloatArray? = null
+    private var cacheNear: FloatArray? = null
+    private var cacheDepth: FloatArray? = null
 
     override fun handleOnDestroy() {
         executor.shutdown()
@@ -212,9 +217,17 @@ class PortraitPlugin : Plugin() {
             val w = src.width; val h = src.height
 
             // 1. Cine e subiectul: omul (MODNet) sau ce e aproape (Depth Anything).
-            val matte = personMatte(src)
+            val key = uri ?: "b64:${b64!!.length}:${b64.hashCode()}"
+            val matte: FloatArray
+            val near: FloatArray
+            if (key == cacheKey && cacheMatte != null && cacheNear != null) {
+                matte = cacheMatte!!; near = cacheNear!!; lastDepth = cacheDepth
+            } else {
+                matte = personMatte(src)
+                near = nearMap(src) // și umple lastDepth: adâncimea, pentru estomparea treptată
+                cacheKey = key; cacheMatte = matte; cacheNear = near; cacheDepth = lastDepth
+            }
             val personShare = matte.count { it > 0.5f }.toFloat() / matte.size
-            val near = nearMap(src) // și umple lastDepth: adâncimea, pentru estomparea treptată
             fun at(map: FloatArray, side: Int, x: Float, y: Float) =
                 map[(y * (side - 1)).roundToInt().coerceIn(0, side - 1) * side + (x * (side - 1)).roundToInt().coerceIn(0, side - 1)]
             // Atingerea pe om → omul; atingerea în altă parte → planul de acolo (după adâncime).

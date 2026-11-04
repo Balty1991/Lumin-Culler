@@ -83,6 +83,10 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   const [sam, setSam] = useState<'off' | 'busy' | 'ready' | 'fail'>(samAvailable() ? 'busy' : 'off');
   const down = useRef<{ x: number; y: number; t: number } | null>(null);
   const started = useRef(false);
+  const strokes = useRef<Array<{ kind: 'brush'; r: number; pts: Array<[number, number]> } | { kind: 'sam'; sel: CanvasImageSource }>>([]);
+  const newStroke = useRef(true);
+  /** Grosimea pensulei, din latura pozei (mică / medie / mare). */
+  const [brush, setBrush] = useState(0.028);
   /** Zoom cu două degete: `s` mărirea, `x/y` mutarea (px pe ecran). */
   const [zoom, setZoom] = useState({ s: 1, x: 0, y: 0 });
   const zoomRef = useRef(zoom);
@@ -110,17 +114,40 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const box = e.currentTarget.getBoundingClientRect();
     const sel = await samSelect((e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
     if (!sel || !mask.current) return;
+    strokes.current.push({ kind: 'sam', sel });
+    drawStroke(strokes.current[strokes.current.length - 1]);
+    setPainted(true);
+    redraw();
+  };
+
+  /** Semnele, ca listă: „pas înapoi” scoate ultimul și redesenează masca din rest. */
+  type Stroke = { kind: 'brush'; r: number; pts: Array<[number, number]> } | { kind: 'sam'; sel: CanvasImageSource };
+  const drawStroke = (st: Stroke) => {
+    if (!img || !mask.current) return;
+    const ctx = mask.current.getContext('2d')!;
+    if (st.kind === 'brush') {
+      ctx.fillStyle = 'rgb(255,60,90)';
+      for (const [x, y] of st.pts) { ctx.beginPath(); ctx.arc(x, y, st.r, 0, Math.PI * 2); ctx.fill(); }
+      return;
+    }
     const [tint, tctx] = canvasOf(img.width, img.height);
     // Puțin mai largă decât obiectul: guma are nevoie de margine ca să nu lase contur.
     const r = Math.max(2, Math.round(Math.max(img.width, img.height) * 0.008));
     for (const [dx, dy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r], [r, -r], [-r, r]]) {
-      tctx.drawImage(sel, dx, dy, img.width, img.height);
+      tctx.drawImage(st.sel, dx, dy, img.width, img.height);
     }
     tctx.globalCompositeOperation = 'source-in';
     tctx.fillStyle = 'rgb(255,60,90)';
     tctx.fillRect(0, 0, img.width, img.height);
-    mask.current.getContext('2d')!.drawImage(tint, 0, 0);
-    setPainted(true);
+    ctx.drawImage(tint, 0, 0);
+  };
+  const undo = () => {
+    const m = mask.current;
+    if (!m) return;
+    strokes.current.pop();
+    m.getContext('2d')!.clearRect(0, 0, m.width, m.height);
+    strokes.current.forEach(drawStroke);
+    setPainted(strokes.current.length > 0);
     redraw();
   };
 
@@ -150,6 +177,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   });
 
   const clearMask = () => {
+    strokes.current = [];
     const m = mask.current;
     m?.getContext('2d')?.clearRect(0, 0, m.width, m.height);
     setPainted(false);
@@ -161,11 +189,11 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
     const box = el.getBoundingClientRect();
     const x = ((cx - box.left) / box.width) * img.width;
     const y = ((cy - box.top) / box.height) * img.height;
-    const ctx = mask.current.getContext('2d')!;
-    ctx.fillStyle = 'rgb(255,60,90)';
-    ctx.beginPath();
-    ctx.arc(x, y, (Math.max(img.width, img.height) * 0.028) / zoomRef.current.s, 0, Math.PI * 2);
-    ctx.fill();
+    const r = (Math.max(img.width, img.height) * brush) / zoomRef.current.s;
+    let st = strokes.current[strokes.current.length - 1];
+    if (!st || st.kind !== 'brush' || newStroke.current) { st = { kind: 'brush', r, pts: [] }; strokes.current.push(st); newStroke.current = false; }
+    st.pts.push([x, y]);
+    drawStroke({ kind: 'brush', r: st.r, pts: [[x, y]] });
     setPainted(true);
     redraw();
   };
@@ -186,7 +214,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
       return;
     }
     if (pinched.current) return;
-    drawing.current = true; started.current = false;
+    drawing.current = true; started.current = false; newStroke.current = true;
     down.current = { x: e.clientX, y: e.clientY, t: performance.now() };
   };
   const onMove = (e: PointerEvent<HTMLCanvasElement>) => {
@@ -386,6 +414,16 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
         {!result ? (
           <>
             <p className="lx-hint center">{tr(sam === 'ready' ? 'lx.magic.tapHint' : 'lx.magic.eraseHint')}{sam === 'busy' && <> · {tr('lx.magic.tapPreparing')}</>}{sam === 'fail' && <> · {tr('lx.magic.tapFailed')}</>} · {tr('lx.magic.zoomHint')}</p>
+            <div className="lx-magic-tools">
+              <div className="lx-seg small" role="radiogroup" aria-label={tr('lx.magic.brush')}>
+                {[0.014, 0.028, 0.05].map(b => (
+                  <button key={b} role="radio" aria-checked={brush === b} className={brush === b ? 'on' : ''} onClick={() => setBrush(b)} aria-label={tr('lx.magic.brush')}>
+                    <span className="lx-brush-dot" style={{ width: b * 360, height: b * 360 }} />
+                  </button>
+                ))}
+              </div>
+              <button className="lx-btn ghost small" disabled={!painted || busy} onClick={undo}>↶ {tr('lx.magic.undo')}</button>
+            </div>
             <div className="lx-decide-actions">
               <button className="lx-btn ghost" disabled={!painted || busy} onClick={() => { clearMask(); redraw(); }}>{tr('lx.magic.clear')}</button>
               <button className="lx-btn primary" disabled={!painted || busy} onClick={() => void run('erase')}>{tr('lx.magic.eraseGo')}</button>

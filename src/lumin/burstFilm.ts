@@ -8,6 +8,7 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 import { extensionFor, pickMimeType } from '../core/recapVideoRender';
 import { loadEditable } from './sharp';
 import { fetchEngine } from './engines';
+import { logError } from '../core/errorLog';
 
 interface RifeApi { between(o: { a: string; b: string; steps: number }): Promise<{ frames: string[]; width: number; height: number }> }
 const Rife = registerPlugin<RifeApi>('Rife');
@@ -100,7 +101,7 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
         const r = await Rife.between({ a: keys[i], b: keys[i + 1], steps });
         mids = await Promise.all(r.frames.map(decode));
       } catch (e) {
-        console.warn('RIFE', e);
+        logError('rife', e instanceof Error ? e.message : String(e), 'burstFilm');
         rife = false;
       }
     }

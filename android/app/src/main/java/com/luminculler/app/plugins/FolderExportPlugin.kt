@@ -194,21 +194,26 @@ class FolderExportPlugin : Plugin() {
 
     private fun copyOne(source: Uri, album: String, displayName: String): Boolean {
         val resolver = context.contentResolver
-        val mime = resolver.getType(source) ?: "image/jpeg"
+        val lower = displayName.lowercase()
+        // Mini-filmul din serie e video: merge în Movies/Cherrypic, în colecția de video.
+        val isVideo = lower.endsWith(".mp4") || lower.endsWith(".webm")
+        val mime = resolver.getType(source)
+            ?: if (lower.endsWith(".mp4")) "video/mp4" else if (lower.endsWith(".webm")) "video/webm" else "image/jpeg"
         if (Build.VERSION.SDK_INT >= 29) {
             val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
-                put(MediaStore.Images.Media.MIME_TYPE, mime)
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Cherrypic/$album")
-                put(MediaStore.Images.Media.IS_PENDING, 1)
+                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, if (isVideo) "Movies/Cherrypic/$album" else "Pictures/Cherrypic/$album")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val dest = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+            val collection = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val dest = resolver.insert(collection, values) ?: return false
             return try {
                 val input = resolver.openInputStream(source) ?: throw IllegalStateException("sursa")
                 val output = resolver.openOutputStream(dest) ?: throw IllegalStateException("copia")
                 input.use { inn -> output.use { out -> inn.copyTo(out) } }
                 values.clear()
-                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 resolver.update(dest, values, null, null)
                 true
             } catch (_: Exception) {

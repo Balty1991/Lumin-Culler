@@ -33,7 +33,9 @@ import { findSimilarPhotos } from '../core/similarPhotos';
 import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable, makeBurstFilm } from './burstFilm';
-import { shareCollage } from './collage';
+import { FilmSheet } from './FilmSheet';
+import { BurstTidy } from './BurstTidy';
+import { logError } from '../core/errorLog';
 import { saveEditedBlob } from './saveEdited';
 import { EnhanceSheet } from './Enhance';
 import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
@@ -462,6 +464,7 @@ export function GalleryWall() {
           </button>
         </div>
       )}
+      {filter === 'all' && plain && <BurstTidy photos={photos} />}
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}
       {list.length === 0 && <p className="lx-empty">{tr('lx.wall.empty')}</p>}
       {months.map(m => {
@@ -622,16 +625,17 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const burstIds = useStore(s => (p.groupId ? s.photos.filter(x => x.groupId === p.groupId).sort((a, b) => (a.capturedAt ?? 0) - (b.capturedAt ?? 0)).map(x => x.id).slice(0, 6).join(',') : ''));
   const [filmBusy, setFilmBusy] = useState(false);
   const [filmPct, setFilmPct] = useState(0);
+  const [film, setFilm] = useState<{ blob: Blob; ext: string } | null>(null);
   const makeFilm = async () => {
     setFilmBusy(true);
     try {
       useStore.getState().setNotice(tr('lx.burstFilm.working'));
       const r = await makeBurstFilm(burstIds.split(','), f => setFilmPct(f));
-      if (r) await shareCollage(r.blob, `cherrypic-miscare-${Date.now()}.${r.ext}`, '');
+      if (r) setFilm(r);
       else useStore.getState().setNotice(tr('lx.burstFilm.noPhotos'));
     } catch (e) {
       // Motorul (RIFE) nu s-a descărcat sau n-a rulat: spunem asta, nu „telefonul nu poate”.
-      console.warn('burst film', e);
+      logError('film', e instanceof Error ? e.message : String(e), 'GalleryWall');
       useStore.getState().setNotice(tr('lx.burstFilm.engineFailed'));
     } finally { setFilmBusy(false); setFilmPct(0); }
   };
@@ -851,6 +855,10 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           </button>
         )}
         <CloudLine id={p.id} />
+        {/* Ce vede AI-ul în poză (Florence-2, pe telefon). Modelul scrie în engleză. */}
+        {p.aiDescription && p.aiDescription.trim().length > 8 && (
+          <p className="lx-ai-caption"><Icon name="sparkle" size={14} /> <span><small>{tr('lx.viewer.aiSees')}</small> {p.aiDescription.trim()}</span></p>
+        )}
         <div className="lx-chips">
           <span className={`lx-chip ${p.status === 'selected' ? 'good' : p.status === 'rejected' ? 'bad' : 'info'}`}>
             {tr(p.status === 'selected' ? 'lx.wall.state.kept' : p.status === 'rejected' ? 'lx.wall.state.notToday' : 'lx.wall.state.waiting')}
@@ -902,6 +910,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
+      {film && <FilmSheet film={film} onClose={() => setFilm(null)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
       {selling && <AiRetouch photo={p} kind="cutout" onClose={() => setSelling(false)} />}
       {texting && <TextSheet photo={p} onClose={() => setTexting(false)} />}

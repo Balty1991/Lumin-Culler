@@ -7,6 +7,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
+import { logError } from '../core/errorLog';
 
 const HF = 'https://huggingface.co';
 const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
@@ -79,8 +80,9 @@ export async function downloadEngine(id: string): Promise<boolean> {
       if ((state.have[f.file] ?? 0) > f.min) continue;
       await Native.fetchModel(f);
     }
-  } catch {
+  } catch (err) {
     set({ error: e.id });
+    logError('engine', `${e.id}: ${err instanceof Error ? err.message : String(err)}`, 'engines');
   }
   await refreshEngines();
   set({ busy: null, progress: 0 });

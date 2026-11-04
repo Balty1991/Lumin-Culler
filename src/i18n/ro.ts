@@ -3199,6 +3199,16 @@ export const ro = {
   'lx.edit.lowRes': "Am deschis o copie mică a pozei: originalul nu s-a putut citi.",
   'lx.engines.get': "Descarcă",
   'lx.engines.retry': "Reîncearcă",
+  'lx.magic.brush': "Pensula",
+  'lx.magic.undo': "Înapoi",
+  'lx.viewer.aiSees': "AI-ul vede (în engleză):",
+  'lx.burstFilm.save': "Salvează în galerie",
+  'lx.burstFilm.saved': "Filmul e în galerie, în Movies/Cherrypic/Editate.",
+  'lx.burstTidy.title': "{count} poze în plus din serii",
+  'lx.burstTidy.sub': "{groups} serii · rămâne cea mai bună din fiecare",
+  'lx.burstTidy.confirm': "În {groups} serii rămâne doar poza cea mai bună (sau cea aleasă de tine); celelalte {count} trec la „Nu azi”. Nu se șterge nimic. Continui?",
+  'lx.burstTidy.go': "Fă ordine",
+  'lx.burstTidy.done': "Gata: {count} poze din serii au trecut la „Nu azi”.",
 };
 
 export type TranslationKey = keyof typeof ro;

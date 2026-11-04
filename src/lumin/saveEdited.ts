@@ -4,8 +4,8 @@ import { copyAlbumToPictures } from '../core/albumExport';
 import { blobToBase64 } from './collage';
 
 /** O poză făcută în Cherrypic (magie, text), salvată ca poză nouă în Pictures/Cherrypic/Editate. */
-export async function saveEditedBlob(blob: Blob, prefix: string): Promise<boolean> {
-  const name = `cherrypic-${prefix}-${Date.now()}.jpg`;
+export async function saveEditedBlob(blob: Blob, prefix: string, ext = 'jpg'): Promise<boolean> {
+  const name = `cherrypic-${prefix}-${Date.now()}.${ext}`;
   // În browser nu există galeria telefonului: poza se descarcă (înainte dădea „N-a mers”).
   if (!Capacitor.isNativePlatform()) {
     const url = URL.createObjectURL(blob);
