@@ -3008,4 +3008,7 @@ export const en: Record<TranslationKey, string> = {
   "ritual.kept.one": "kept",
   "quiz.needMore": "Training needs at least 8 photos. Add a few and try again.",
   "store.delete.protectedPeople": "Kept {count} photos of your people: they are never bulk-deleted.",
+  "ritual.notify.ask": "Want a heads-up in the evening when there are new photos to pick? Only on days with photos, once.",
+  "ritual.notify.yes": "Yes, remind me in the evening",
+  "ritual.notify.no": "Not now",
 };

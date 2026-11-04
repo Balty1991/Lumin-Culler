@@ -706,6 +706,18 @@ interface StageOneReady {
   rawMeta?: RawExifMeta;
 }
 
+/** Ca mai jos, dar micșorarea la 48 px o face browserul în afara firului principal. */
+async function paperScoreOffMain(bitmap: ImageBitmap): Promise<number> {
+  try {
+    const tiny = await createImageBitmap(bitmap, { resizeWidth: 48, resizeHeight: 48, resizeQuality: 'low' } as ImageBitmapOptions);
+    const s = paperScoreFromBitmap(tiny);
+    tiny.close();
+    return s;
+  } catch {
+    return paperScoreFromBitmap(bitmap);
+  }
+}
+
 function paperScoreFromBitmap(bitmap: ImageBitmap): number {
   try {
     const canvas = document.createElement('canvas');
@@ -878,7 +890,7 @@ async function stageOnePrepare(file: File, mediaUri?: string, precomputed?: Stag
     ({ lqip, dHash, w, h, sharpness, exposure } = sync);
   }
 
-  const paperScore = paperScoreFromBitmap(kept ?? bitmap);
+  const paperScore = await paperScoreOffMain(kept ?? bitmap);
   const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, paperScore, bitmap: kept, rawMeta };
   await saveStageOne({
     key, dHash, width: w, height: h, sharpness, exposure, paperScore,

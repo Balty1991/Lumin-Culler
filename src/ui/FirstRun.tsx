@@ -61,7 +61,8 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
     // oricând cu „Continuă citirea” pe Azi).
     stopGalleryReader();
     dismissWelcome();
-    askNotifications();
+    // Alegerea de mână nu are import în fundal: notificările se cer abia după primul
+    // ritual terminat, când omul știe la ce folosesc (raportul de cercetare).
     onPickManually();
   };
   const auto = async () => {

@@ -3094,6 +3094,9 @@ export const ro = {
   "ritual.kept.one": "păstrată",
   "quiz.needMore": "Pentru antrenare îmi trebuie cel puțin 8 poze. Adaugă câteva și încearcă din nou.",
   "store.delete.protectedPeople": "Am păstrat {count} poze cu oamenii tăi: pe ele nu le șterg în bloc.",
+  "ritual.notify.ask": "Vrei să-ți spun seara când ai poze noi de ales? Doar în zilele cu poze, o dată.",
+  "ritual.notify.yes": "Da, anunță-mă seara",
+  "ritual.notify.no": "Nu acum",
 };
 
 export type TranslationKey = keyof typeof ro;

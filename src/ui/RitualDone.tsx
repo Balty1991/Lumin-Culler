@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { recordRitualDay, readRitualDays, streakOf } from '../core/ritualStreak';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { checkNotificationAccess, isNativeNotificationsAvailable, requestNotificationAccess } from '../core/nativeNotifications';
 import { t, plural } from '../i18n';
 
 /**
@@ -19,6 +20,20 @@ export function RitualDone({ ids, decided }: { ids: readonly string[]; decided: 
   const [streak, setStreak] = useState(() => streakOf(readRitualDays()));
   const [trashing, setTrashing] = useState(false);
   const [trashed, setTrashed] = useState<number | null>(null);
+  // După primul ritual: o singură întrebare despre notificarea de seară, cu motivul
+  // spus pe ecran (opt-in-ul cerut în context e mult mai mare decât la prima pornire).
+  const [notify, setNotify] = useState<'ask' | 'done' | null>(null);
+  useEffect(() => {
+    if (!isNativeNotificationsAvailable() || decided === 0) return;
+    let asked = false;
+    try { asked = localStorage.getItem('lx.notifyAsked') === '1'; } catch { asked = true; }
+    if (asked) return;
+    void checkNotificationAccess().then(a => { if (a === 'denied') setNotify('ask'); }).catch(() => {});
+  }, [decided]);
+  const askNotify = () => {
+    try { localStorage.setItem('lx.notifyAsked', '1'); } catch { /* fără stocare */ }
+    void requestNotificationAccess().catch(() => 'denied').finally(() => setNotify('done'));
+  };
 
   useEffect(() => {
     if (decided > 0) setStreak(recordRitualDay());
@@ -63,6 +78,13 @@ export function RitualDone({ ids, decided }: { ids: readonly string[]; decided: 
         </button>
       )}
       {trashed !== null && <p className="rd-note">{tr('ritual.trashed', { count: trashed })}</p>}
+      {notify === 'ask' && (
+        <div className="rd-notify">
+          <p className="rd-note">{tr('ritual.notify.ask')}</p>
+          <button className="v3-outline-btn" onClick={askNotify}>{tr('ritual.notify.yes')}</button>
+          <button className="lx-link" onClick={() => { try { localStorage.setItem('lx.notifyAsked', '1'); } catch { /* */ } setNotify(null); }}>{tr('ritual.notify.no')}</button>
+        </div>
+      )}
       {isNativeMediaLibraryAvailable() && rejectedOnPhone > 0 && trashed === null && <p className="rd-note">{tr('ritual.trashHint')}</p>}
     </div>
   );

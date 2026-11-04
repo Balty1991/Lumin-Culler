@@ -983,4 +983,7 @@ export const dict: Record<string, string> = {
   "ritual.kept.one": "gardée",
   "quiz.needMore": "Pour l’entraînement, il me faut au moins 8 photos. Ajoute-en quelques-unes et réessaie.",
   "store.delete.protectedPeople": "J’ai gardé {count} photos de tes proches : elles ne sont jamais supprimées en lot.",
+  "ritual.notify.ask": "Je te préviens le soir quand il y a de nouvelles photos à trier ? Seulement les jours avec photos, une fois.",
+  "ritual.notify.yes": "Oui, préviens-moi le soir",
+  "ritual.notify.no": "Pas maintenant",
 };

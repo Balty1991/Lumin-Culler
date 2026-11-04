@@ -447,3 +447,4 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .hiw-grid.s2 .hiw-tile.k, .hiw-grid.s3 .hiw-tile.k { transform: scale(1.08); box-shadow: 0 0 0 2px var(--pick), 0 10px 24px -8px rgb(var(--pick-rgb) / .7); }
 .hiw-text { max-width: 340px; text-align: center; font-size: 17px; line-height: 1.45; color: var(--text); min-height: 76px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .hiw-tile { transition: none; } }
+.rd-notify { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 6px; }
