@@ -72,7 +72,16 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
       <div className="lx-progress small"><i style={{ width: `${Math.round((faceProgress.done / faceProgress.total) * 100)}%` }} /></div>
     </div>
   );
-  if (!people.length && !unknown.length && !loose.length) return <>{learning}<p className="lx-empty small">{tr('lx.brain.peopleNone')}</p></>;
+  if (!people.length && !unknown.length && !loose.length) return (
+    <>
+      {learning}
+      <div className="lx-empty-card">
+        <span className="lx-empty-icon" aria-hidden="true">👨‍👩‍👧</span>
+        <b>{tr('lx.people.emptyTitle')}</b>
+        <p>{tr('lx.brain.peopleNone')}</p>
+      </div>
+    </>
+  );
 
   return (
     <>

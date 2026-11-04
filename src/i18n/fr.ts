@@ -1016,4 +1016,5 @@ export const dict: Record<string, string> = {
   'lx.enhance.pureUndo': "Corriger à nouveau",
   'lx.recap.beauty.title': "Tes {count} plus belles du mois",
   'lx.recap.beauty.sub': "Choisies par l’IA pour leur beauté, au plus une par heure.",
+  'lx.people.emptyTitle': "Tes proches apparaissent ici",
 };

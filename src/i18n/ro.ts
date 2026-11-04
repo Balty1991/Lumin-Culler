@@ -3135,6 +3135,7 @@ export const ro = {
   'lx.enhance.pureUndo': "Repară automat",
   'lx.recap.beauty.title': "Cele mai frumoase {count} din ultima lună",
   'lx.recap.beauty.sub': "Alese de AI după cât de frumoase sunt, cel mult una pe oră.",
+  'lx.people.emptyTitle': "Oamenii tăi apar aici",
 };
 
 export type TranslationKey = keyof typeof ro;

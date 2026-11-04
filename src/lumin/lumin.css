@@ -647,7 +647,7 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-hero-tile > img { display: none; }
 .lx-hero-badge { align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px;
   color: #06070a; background: var(--lx-grad); margin-bottom: 4px; }
-.lx-hero-caption b { font-size: 30px; letter-spacing: -0.02em; text-transform: capitalize; }
+.lx-hero-caption b { font-size: 30px; letter-spacing: -0.02em; }
 
 /* Bara de timp */
 .lx-rail { position: fixed; right: 0; top: 150px; bottom: 110px; width: 34px; z-index: 30; touch-action: none; opacity: 0; transition: opacity .35s; }
@@ -791,7 +791,8 @@ body.lx-viewer-open .lx-hero-media img { animation-play-state: paused; }
 .lx-sheet-list { display: flex; flex-direction: column; gap: 6px; }
 .lx-sheet-list .lx-row { display: flex; justify-content: space-between; align-items: center; }
 .lx-head-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.lx-coverage { display: flex; flex-direction: column; gap: 12px; }
+.lx-coverage { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.lx-coverage .lx-progress { max-width: none; margin-top: 6px; }
 /* „După” stă exact peste „Înainte”: pânza nu mai dă ea mărimea cadrului
    (la 1600 px lărgea grila, iar poza ieșea mai mare decât „Înainte”). */
 .lx-enhance-frame > .lx-enhance-after { position: absolute; inset: 0; }
@@ -1249,9 +1250,15 @@ html, body { overflow-x: hidden; }
 /* Rânduri care se derulează lateral: se estompează la capăt, nu se taie brusc
    (semn că mai e ceva la dreapta, ca în aplicațiile de sistem moderne). */
 .lx-wall-bar .lx-wall-filters, .lx-seg.scroll, .lx-folders, .lx-enhance-styles {
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
-  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 28px), transparent);
   padding-right: 24px;
 }
 .lx-hero-caption b { display: block; }
 .lx-hero-caption b::first-letter { text-transform: uppercase; }
+
+/* Stare goală modernă: pictogramă în cerc, titlu, o frază — nu doar text gri. */
+.lx-empty-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 28px 20px; margin-top: 8px; border-radius: var(--lx-r); border: 1px dashed var(--lx-line); background: var(--lx-glass); }
+.lx-empty-card b { font-size: 16px; }
+.lx-empty-card p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim); max-width: 300px; }
+.lx-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; font-size: 26px; background: radial-gradient(circle at 30% 30%, rgb(var(--accent-2-rgb) / 0.35), rgb(var(--accent-2-rgb) / 0.08)); }
