@@ -117,3 +117,87 @@
 :root[data-theme="light"] .lx-card,
 :root[data-theme="light"] .lx-dock { background: var(--surface); }
 :root[data-theme="light"] .lx-dock { box-shadow: 0 10px 30px -14px rgb(40 16 34 / 0.25); }
+
+/* ── Cherry, lustruit (cerut: „îmbunătățește tema Cherry”) ─────────────────
+   Fără mai multă saturație (rămâne estompată, cum s-a cerut), dar cu adâncime:
+   text vișiniu pe gradient în loc de negru, luciu pe butoane, carduri ca sticla,
+   selecții și contururi în culoarea cireșei. */
+:root[data-palette="cherry"] {
+  /* Gradientul de marcă: aceleași nuanțe, cu un pas de cireașă mai caldă la mijloc. */
+  --brand-grad: linear-gradient(120deg, #e8708f 0%, #f09ab2 46%, #c3a6ee 100%);
+  --on-grad: #2a0a17;
+  --cherry-sheen: inset 0 1px 0 rgb(255 255 255 / .38), inset 0 -1px 0 rgb(122 20 60 / .18);
+}
+:root[data-theme="light"][data-palette="cherry"] {
+  --brand-grad: linear-gradient(120deg, #d9637f 0%, #e98aa6 46%, #a796e6 100%);
+  --on-grad: #2a0a17;
+}
+:root[data-palette="cherry"] .lx-btn.primary,
+:root[data-palette="cherry"] .lx .btn-accent {
+  color: var(--on-grad);
+  box-shadow: var(--cherry-sheen), 0 10px 26px -14px rgb(var(--accent-rgb) / .55);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .25);
+}
+:root[data-palette="cherry"] .lx-seg button.on,
+:root[data-palette="cherry"] .lx-chip-btn.on,
+:root[data-palette="cherry"] .lx-wall-seg button.on,
+:root[data-palette="cherry"] .lx-pro,
+:root[data-palette="cherry"] .lx-pro-badge,
+:root[data-palette="cherry"] .lx .premium-chip { color: var(--on-grad); box-shadow: var(--cherry-sheen); }
+/* Cardurile: un reflex fin sus, ca o foaie de sticlă peste noaptea violet. */
+:root[data-palette="cherry"]:not([data-theme="light"]) .lx-card,
+:root[data-palette="cherry"]:not([data-theme="light"]) .lx-burst-tidy,
+:root[data-palette="cherry"]:not([data-theme="light"]) .lx-engines-intro {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / .035), transparent 42%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 14px 34px -24px rgb(0 0 0 / .8);
+}
+/* Bara de jos: pastila activă cu o urmă de cireașă și pictograma colorată. */
+:root[data-palette="cherry"] .lx-dock > button.on:not(.lx-dock-add) { background: linear-gradient(180deg, rgb(var(--accent-rgb) / .2), rgb(var(--accent-rgb) / .1)); }
+:root[data-palette="cherry"] .lx-dock-add { box-shadow: var(--cherry-sheen), 0 12px 28px -12px rgb(var(--accent-rgb) / .7); color: var(--on-grad); }
+/* Selecție de text și contur la tastatură/accesibilitate: cireașă. */
+:root[data-palette="cherry"] ::selection { background: rgb(var(--accent-rgb) / .35); color: var(--text); }
+:root[data-palette="cherry"] .lx :focus-visible { outline: 2px solid rgb(var(--accent-rgb) / .8); outline-offset: 2px; }
+/* Progresul: o lumină care trece peste bară, ca să se vadă că lucrează. */
+:root[data-palette="cherry"] .lx-progress i { background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / .35), transparent), var(--brand-grad); background-size: 40% 100%, 100% 100%; background-repeat: no-repeat; animation: cherry-sheen 1.8s linear infinite; }
+@keyframes cherry-sheen { from { background-position: -40% 0, 0 0; } to { background-position: 140% 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { :root[data-palette="cherry"] .lx-progress i { animation: none; } }
+
+/* ── Cherry „black rose” (cerut: „un contrast mai mare, black rose”) ──────
+   Negru adevărat, cu o umbră de trandafir; suprafețele urcă în trepte clare;
+   textul mai alb; accentul și gradientul în roz-trandafir, fără lavanda ștearsă. */
+:root[data-palette="cherry"]:not([data-theme="light"]) {
+  --bg: #050305;
+  --surface: #0f0a0d;
+  --surface-2: #161015;
+  --surface-3: #21161e;
+  --line: rgb(255 228 238 / 0.09);
+  --line-strong: rgb(255 228 238 / 0.18);
+  --text: #fff6f9;
+  --text-dim: #c9b4bf;
+  --text-faint: #a8929e;
+  --accent: #ff4f7f;
+  --accent-rgb: 255 79 127;
+  --accent-text: #ff8fae;
+  --accent-2: #ff9bb7;
+  --accent-2-rgb: 255 155 183;
+  --accent-2-text: #ffc2d3;
+  --brand-grad: linear-gradient(120deg, #ff4f7f 0%, #ff7f9f 52%, #ffb3c8 100%);
+  --on-grad: #1a0510;
+  --glass-bg: rgb(15 10 13 / 0.88);
+  --atelier-canvas: #050305;
+  --atelier-panel: #0f0a0d;
+  --atelier-panel-raised: #161015;
+  --atelier-ink: #fff6f9;
+  --atelier-muted: #c9b4bf;
+  --orb-1: #ff4f7f;
+  --orb-2: #d93a6a;
+  --orb-3: #7a1f45;
+}
+/* Lumina din colțuri: trandafir, nu violet. */
+:root[data-palette="cherry"]:not([data-theme="light"]) .lx {
+  background:
+    radial-gradient(1100px 560px at 90% -12%, rgb(255 79 127 / 0.13), transparent 60%),
+    radial-gradient(800px 460px at -10% 8%, rgb(255 155 183 / 0.07), transparent 60%),
+    var(--bg);
+}
+:root[data-palette="cherry"]:not([data-theme="light"]) body { background: #050305; }
