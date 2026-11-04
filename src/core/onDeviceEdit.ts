@@ -15,6 +15,7 @@ interface EditModelsApi {
   lowLight(o: { imageBase64: string; strength?: number }): Promise<{ imageBase64: string; meanGain: number }>;
   clarity(o: { imageBase64: string; inSide?: number; outSide?: number }): Promise<{ imageBase64: string }>;
   cutout(o: { imageBase64: string; background?: 'white' | 'none' }): Promise<{ imageBase64: string }>;
+  prepareLama(): Promise<{ ready: boolean }>;
 }
 const Native = registerPlugin<EditModelsApi>('EditModels');
 
@@ -27,6 +28,12 @@ export function onDeviceEditAvailable(): Promise<Avail> {
 
 function toBlob(b64: string, type: string): Blob {
   return new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type });
+}
+
+/** Guma HD (LaMa) pentru obiecte mari: pornește descărcarea în fundal, doar pe Wi-Fi. */
+export function prepareLargeEraser(): void {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('EditModels')) return;
+  void Native.prepareLama().catch(() => undefined);
 }
 
 /** Guma pe o bucată din poză: masca albă = de șters. Aceeași mărime înapoi (PNG). */

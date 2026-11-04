@@ -21,6 +21,12 @@ private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
+/** LaMa (Samsung/Carve, Apache-2.0, ~208 MB): guma pentru obiecte mari; descărcată doar pe Wi-Fi. */
+private const val LAMA_FILE = "lama_fp32.onnx"
+private const val LAMA_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
+private const val LAMA_MIN = 200_000_000L
+/** Peste această parte ștearsă din bucată, LaMa umple mai curat decât MI-GAN. */
+private const val LAMA_FROM = 0.06f
 // Modelele mari se descarcă o dată, la prima folosire, de pe site (nu intră în APK).
 private const val MODELS_URL = "https://balty1991.github.io/Lumin-Culler/models"
 
@@ -40,6 +46,76 @@ private const val MODELS_URL = "https://balty1991.github.io/Lumin-Culler/models"
 @CapacitorPlugin(name = "EditModels")
 class EditModelsPlugin : Plugin() {
     private val executor = pluginExecutor("EditModels")
+    /** Descărcarea mare stă pe firul ei, ca guma să meargă între timp. */
+    private val downloader = pluginExecutor("EditModels-dl")
+    private var ortEnv: ai.onnxruntime.OrtEnvironment? = null
+    private var lama: ai.onnxruntime.OrtSession? = null
+
+    private fun lamaFile() = java.io.File(context.filesDir, LAMA_FILE)
+    private fun lamaReady() = lamaFile().length() > LAMA_MIN
+
+    private fun unmetered(): Boolean {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
+    /** Pornește în fundal descărcarea LaMa (doar pe Wi-Fi, o singură dată). */
+    @PluginMethod
+    fun prepareLama(call: PluginCall) {
+        val out = JSObject()
+        out.put("ready", lamaReady())
+        call.resolve(out)
+        if (lamaReady() || !unmetered()) return
+        downloader.execute {
+            runCatching {
+                val tmp = java.io.File(context.filesDir, "$LAMA_FILE.part")
+                if (tmp.exists()) return@runCatching
+                val conn = java.net.URL(LAMA_URL).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 20000; conn.readTimeout = 120000; conn.instanceFollowRedirects = true
+                try {
+                    if (conn.responseCode == 200) conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
+                } finally { conn.disconnect() }
+                if (tmp.length() > LAMA_MIN) tmp.renameTo(lamaFile()) else tmp.delete()
+            }.onFailure { java.io.File(context.filesDir, "$LAMA_FILE.part").delete() }
+        }
+    }
+
+    /** LaMa pe 512×512: imagine 0..1, mască 1 = de umplut; ieșire 0..255. Null dacă nu se poate. */
+    private fun runLama(px: IntArray, grown: BooleanArray): IntArray? = runCatching {
+        val e = ortEnv ?: ai.onnxruntime.OrtEnvironment.getEnvironment().also { ortEnv = it }
+        val s = lama ?: e.createSession(lamaFile().absolutePath, ai.onnxruntime.OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) }).also { lama = it }
+        val plane = SIDE * SIDE
+        val img = java.nio.FloatBuffer.allocate(3 * plane)
+        val msk = java.nio.FloatBuffer.allocate(plane)
+        for (i in 0 until plane) {
+            img.put(i, ((px[i] shr 16) and 0xFF) / 255f)
+            img.put(plane + i, ((px[i] shr 8) and 0xFF) / 255f)
+            img.put(2 * plane + i, (px[i] and 0xFF) / 255f)
+            msk.put(i, if (grown[i]) 1f else 0f)
+        }
+        ai.onnxruntime.OnnxTensor.createTensor(e, img, longArrayOf(1, 3, SIDE.toLong(), SIDE.toLong())).use { iT ->
+            ai.onnxruntime.OnnxTensor.createTensor(e, msk, longArrayOf(1, 1, SIDE.toLong(), SIDE.toLong())).use { mT ->
+                s.run(mapOf("image" to iT, "mask" to mT)).use { r ->
+                    @Suppress("UNCHECKED_CAST")
+                    val o = (r[0].value as Array<Array<Array<FloatArray>>>)[0]
+                    IntArray(plane) { i ->
+                        if (!grown[i]) px[i] else {
+                            val y = i / SIDE; val x = i % SIDE
+                            val rr = o[0][y][x].toInt().coerceIn(0, 255)
+                            val gg = o[1][y][x].toInt().coerceIn(0, 255)
+                            val bb = o[2][y][x].toInt().coerceIn(0, 255)
+                            (0xFF shl 24) or (rr shl 16) or (gg shl 8) or bb
+                        }
+                    }
+                }
+            }
+        }
+    }.getOrElse {
+        // Fără memorie sau model stricat: închidem sesiunea și rămânem pe MI-GAN.
+        runCatching { lama?.close() }; lama = null
+        null
+    }
 
     private fun interpreter(name: String): Interpreter {
         val bytes = if (name == MIGAN_FILE) modelBytes(name, 10_000_000) else context.assets.open(name).use { it.readBytes() }
@@ -55,6 +131,8 @@ class EditModelsPlugin : Plugin() {
 
     override fun handleOnDestroy() {
         executor.shutdown()
+        downloader.shutdown()
+        runCatching { lama?.close() }
         super.handleOnDestroy()
     }
 
@@ -125,6 +203,16 @@ class EditModelsPlugin : Plugin() {
             val erase = BooleanArray(SIDE * SIDE) { i -> ((mp[i] shr 8) and 0xFF) > 100 || ((mp[i] shr 16) and 0xFF) > 100 }
             val grown = dilate(erase, SIDE, 5)
             val plane = SIDE * SIDE
+            val share = grown.count { it }.toFloat() / plane
+            val viaLama = if (share >= LAMA_FROM && lamaReady()) runLama(px, grown) else null
+            if (viaLama != null) {
+                val back = Bitmap.createScaledBitmap(Bitmap.createBitmap(viaLama, SIDE, SIDE, Bitmap.Config.ARGB_8888), w, h, true)
+                val o = JSObject()
+                o.put("imageBase64", encode(back, png = true))
+                o.put("width", w); o.put("height", h); o.put("engine", "lama")
+                call.resolve(o)
+                return@ruleaza
+            }
             val input = ByteBuffer.allocateDirect(4 * 4 * plane).order(ByteOrder.nativeOrder())
             val fin = input.asFloatBuffer()
             for (i in 0 until plane) fin.put(i, if (grown[i]) -0.5f else 0.5f)

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { getDisplayUrl } from '../core/previewUrlCache';
 import { useStore, type PhotoView } from '../state/store';
 import { cloudAvailable, cloudInpaint, ensureCloud, type InpaintMode } from './cloud';
-import { eraseOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
+import { eraseOnDevice, onDeviceEditAvailable, prepareLargeEraser } from '../core/onDeviceEdit';
 import { samAvailable, samPrepare, samSelect } from '../core/samSelect';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
@@ -64,6 +64,7 @@ export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () =
   /** „Atinge obiectul” (SlimSAM): pregătit o dată per poză, apoi fiecare atingere selectează. */
   const [sam, setSam] = useState<'off' | 'busy' | 'ready'>(samAvailable() ? 'busy' : 'off');
   const down = useRef<{ x: number; y: number; t: number } | null>(null);
+  useEffect(() => { prepareLargeEraser(); }, []);
   useEffect(() => {
     if (!img || !samAvailable()) return;
     let alive = true;
