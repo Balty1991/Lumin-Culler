@@ -1,0 +1,23 @@
+name: Probe web models
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q onnxruntime numpy pillow 2>&1 | tail -1
+          for q in ferplus "emotion ferplus" rife "frame interpolation" ; do echo "== search $q"; curl -fsSL "https://huggingface.co/api/models?search=$(echo $q | sed 's/ /%20/g')&limit=12" | python3 -c "import sys,json; [print(' ',m['id']) for m in json.load(sys.stdin)]"; done
+          for r in onnxmodelzoo/emotion-ferplus-8 webml/models onnx-community/Florence-2-base-ft; do echo "=== $r"; curl -fsSL "https://huggingface.co/api/models/$r/tree/main?recursive=1" | python3 -c "import sys,json; [print(' ',x['path'],x.get('size')) for x in json.load(sys.stdin) if x['type']=='file' and ('ferplus' in x['path'] or 'emotion' in x['path'] or x['path'].endswith(('int8.onnx','quantized.onnx','.json')))]" 2>&1 | head -40; curl -fsSL "https://huggingface.co/api/models/$r" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  lic', [t for t in d.get('tags',[]) if 'license' in t])" 2>/dev/null; done
+          R=https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/main
+          for f in vision_encoder_int8 embed_tokens_int8 encoder_model_int8 decoder_model_int8; do curl -fsSL -o $f.onnx "$R/onnx/$f.onnx" && ls -la $f.onnx; done
+          curl -fsSL -o fl_cfg.json "$R/preprocessor_config.json"; cat fl_cfg.json; echo
+          python - <<'PY'
+          import onnxruntime as ort
+          for f in ['vision_encoder_int8','embed_tokens_int8','encoder_model_int8','decoder_model_int8']:
+              try:
+                  s=ort.InferenceSession(f+'.onnx'); print(f, [(i.name,i.shape,i.type) for i in s.get_inputs()], [(o.name,o.shape) for o in s.get_outputs()][:3])
+              except Exception as e: print(f,'ERR',e)
+          PY
