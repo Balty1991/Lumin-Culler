@@ -152,6 +152,27 @@ class NotificationsPlugin : Plugin() {
         call.resolve()
     }
 
+    /** Capsula timpului: o notificare la data deschiderii ({id, at, title, body}). */
+    @PluginMethod
+    fun scheduleCapsule(call: PluginCall) {
+        runCatching {
+            CapsuleReceiver.schedule(
+                context,
+                call.getInt("id") ?: 0,
+                call.getLong("at") ?: 0L,
+                call.getString("title") ?: "",
+                call.getString("body") ?: ""
+            )
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun cancelCapsule(call: PluginCall) {
+        runCatching { CapsuleReceiver.cancel(context, call.getInt("id") ?: 0) }
+        call.resolve()
+    }
+
     @PluginMethod
     fun cancelDailyDigest(call: PluginCall) {
         runCatching { DailyDigestReceiver.cancel(context) }

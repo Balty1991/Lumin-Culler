@@ -1561,3 +1561,57 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-tunnel-people button.on { background: linear-gradient(135deg, #ff4f7f, #ff8fae); border-color: transparent; color: #1a0510; box-shadow: 0 0 24px -6px rgb(255 79 127 / .8); }
 .lx-tunnel-people button.on small { color: #4a1022; }
 .lx-tunnel-hint.with-people { bottom: calc(64px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+
+/* Capsula timpului. */
+.lx-capsule-card { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+.lx-capsule-card > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lx-capsule-card small { color: var(--text-dim); font-size: 13px; }
+.lx-capsule-card.fresh { border-color: rgb(var(--accent-rgb) / .6); background: linear-gradient(135deg, rgb(var(--accent-rgb) / .2), rgb(var(--accent-rgb) / .05)); animation: lx-capsule-pulse 2.4s ease-in-out infinite; }
+@keyframes lx-capsule-pulse { 50% { box-shadow: 0 0 34px -8px rgb(var(--accent-rgb) / .8); } }
+.lx-capsule-mini { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgb(var(--accent-rgb) / .14); color: rgb(var(--accent-rgb)); }
+.lx-capsule-mini.open { background: var(--lx-grad); color: var(--on-grad, #1a0510); }
+.lx-capsule-past { padding: 0 2px; }
+.lx-capsule-text { width: 100%; box-sizing: border-box; resize: vertical; min-height: 84px; padding: 12px; border-radius: 14px; border: 1px solid var(--lx-line); background: rgb(255 255 255 / .04); color: inherit; font: inherit; font-size: 15px; }
+.lx-capsule-stage { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 20px 16px; }
+.lx-capsule-orb { display: grid; place-items: center; width: 132px; height: 132px; border-radius: 50%; color: #fff6f9;
+  background: radial-gradient(circle at 35% 30%, #ff8fae, #c4185a 60%, #4a0820); box-shadow: 0 0 60px -10px rgb(255 79 127 / .9), inset 0 0 30px rgb(255 255 255 / .2); animation: lx-orb-breathe 1.6s ease-in-out infinite; }
+.lx-capsule-orb.sealing { animation: lx-orb-seal 1.3s ease-in forwards; }
+.lx-capsule-orb.open { animation: lx-orb-open .9s cubic-bezier(.2,.8,.2,1) forwards; }
+@keyframes lx-orb-breathe { 50% { transform: scale(1.05); box-shadow: 0 0 90px -6px rgb(255 79 127 / 1), inset 0 0 30px rgb(255 255 255 / .25); } }
+@keyframes lx-orb-seal { 60% { transform: scale(1.12); } 100% { transform: scale(.2); opacity: 0; } }
+@keyframes lx-orb-open { 0% { transform: scale(1); } 40% { transform: scale(1.35); box-shadow: 0 0 160px 20px rgb(255 120 160 / .9); } 100% { transform: scale(.55); opacity: .85; } }
+.lx-capsule-msg { margin: 0; max-width: 520px; text-align: center; font-size: 18px; line-height: 1.5; color: #fff6f9; }
+.lx-capsule-msg.typed { font-family: var(--font-display); font-size: 20px; white-space: pre-wrap; }
+.lx-capsule-photos { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.lx-capsule-photos button { padding: 0; border: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 1; background: #1a1016; opacity: 0; animation: lx-cap-in .5s cubic-bezier(.2,.8,.2,1) forwards; }
+.lx-capsule-photos img, .lx-capsule-photos .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes lx-cap-in { from { opacity: 0; transform: translateY(18px) scale(.9); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lx-capsule-orb, .lx-capsule-photos button, .lx-capsule-card.fresh { animation: none !important; opacity: 1; } }
+
+/* Lipsesc din poze. */
+.lx-missing { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.lx-missing > div { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lx-missing b { font-size: 15px; line-height: 1.35; }
+.lx-missing small { color: var(--text-dim); font-size: 13px; }
+.lx-missing-thumb { flex: none; width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; overflow: hidden; background: #1a1016; box-shadow: 0 0 0 2px rgb(var(--accent-rgb) / .5); }
+.lx-missing-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Profilul foto și duelul (carduri pe Azi). */
+.lx-profile-card, .lx-duel-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.lx-profile-card > span:nth-child(2), .lx-duel-card > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lx-profile-card small, .lx-duel-card small { color: var(--text-dim); font-size: 13px; }
+.lx-profile-badge { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--lx-grad); color: var(--on-grad, #1a0510); }
+.lx-duel-vs { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-weight: 800; font-size: 14px; letter-spacing: .04em; background: var(--lx-grad); color: var(--on-grad, #1a0510); }
+.lx-duel-vs.big { width: 110px; height: 110px; font-size: 28px; }
+.lx-duel { display: flex; flex-direction: column; }
+.lx-duel-pair { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 10px; padding: 0 16px calc(16px + var(--safe-bottom, 0px)); }
+@media (orientation: landscape) { .lx-duel-pair { grid-template-rows: none; grid-template-columns: 1fr 1fr; } }
+.lx-duel-photo { position: relative; min-height: 0; padding: 0; border: 0; border-radius: 18px; overflow: hidden; background: #1a1016; transition: transform .25s, opacity .25s, box-shadow .25s; }
+.lx-duel-photo img, .lx-duel-photo .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-duel-photo:active { transform: scale(.98); }
+.lx-duel-photo.win { box-shadow: 0 0 0 3px rgb(var(--accent-rgb)), 0 0 40px -6px rgb(var(--accent-rgb)); transform: scale(1.02); }
+.lx-duel-photo.lose { opacity: .3; transform: scale(.96); }
+.lx-duel-flash { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); white-space: nowrap; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; background: var(--lx-grad); color: var(--on-grad, #1a0510); }
+.lx-duel-end { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
+.lx-duel-end b { font-size: 22px; }
+.lx-duel-end p { margin: 0; color: var(--text-dim); max-width: 420px; line-height: 1.5; }

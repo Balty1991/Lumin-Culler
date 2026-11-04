@@ -81,6 +81,11 @@
             android:name=".plugins.MorningMemoryReceiver"
             android:exported="false" />
 
+        <!-- Capsula timpului: notificarea din ziua deschiderii, vezi plugins/CapsuleReceiver.kt. -->
+        <receiver
+            android:name=".plugins.CapsuleReceiver"
+            android:exported="false" />
+
         <!-- Widgetul de pe ecranul telefonului, vezi plugins/LuminWidgetProvider.kt. -->
         <receiver
             android:name=".plugins.LuminWidgetProvider"

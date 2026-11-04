@@ -34,6 +34,7 @@ import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable } from './burstFilm';
 import { FilmCreator } from './FilmCreator';
+import { CapsuleCreator } from './Capsule';
 import { BurstTidy } from './BurstTidy';
 import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
@@ -638,6 +639,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const toggleDetails = (v: boolean) => { viewerDetailsOpen = v; setDetails(v); };
   // Mini-film: se deschide creatorul, cu seria pozei deja pusă (omul adaugă, ordonează, alege stilul).
   const [filmOpen, setFilmOpen] = useState(false);
+  const [capsuleOpen, setCapsuleOpen] = useState(false);
   const makeBestTake = async () => {
     setBestBusy(true);
     try {
@@ -902,6 +904,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         {more && (
           <div className="lx-more-grid">
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
+            <button onClick={() => setCapsuleOpen(true)}><span><Icon name="lock" /></span>{tr('lx.capsule.button')}</button>
             {burstFilmAvailable() && <button onClick={() => setFilmOpen(true)}><span><Icon name="film" /></span>{tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span><Icon name="square" /></span>{tr('lx.insta.button')}</button>
@@ -935,6 +938,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
+      {capsuleOpen && <CapsuleCreator initialIds={[id]} onClose={() => setCapsuleOpen(false)} />}
       {filmOpen && <FilmCreator startId={id} initialIds={burstIds ? burstIds.split(',') : [id]} onClose={() => setFilmOpen(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
       {selling && <AiRetouch photo={p} kind="cutout" onClose={() => setSelling(false)} />}

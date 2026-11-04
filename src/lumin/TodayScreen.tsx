@@ -37,6 +37,8 @@ import { photoTime } from './days';
  */
 import { EnginesIntro } from './EnginesIntro';
 import { FilmCreator } from './FilmCreator';
+import { CapsuleCard } from './Capsule';
+import { DuelCard, MissingCard, ProfileCard } from './Insights';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -227,6 +229,7 @@ export function TodayScreen() {
       )}
 
       {!sortingActive && <TrainingCard />}
+      {!sortingActive && <DuelCard />}
 
       {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
         <section className="lx-stats">
@@ -244,7 +247,10 @@ export function TodayScreen() {
           <LumiFeed />
         </>
       )}
+      <CapsuleCard />
+      <MissingCard />
       <Recaps />
+      <ProfileCard />
       <FamilyPickCard />
       <OnThisDay />
 

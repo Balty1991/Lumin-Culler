@@ -122,9 +122,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, w: number, h: number
 export interface BurstFilm { blob: Blob; ext: string; music: 'none' | MusicMood; fps: number; width: number; height: number; count: number; draw: (ctx: CanvasRenderingContext2D, i: number) => void }
 
 export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => void, opts: FilmOptions = {}): Promise<BurstFilm | null> {
-  const mime = pickMimeType();
-  if (!mime || ids.length < 2) return null;
-  const speed = opts.speed ?? 'normal';
+  if (!pickMimeType() || ids.length < 2) return null;
   const wantAi = (opts.transition ?? 'ai') === 'ai';
   const weak = await weakDevice();
   const imgs: HTMLImageElement[] = [];
@@ -135,9 +133,7 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
   }
   if (imgs.length < 2) return null;
   // RIFE doar unde merită și unde încape în timp/memorie; altfel trecere lină.
-  let rife = wantAi && imgs.length <= (weak ? 6 : AI_MAX_PHOTOS);
-  // Motorul prin descărcarea comună (cu reluare), înainte de primul cadru.
-  if (rife) await fetchEngine('film').catch(() => false);
+  const rife = wantAi && imgs.length <= (weak ? 6 : AI_MAX_PHOTOS);
   const out = weak ? 720 : OUT;
   const format = opts.format ?? 'orig';
   let w: number, h: number;
@@ -147,9 +143,23 @@ export async function makeBurstFilm(ids: string[], onProgress?: (f: number) => v
     const k0 = Math.min(1, out / Math.max(imgs[0].naturalWidth, imgs[0].naturalHeight));
     w = Math.round(imgs[0].naturalWidth * k0 / 2) * 2; h = Math.round(imgs[0].naturalHeight * k0 / 2) * 2;
   }
-  // Cadrele-cheie la calitatea pozelor (toate la aceeași mărime); pentru RIFE, copii mici.
+  // Cadrele-cheie la calitatea pozelor (toate la aceeași mărime).
   const look = LOOKS[opts.look ?? 'natural'];
   const hi = imgs.map(i => cover(i, w, h, look));
+  return filmFromKeyframes(hi, { ...opts, transition: rife ? 'ai' : 'fade' }, onProgress);
+}
+
+/**
+ * Filmul din cadre-cheie gata făcute (aceeași mărime): trecerile dintre ele
+ * (RIFE sau lină), bucla și înregistrarea. Folosit și de „Cum a crescut”.
+ */
+export async function filmFromKeyframes(hi: HTMLCanvasElement[], opts: FilmOptions = {}, onProgress?: (f: number) => void): Promise<BurstFilm | null> {
+  const mime = pickMimeType();
+  if (!mime || hi.length < 2) return null;
+  const w = hi[0].width, h = hi[0].height;
+  const speed = opts.speed ?? 'normal';
+  let rife = (opts.transition ?? 'ai') === 'ai';
+  if (rife) rife = await fetchEngine('film').then(() => true, () => false);
   const kr = Math.min(1, RIFE_SIDE / Math.max(w, h));
   const keys = hi.map(c => {
     const [s, sctx] = canvas2d(Math.round(w * kr), Math.round(h * kr));
