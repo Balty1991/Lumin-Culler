@@ -207,7 +207,7 @@ class PortraitPlugin : Plugin() {
             val src = resolveInputBitmap(context, call) ?: return@ruleaza
             nearMap(src)
             val d = lastDepth ?: run { call.reject("fără adâncime"); return@ruleaza }
-            val smooth = gauss(d, DEPTH_SIDE, DEPTH_SIDE, 6)
+            val smooth = gauss(d, DEPTH_SIDE, DEPTH_SIDE, 3)
             val px = IntArray(smooth.size) { i ->
                 val v = (smooth[i].coerceIn(0f, 1f) * 255).roundToInt()
                 (0xFF shl 24) or (v shl 16) or (v shl 8) or v

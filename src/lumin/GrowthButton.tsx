@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLxPhotos } from './useLxPhotos';
 import { createPortal } from 'react-dom';
 import type { PhotoView } from '../state/store';
 import { useStore } from '../state/store';
@@ -144,5 +145,39 @@ function GrowthSheet({ name, list, onClose }: { name: string; list: PhotoView[];
       {film && <FilmSheet film={film} onClose={() => setFilm(null)} />}
     </div>,
     document.body
+  );
+}
+
+/**
+ * Pe Azi: „Cum a crescut” pentru oamenii cu poze din cele mai multe luni
+ * (raportat: „nu apare nicăieri” — era doar pe pagina fiecărui om).
+ */
+export function GrowthCard() {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const [open, setOpen] = useState<string | null>(null);
+  const top = useMemo(() => {
+    const months = new Map<string, Set<number>>();
+    for (const p of photos) {
+      if (p.capturedAt === undefined || p.aside) continue;
+      const d = new Date(p.capturedAt); const m = d.getFullYear() * 12 + d.getMonth();
+      for (const n of p.personNames ?? []) { if (!months.has(n)) months.set(n, new Set()); months.get(n)!.add(m); }
+    }
+    return [...months.entries()].filter(([, s]) => s.size >= 3).sort((a, b) => b[1].size - a[1].size).slice(0, 4).map(([n]) => n);
+  }, [photos]);
+  const list = useMemo(() => (open ? photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(open)) : []), [photos, open]);
+  if (!top.length || !burstFilmAvailable()) return null;
+  return (
+    <section className="lx-card lx-growth-card">
+      <span className="lx-profile-badge" aria-hidden="true">✨</span>
+      <div>
+        <b>{tr('lx.growth.cardTitle')}</b>
+        <small>{tr('lx.growth.cardSub')}</small>
+        <div className="lx-chips">
+          {top.map(n => <button key={n} className="lx-chip-btn" onClick={() => setOpen(n)}>{n}</button>)}
+        </div>
+      </div>
+      {open && <GrowthSheet name={open} list={list} onClose={() => setOpen(null)} />}
+    </section>
   );
 }

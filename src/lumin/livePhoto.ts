@@ -24,17 +24,59 @@ export function livePhotoAvailable(): boolean {
 }
 
 const VERT = `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x*0.5+0.5, 0.5-p.y*0.5); gl_Position = vec4(p,0.0,1.0); }`;
-// Pentru fiecare pixel: unde „era” în poză, după cât de aproape e (paralaxă);
-// trei pași de rafinare, ca marginile obiectelor să nu se rupă.
-const FRAG = `precision mediump float;
+// Pentru fiecare pixel: unde „era” în poză, după cât de aproape e (paralaxă), cu
+// pivotul pe subiect (el stă pe loc, fundalul se mișcă: ca o cameră care se rotește
+// în jurul lui). Adâncimea e „umflată” spre prim-plan (maximul din jur), ca marginile
+// subiectului să rămână întregi și să se întindă fundalul, nu omul. Plus o ușoară
+// profunzime de câmp (fundalul puțin estompat) și o vignetă: arată ca filmat, nu desenat.
+const FRAG = `precision highp float;
 varying vec2 uv; uniform sampler2D img; uniform sampler2D dep;
-uniform vec2 shift; uniform float zoom; uniform float focus;
+uniform vec2 shift; uniform float zoom; uniform float focus; uniform float push; uniform float dof; uniform vec2 px; uniform vec2 ipx;
+float depthAt(vec2 p){
+  float d = texture2D(dep, p).r;
+  d = max(d, texture2D(dep, p + vec2(px.x * 2.0, 0.0)).r);
+  d = max(d, texture2D(dep, p - vec2(px.x * 2.0, 0.0)).r);
+  d = max(d, texture2D(dep, p + vec2(0.0, px.y * 2.0)).r);
+  d = max(d, texture2D(dep, p - vec2(0.0, px.y * 2.0)).r);
+  return d;
+}
 void main(){
   vec2 c = (uv - 0.5) / zoom + 0.5;
   vec2 q = c;
-  for (int i = 0; i < 3; i++) { float d = texture2D(dep, q).r; q = c - shift * (d - focus); }
-  gl_FragColor = texture2D(img, clamp(q, 0.001, 0.999));
+  for (int i = 0; i < 6; i++) {
+    float d = depthAt(q);
+    q = 0.5 + (c - 0.5) / (1.0 + push * (d - focus)) - shift * (d - focus);
+  }
+  q = clamp(q, 0.001, 0.999);
+  float d = texture2D(dep, q).r;
+  vec3 col = texture2D(img, q).rgb;
+  float r = dof * clamp(focus - 0.15 - d, 0.0, 1.0);
+  if (r > 0.0) {
+    vec3 acc = col;
+    for (int k = 0; k < 8; k++) {
+      float a = float(k) * 0.7853981;
+      acc += texture2D(img, clamp(q + vec2(cos(a), sin(a)) * ipx * r * 6.0, 0.001, 0.999)).rgb;
+    }
+    col = acc / 9.0;
+  }
+  vec2 v = uv - 0.5;
+  col *= 1.0 - 0.22 * dot(v, v) * 2.0;
+  gl_FragColor = vec4(col, 1.0);
 }`;
+
+/** Adâncimea subiectului: ce e mai aproape decât 85% din poză. */
+function subjectDepth(depth: HTMLImageElement): number {
+  try {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(depth, 0, 0, 64, 64);
+    const d = ctx.getImageData(0, 0, 64, 64).data;
+    const v: number[] = [];
+    for (let i = 0; i < d.length; i += 4) v.push(d[i] / 255);
+    v.sort((x, y) => x - y);
+    return Math.min(0.92, Math.max(0.45, v[Math.floor(v.length * 0.85)]));
+  } catch { return 0.7; }
+}
 
 function shader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
   const s = gl.createShader(type)!;
@@ -60,7 +102,7 @@ export interface LiveRenderer { canvas: HTMLCanvasElement; render: (t: number) =
 export async function prepareLivePhoto(photoId: string, motion: LiveMotion, strength = 1): Promise<LiveRenderer | null> {
   const uri = await originalUri(photoId);
   if (!uri) return null;
-  const [r, d] = await Promise.all([loadEditable(photoId, 1600), Portrait.depth({ imageUri: uri })]);
+  const [r, d] = await Promise.all([loadEditable(photoId, 2048), Portrait.depth({ imageUri: uri })]);
   if (!r?.img) return null;
   const depthImg = new Image();
   depthImg.src = `data:image/png;base64,${d.depthBase64}`;
@@ -74,8 +116,11 @@ export async function prepareLivePhoto(photoId: string, motion: LiveMotion, stre
   if (!gl) return null;
   // Poza la mărimea pânzei (texturi mai mici, desen mai rapid).
   const scaled = document.createElement('canvas');
-  scaled.width = canvas.width; scaled.height = canvas.height;
-  scaled.getContext('2d')!.drawImage(r.img, 0, 0, scaled.width, scaled.height);
+  const ks = Math.min(1.5, Math.max(r.img.naturalWidth, r.img.naturalHeight) / Math.max(canvas.width, canvas.height));
+  scaled.width = Math.round(canvas.width * ks); scaled.height = Math.round(canvas.height * ks);
+  const sctx = scaled.getContext('2d')!;
+  sctx.imageSmoothingQuality = 'high';
+  sctx.drawImage(r.img, 0, 0, scaled.width, scaled.height);
   const prog = gl.createProgram()!;
   gl.attachShader(prog, shader(gl, gl.VERTEX_SHADER, VERT));
   gl.attachShader(prog, shader(gl, gl.FRAGMENT_SHADER, FRAG));
@@ -90,26 +135,37 @@ export async function prepareLivePhoto(photoId: string, motion: LiveMotion, stre
   texture(gl, 1, depthImg);
   gl.uniform1i(gl.getUniformLocation(prog, 'img'), 0);
   gl.uniform1i(gl.getUniformLocation(prog, 'dep'), 1);
-  const uShift = gl.getUniformLocation(prog, 'shift'), uZoom = gl.getUniformLocation(prog, 'zoom'), uFocus = gl.getUniformLocation(prog, 'focus');
+  const u = (n: string) => gl.getUniformLocation(prog, n);
+  const uShift = u('shift'), uZoom = u('zoom'), uFocus = u('focus'), uPush = u('push'), uDof = u('dof');
+  gl.uniform2f(u('px'), 1 / depthImg.naturalWidth, 1 / depthImg.naturalHeight);
+  gl.uniform2f(u('ipx'), 1 / canvas.width, 1 / canvas.height);
   gl.viewport(0, 0, canvas.width, canvas.height);
-  const amp = 0.028 * strength;
+  // Subiectul = ce e aproape (al 85-lea procent din adâncimi): pivotul mișcării.
+  const focus = subjectDepth(depthImg);
+  const amp = 0.022 * strength;
   const aspect = canvas.width / canvas.height;
+  // Curbă lină (fără porniri bruște) pentru bucla dus-întors.
+  const ease = (x: number) => 0.5 - 0.5 * Math.cos(x * Math.PI * 2);
   const render = (t: number) => {
     const a = t * Math.PI * 2;
-    let sx = 0, sy = 0, zoom = 1.08;
-    if (motion === 'orbit') { sx = Math.cos(a) * amp; sy = Math.sin(a) * amp * 0.6; }
-    else if (motion === 'sway') { sx = Math.sin(a) * amp * 1.3; }
-    else { zoom = 1.06 + (1 - Math.cos(a)) * 0.05 * strength; sy = (1 - Math.cos(a)) * amp * 0.35; }
-    gl.uniform2f(uShift, sx / Math.max(1, aspect) , sy * Math.min(1, aspect));
+    let sx = 0, sy = 0, push = 0;
+    if (motion === 'orbit') { sx = Math.cos(a) * amp; sy = Math.sin(a) * amp * 0.55; }
+    else if (motion === 'sway') { sx = Math.sin(a) * amp * 1.4; sy = Math.sin(a * 2) * amp * 0.15; }
+    else { push = ease(t) * 0.12 * strength; sy = -ease(t) * amp * 0.25; }
+    // Destul de aproape ca marginile pozei să nu se vadă niciodată.
+    const zoom = 1.02 + Math.max(Math.abs(sx), Math.abs(sy)) * 2.4 + push * 0.35;
+    gl.uniform2f(uShift, sx / Math.max(1, aspect), sy * Math.min(1, aspect));
     gl.uniform1f(uZoom, zoom);
-    gl.uniform1f(uFocus, motion === 'zoom' ? 0.0 : 0.5);
+    gl.uniform1f(uFocus, focus);
+    gl.uniform1f(uPush, push);
+    gl.uniform1f(uDof, strength > 1.2 ? 1.6 : 1.0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   };
   render(0);
   return { canvas, render };
 }
 
-const LOOP_S = 4;
+const LOOP_S = 5;
 const FPS = 30;
 
 /** Înregistrează bucla (de două ori) ca film, cu muzică dacă se poate. */

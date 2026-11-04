@@ -3213,6 +3213,8 @@ export const ro = {
   'lx.growth.button': "Cum a crescut {name}",
   'lx.growth.making': "Aliniez fețele",
   'lx.growth.few': "Am nevoie de poze cu {name} din cel puțin 3 luni diferite.",
+  'lx.growth.cardTitle': "Cum au crescut",
+  'lx.growth.cardSub': "Fața lor, lună de lună, într-un film. Alege pe cine:",
   'lx.growth.inFilm': "În film, în ordinea timpului",
   'lx.growth.useAuto': "Alegerea AI",
   'lx.growth.hint': "Atinge o poză ca s-o scoți. Adaugă oricare de mai jos.",

@@ -40,6 +40,7 @@ import { FilmCreator } from './FilmCreator';
 import { CapsuleCard } from './Capsule';
 import { DuelCard, ForgottenCard, MissingCard, ProfileCard } from './Insights';
 import { EmotionYearCard } from './EmotionYear';
+import { GrowthCard } from './GrowthButton';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -252,6 +253,7 @@ export function TodayScreen() {
       <ForgottenCard />
       <MissingCard />
       <Recaps />
+      <GrowthCard />
       <ProfileCard />
       <EmotionYearCard />
       <FamilyPickCard />

@@ -231,7 +231,10 @@ function ProfileSheet({ profile, initialMode = 'profile', onClose }: { profile: 
       footer: 'Cherrypic'
     }).then(done);
     return () => { alive = false; };
-  }, [profile, locale, tr, mode]);
+  // Fără `tr` aici: e o funcție nouă la fiecare afișare, iar desenul pornea din nou
+  // la nesfârșit (raportat: profilul și coperta rămâneau la cerculețul de încărcare).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, locale, mode]);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
   return createPortal(
     <div className="lx lx-enhance lx-film" role="dialog" aria-modal="true" aria-label={tr('lx.profile.title')}>

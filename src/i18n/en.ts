@@ -3127,6 +3127,8 @@ export const en: Record<TranslationKey, string> = {
   'lx.growth.button': "How {name} grew",
   'lx.growth.making': "Aligning faces",
   'lx.growth.few': "I need photos of {name} from at least 3 different months.",
+  'lx.growth.cardTitle': "How they grew",
+  'lx.growth.cardSub': "Their face, month by month, in one film. Pick who:",
   'lx.growth.inFilm': "In the film, in time order",
   'lx.growth.useAuto': "AI's pick",
   'lx.growth.hint': "Tap a photo to remove it. Add any from below.",

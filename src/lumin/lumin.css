@@ -1710,3 +1710,14 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-forgotten button { padding-bottom: 133% !important; }
 .lx-capsule-photos button > img, .lx-capsule-photos button > canvas, .lx-forgotten button > img, .lx-forgotten button > canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .lx-capsule-photos button { position: relative; }
+
+/* Anul în zâmbete: raportat cu video că zilele ieșeau cât tot ecranul (celule cu
+   aspect-ratio într-o grilă, în WebView). Rândurile au acum înălțime fixă. */
+.lx-joy .lx-joy-row > div { display: grid !important; grid-template-columns: repeat(31, minmax(0, 1fr)); grid-auto-rows: 10px; gap: 2px; }
+.lx-joy .lx-joy-row i { aspect-ratio: auto !important; width: auto; height: 10px; }
+.lx-joy .lx-joy-legend i { aspect-ratio: auto !important; width: 12px; height: 12px; flex: none; }
+.lx-links-map { aspect-ratio: auto !important; width: min(88vw, 460px); height: min(88vw, 460px); }
+.lx-growth-card { display: flex; gap: 12px; align-items: flex-start; }
+.lx-growth-card > div { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lx-growth-card small { color: var(--text-dim); font-size: 13px; }
+.lx-growth-card .lx-chips { margin-top: 6px; }
