@@ -1615,3 +1615,4 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-duel-end { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
 .lx-duel-end b { font-size: 22px; }
 .lx-duel-end p { margin: 0; color: var(--text-dim); max-width: 420px; line-height: 1.5; }
+.lx-fm-x { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgb(0 0 0 / .6); color: #fff; }

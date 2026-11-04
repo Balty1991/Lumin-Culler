@@ -10,7 +10,22 @@ import { filmFromKeyframes, type BurstFilm, type FilmOptions } from './burstFilm
  * mărime și loc în cadru), apoi trecerile AI dintre ele. Fața „crește” sub ochii
  * tăi, de la cea mai veche poză până azi. Pe telefon, fără server.
  */
-export interface GrowthPick { id: string; at: number; box: [number, number, number, number] }
+export interface GrowthPick { id: string; at: number; box: [number, number, number, number] | null }
+export const GROWTH_MAX = 24;
+
+/**
+ * Pentru pozele alese de om: fața omului din fiecare (cea recunoscută cu numele
+ * lui, altfel cea mai mare). Fără nicio față, poza intră întreagă, centrată.
+ */
+export async function facePicksFor(name: string, photos: readonly { id: string; capturedAt?: number }[]): Promise<GrowthPick[]> {
+  const analyses = await db.analyses.bulkGet(photos.map(p => p.id));
+  return photos.map((p, i) => {
+    const faces = analyses[i]?.faces ?? [];
+    const own = faces.find(f => f.personName === name);
+    const big = [...faces].sort((a, b) => b.box[2] * b.box[3] - a.box[2] * a.box[3])[0];
+    return { id: p.id, at: p.capturedAt ?? 0, box: (own ?? big)?.box ?? null };
+  }).sort((a, b) => a.at - b.at);
+}
 
 /** Cea mai bună față a omului din fiecare lună (mare, cu ochii deschiși), cel mult `max`. */
 export async function pickGrowthFaces(name: string, photos: readonly PhotoView[], max = 16): Promise<GrowthPick[]> {
@@ -40,7 +55,7 @@ export async function pickGrowthFaces(name: string, photos: readonly PhotoView[]
 }
 
 /** Cadrul: fața la aceeași mărime, sus-mijloc; pe margini, aceeași poză estompată. */
-function alignedFrame(img: HTMLImageElement, box: [number, number, number, number], S: number, caption: string, sub: string | null): HTMLCanvasElement {
+function alignedFrame(img: HTMLImageElement, box: [number, number, number, number] | null, S: number, caption: string, sub: string | null): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = S; c.height = S;
   const ctx = c.getContext('2d')!;
@@ -52,12 +67,18 @@ function alignedFrame(img: HTMLImageElement, box: [number, number, number, numbe
   const kb = Math.max(S / W, S / H) * 1.1;
   ctx.drawImage(img, (S - W * kb) / 2, (S - H * kb) / 2, W * kb, H * kb);
   ctx.restore();
-  const [bx, by, bw, bh] = box;
-  const face = Math.max(bw * W, bh * H);
-  const k = (S * 0.34) / Math.max(face, 1);
-  const cx = (bx + bw / 2) * W, cy = (by + bh / 2) * H;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, S * 0.5 - cx * k, S * 0.42 - cy * k, W * k, H * k);
+  if (box) {
+    const [bx, by, bw, bh] = box;
+    const face = Math.max(bw * W, bh * H);
+    const k = (S * 0.34) / Math.max(face, 1);
+    const cx = (bx + bw / 2) * W, cy = (by + bh / 2) * H;
+    ctx.drawImage(img, S * 0.5 - cx * k, S * 0.42 - cy * k, W * k, H * k);
+  } else {
+    // Fără față: poza întreagă, cât încape.
+    const k = Math.min(S / W, S / H);
+    ctx.drawImage(img, (S - W * k) / 2, (S - H * k) / 2, W * k, H * k);
+  }
   // Eticheta: luna și, dacă știm ziua de naștere, vârsta.
   const g = ctx.createLinearGradient(0, S * 0.7, 0, S);
   g.addColorStop(0, 'rgba(5,3,5,0)'); g.addColorStop(1, 'rgba(5,3,5,0.82)');
