@@ -1,3 +1,5 @@
+import { AiRetouch } from './AiRetouch';
+import { onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
 import { useLx } from './lxStore';
@@ -546,6 +548,10 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [insta, setInsta] = useState(false);
   const [magic, setMagic] = useState(false);
   const [more, setMore] = useState(false);
+  // „Vinde”: poza produsului pe fundal alb, gata pentru Vinted/OLX (doar unde decupajul rulează pe telefon).
+  const [selling, setSelling] = useState(false);
+  const [canSell, setCanSell] = useState(false);
+  useEffect(() => { void onDeviceEditAvailable().then(a => setCanSell(a.cutout)); }, []);
   const [texting, setTexting] = useState(false);
   const [comparing, setComparing] = useState(false);
   const tr = useTr();
@@ -780,6 +786,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           <div className="lx-more-grid">
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span>◎</span>{tr('lx.viewer.similarShort')}</button>}
             <button onClick={() => setInsta(true)}><span>▣</span>{tr('lx.insta.button')}</button>
+            {canSell && <button onClick={() => setSelling(true)}><span>🏷️</span>{tr('lx.sell.button')}</button>}
             <button onClick={() => setTexting(true)}><span>Aa</span>{tr('lx.text.button')}</button>
             {p.ocrText && p.ocrText.trim().length > 8 && (
               <button onClick={() => { void navigator.clipboard?.writeText(p.ocrText!.trim()).then(() => useStore.getState().setNotice(tr('lx.viewer.textCopied')), () => {}); }}>
@@ -810,6 +817,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}
+      {selling && <AiRetouch photo={p} kind="cutout" onClose={() => setSelling(false)} />}
       {texting && <TextSheet photo={p} onClose={() => setTexting(false)} />}
     </div>,
     document.body

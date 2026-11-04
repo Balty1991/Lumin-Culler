@@ -994,4 +994,5 @@ export const dict: Record<string, string> = {
   "lx.person.ageYm": "{name} a {years} anni e {months} mesi",
   "lx.person.ageM": "{name} a {months} mesi",
   "lx.person.ageY": "{name} a {years} anni",
+  "lx.sell.button": "Per vendere",
 };

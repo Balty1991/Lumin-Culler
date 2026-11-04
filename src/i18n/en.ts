@@ -3019,4 +3019,5 @@ export const en: Record<TranslationKey, string> = {
   "lx.person.ageYm": "{name} at {years} y {months} m",
   "lx.person.ageM": "{name} at {months} months",
   "lx.person.ageY": "{name} at {years} years",
+  "lx.sell.button": "For selling",
 };

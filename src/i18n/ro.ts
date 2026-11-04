@@ -3105,6 +3105,7 @@ export const ro = {
   "lx.person.ageYm": "{name} la {years} ani și {months} luni",
   "lx.person.ageM": "{name} la {months} luni",
   "lx.person.ageY": "{name} la {years} ani",
+  "lx.sell.button": "Pentru vânzare",
 };
 
 export type TranslationKey = keyof typeof ro;
