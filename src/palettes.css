@@ -201,3 +201,44 @@
     var(--bg);
 }
 :root[data-palette="cherry"]:not([data-theme="light"]) body { background: #050305; }
+
+/* ── Claritate „ultra HD” (cerut: „o claritate ultra HD a culorilor și textelor”) ──
+   1. Textul: randare netedă pe fundal închis, cifre egale, Inter cu forme clare. */
+:root[data-palette="cherry"] .lx {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  font-kerning: normal;
+}
+:root[data-palette="cherry"] .lx :is(b, small, .lx-chip, .lx-chip-btn b, .lx-wall-seg b, .lx-pill, .lx-viewer-count) { font-variant-numeric: tabular-nums; }
+/* 2. Gri mai deschis (contrast AAA pe negru) și fără text semi-transparent. */
+:root[data-palette="cherry"]:not([data-theme="light"]) {
+  --text: #fff8fb;
+  --text-dim: #ddc9d3;
+  --text-faint: #bba7b2;
+}
+:root[data-palette="cherry"] .lx-chip-btn b,
+:root[data-palette="cherry"] .lx-wall-seg button b,
+:root[data-palette="cherry"] .lx-density-btn b { opacity: 1; color: var(--text-faint); }
+:root[data-palette="cherry"] .lx-chip-btn.on b,
+:root[data-palette="cherry"] .lx-wall-seg button.on b { color: var(--on-grad); opacity: .8; }
+:root[data-palette="cherry"] .lx-hint, :root[data-palette="cherry"] .lx-why { color: var(--text-dim); }
+/* Titlurile: puțin mai strânse și mai grele, ca pe ecranele de sistem. */
+:root[data-palette="cherry"] .lx-title { font-weight: 650; letter-spacing: -0.025em; }
+/* 3. Culori pe gama largă a ecranului (Display P3, ecranele OLED moderne):
+   același trandafir, dar mai viu și mai curat decât permite sRGB. */
+@supports (color: color(display-p3 1 0 0)) {
+  @media (color-gamut: p3) {
+    :root[data-palette="cherry"]:not([data-theme="light"]) {
+      --accent: color(display-p3 1 0.33 0.52);
+      --accent-text: color(display-p3 1 0.6 0.71);
+      --pick: color(display-p3 0.45 0.92 0.64);
+      --brand-grad: linear-gradient(120deg, color(display-p3 1 0.33 0.52) 0%, color(display-p3 1 0.52 0.64) 52%, color(display-p3 1 0.72 0.8) 100%);
+    }
+    :root[data-theme="light"][data-palette="cherry"] {
+      --accent: color(display-p3 0.82 0.12 0.32);
+      --accent-text: color(display-p3 0.74 0.1 0.27);
+    }
+  }
+}
