@@ -13,6 +13,7 @@ export interface ReasonInput {
   groupId?: string;
   goldenHourDetected?: boolean;
   aside?: string;
+  capturedAt?: number;
 }
 
 export interface Reason {
@@ -31,7 +32,22 @@ export function reasonsFor(p: ReasonInput): Reason[] {
   if (p.faceCount > 1 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesAll', tone: 'good' });
   else if (p.faceCount > 0 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesOpen', tone: 'good' });
   if (p.sharpness >= 70) out.push({ key: 'lx.reason.sharp', tone: 'good' });
-  if (p.goldenHourDetected) out.push({ key: 'lx.reason.goldenHour', tone: 'good' });
+  if (p.goldenHourDetected && nearSunriseOrSunset(p.capturedAt)) out.push({ key: 'lx.reason.goldenHour', tone: 'good' });
   if (p.groupId) out.push({ key: 'lx.reason.series', tone: 'info' });
   return out.slice(0, 3);
+}
+
+/**
+ * „Lumină de apus” doar la ora potrivită (raportat: apărea pe poze făcute la prânz,
+ * când culorile erau doar calde). Răsăritul și apusul aproximative pentru România,
+ * pe lună; fără oră cunoscută, semnalul din analiză rămâne.
+ */
+const SUNRISE = [7.8, 7.3, 6.6, 6.7, 6.0, 5.5, 5.6, 6.1, 6.8, 7.4, 7.1, 7.7];
+const SUNSET = [16.9, 17.6, 18.4, 20.0, 20.6, 21.0, 21.0, 20.4, 19.5, 18.4, 16.9, 16.5];
+export function nearSunriseOrSunset(at?: number): boolean {
+  if (!at) return true;
+  const d = new Date(at);
+  const h = d.getHours() + d.getMinutes() / 60;
+  const m = d.getMonth();
+  return (h >= SUNRISE[m] - 0.5 && h <= SUNRISE[m] + 1.5) || (h >= SUNSET[m] - 1.5 && h <= SUNSET[m] + 0.5);
 }

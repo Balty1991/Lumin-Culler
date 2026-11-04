@@ -420,9 +420,10 @@ export function GalleryWall() {
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}
       {list.length === 0 && <p className="lx-empty">{tr('lx.wall.empty')}</p>}
       {months.map(m => {
-        // Coperta lunii: cea mai bună poză păstrată (altfel cea cu scorul cel mai mare).
-        const hero = [...m.items].sort((a, b) =>
-          Number(b.p.status === 'selected') - Number(a.p.status === 'selected') || b.p.aiScore - a.p.aiScore)[0];
+        // Coperta lunii: doar dintre pozele păstrate, cu oamenii înaintea obiectelor
+        // (raportat: „cea mai bună din lună” era un fierbător, într-o lună cu 0 păstrate).
+        const hero = m.items.filter(x => x.p.status === 'selected' && !x.p.aside).sort((a, b) =>
+          Number((b.p.faceCount ?? 0) > 0) - Number((a.p.faceCount ?? 0) > 0) || b.p.aiScore - a.p.aiScore)[0];
         const rest = plain && density <= 3 ? m.items.filter(x => x !== hero) : m.items;
         const spans = computeSpans(rest.map(x => x.p), density);
         const kept = m.items.filter(x => x.p.status === 'selected').length;

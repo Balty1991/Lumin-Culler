@@ -1238,3 +1238,6 @@ html, body { overflow-x: hidden; }
 :root[data-theme="light"] .lx-viewer-arrow { background: color-mix(in srgb, var(--surface) 80%, transparent); color: var(--text); border-color: var(--line); }
 :root[data-theme="light"] .lx-viewer-info .lx-chip.info { color: var(--text-dim); border-color: var(--line-strong); }
 :root[data-theme="light"] .lx-enhance-tag { background: rgb(10 10 16 / .55); color: #fff; }
+/* Titlul lunii pe un rând, cifrele alături, întregi (raportat: „Octombrie / 2026” rupt, „0 păstrat” tăiat). */
+.lx-wall-head > span { white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; font-size: clamp(20px, 6vw, 26px); }
+.lx-wall-head > small { white-space: nowrap; flex: none; }

@@ -283,6 +283,20 @@ export function LumiFeed() {
       });
     }
 
+    // 5b. Poze neclare sau mișcate, pe care nu le-ai păstrat (fără cele cu oamenii tăi).
+    const blurry = photos.filter(p => !p.aside && p.status !== 'selected' && p.mediaUri && p.sharpness < 30
+      && !(p.personNames?.length) && photoTime(p) < Date.now() - 3 * DAY);
+    if (native && blurry.length >= 6) {
+      out.push({
+        id: `blurry-${blurry.length}`,
+        text: tr('lx.feed.blurry', { count: blurry.length }),
+        sub: bytes(blurry) ? tr('lx.feed.frees', { size: formatBytes(bytes(blurry), locale) }) : undefined,
+        action: tr('lx.feed.blurryGo'),
+        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(blurry.map(p => p.id))),
+        second: { label: tr('lx.feed.see'), run: () => openViewer(blurry.map(p => p.id)) }
+      });
+    }
+
     // 6. Ce așteaptă, cu Pro: Lumi decide singură (arătat pe galeria omului, nu ca listă de funcții).
     const waiting = photos.filter(isWaiting).length;
     if (premiumLocked && waiting >= 30) {

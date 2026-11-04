@@ -986,4 +986,7 @@ export const dict: Record<string, string> = {
   "ritual.notify.ask": "Je te préviens le soir quand il y a de nouvelles photos à trier ? Seulement les jours avec photos, une fois.",
   "ritual.notify.yes": "Oui, préviens-moi le soir",
   "ritual.notify.no": "Pas maintenant",
+  "ritual.match": "🎯 Ton IA a choisi comme toi {hits} fois sur {total} ({pct} %).",
+  "lx.feed.blurry": "Tu as {count} photos floues ou bougées que tu n’as pas gardées. Je les jette ? Les photos de tes proches restent.",
+  "lx.feed.blurryGo": "Jette-les",
 };

@@ -3011,4 +3011,7 @@ export const en: Record<TranslationKey, string> = {
   "ritual.notify.ask": "Want a heads-up in the evening when there are new photos to pick? Only on days with photos, once.",
   "ritual.notify.yes": "Yes, remind me in the evening",
   "ritual.notify.no": "Not now",
+  "ritual.match": "🎯 Your AI chose like you {hits} times out of {total} ({pct}%).",
+  "lx.feed.blurry": "You have {count} blurry or shaky photos you didn't keep. Bin them? Photos of your people stay.",
+  "lx.feed.blurryGo": "Bin them",
 };

@@ -448,3 +448,4 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .hiw-text { max-width: 340px; text-align: center; font-size: 17px; line-height: 1.45; color: var(--text); min-height: 76px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .hiw-tile { transition: none; } }
 .rd-notify { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 6px; }
+.rd-match { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: var(--text); }

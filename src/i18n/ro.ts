@@ -3097,6 +3097,9 @@ export const ro = {
   "ritual.notify.ask": "Vrei să-ți spun seara când ai poze noi de ales? Doar în zilele cu poze, o dată.",
   "ritual.notify.yes": "Da, anunță-mă seara",
   "ritual.notify.no": "Nu acum",
+  "ritual.match": "🎯 AI-ul tău a ales ca tine de {hits} ori din {total} ({pct}%).",
+  "lx.feed.blurry": "Ai {count} poze neclare sau mișcate pe care nu le-ai păstrat. Le arunc? Pozele cu oamenii tăi rămân.",
+  "lx.feed.blurryGo": "Aruncă-le",
 };
 
 export type TranslationKey = keyof typeof ro;

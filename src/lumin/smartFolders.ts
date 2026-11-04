@@ -12,7 +12,8 @@ export const SMART_FOLDERS: readonly SmartFolder[] = [
   { id: 'home', objects: true, emoji: '🏠', tags: ['room', 'furniture', 'couch', 'sofa', 'bed', 'kitchen', 'interior design', 'house', 'home', 'curtain', 'shelf'] },
   { id: 'food', objects: true, emoji: '🍝', tags: ['food', 'dish', 'cuisine', 'cake', 'dessert', 'meal', 'pizza', 'bread', 'fruit', 'vegetable', 'cookie', 'drink'] },
   { id: 'clothes', objects: true, emoji: '👗', tags: ['clothing', 'dress', 'shoe', 'jeans', 'handbag', 'jacket', 'sneakers', 'boot', 'shirt', 'hat'] },
-  { id: 'pets', emoji: '🐾', tags: ['cat', 'dog', 'pet', 'animal', 'bird', 'horse', 'kitten', 'puppy'] },
+  // Doar animale anume: „pet”/„animal” generice veneau și pe jucării de pluș și copii (raportat).
+  { id: 'pets', emoji: '🐾', tags: ['cat', 'dog', 'bird', 'horse', 'kitten', 'puppy', 'rabbit', 'hamster', 'parrot', 'cow', 'sheep', 'goat', 'duck', 'chicken', 'fish'] },
   { id: 'nature', emoji: '🌿', tags: ['plant', 'flower', 'tree', 'forest', 'mountain', 'beach', 'sea', 'lake', 'sky', 'garden', 'grass'] },
   { id: 'docs', emoji: '📄', tags: [], aside: true }
 ];

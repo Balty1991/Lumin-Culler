@@ -4,6 +4,7 @@ import { recordRitualDay, readRitualDays, streakOf } from '../core/ritualStreak'
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { checkNotificationAccess, isNativeNotificationsAvailable, requestNotificationAccess } from '../core/nativeNotifications';
 import { t, plural } from '../i18n';
+import { readDailyScore } from '../core/tasteScore';
 
 /**
  * ui/RitualDone.tsx
@@ -71,6 +72,13 @@ export function RitualDone({ ids, decided }: { ids: readonly string[]; decided: 
         </div>
       )}
       {streak > 1 && <p className="rd-note">{tr('ritual.streakNote')}</p>}
+      {/* „Alege ca tine”, cu cifre: cât a ghicit AI-ul din deciziile tale reale. */}
+      {(() => {
+        const sc = readDailyScore();
+        if (sc.total < 10) return null;
+        const pct = Math.round((sc.hits / sc.total) * 100);
+        return <p className="rd-match">{tr('ritual.match', { hits: sc.hits, total: sc.total, pct })}</p>;
+      })()}
       {isNativeMediaLibraryAvailable() && rejectedOnPhone > 0 && trashed === null && (
         <button className="v3-cta" onClick={() => void trash()} disabled={trashing}>
           <span>{tr(plural(rejectedOnPhone, 'ritual.trash.one', 'ritual.trash'), { count: rejectedOnPhone })}</span>
