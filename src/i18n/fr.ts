@@ -1031,4 +1031,6 @@ export const dict: Record<string, string> = {
   "lx.bulk.sayGo": "Afficher",
   "lx.bulk.sayNo": "Je n’ai pas compris. Essaie : captures, floues, sombres, documents.",
   "lx.bulk.kind.dark": "Sombres",
+  'lx.journal.title': "Le journal de {name}",
+  'lx.journal.button': "Journal de {name} (PDF)",
 };

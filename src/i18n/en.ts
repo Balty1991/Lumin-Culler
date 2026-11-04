@@ -3064,4 +3064,6 @@ export const en: Record<TranslationKey, string> = {
   "lx.bulk.sayGo": "Show",
   "lx.bulk.sayNo": "I didn’t get which photos. Try: screenshots, blurry, dark, documents.",
   "lx.bulk.kind.dark": "Dark",
+  'lx.journal.title': "{name}’s journal",
+  'lx.journal.button': "{name}’s journal (PDF)",
 };

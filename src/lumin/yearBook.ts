@@ -176,3 +176,58 @@ export async function makeCalendar(
   }
   return new Blob([makePdf(pages) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
 }
+
+/**
+ * Jurnalul unui om (de obicei al copilului): o pagină pe lună, cu cea mai
+ * frumoasă poză cu el din luna aceea și vârsta lui atunci. Totul pe telefon.
+ */
+export async function makeJournal(
+  name: string, photos: readonly PhotoView[],
+  texts: { title: string; month: (start: number) => string; age: (start: number) => string | null },
+  onProgress?: (done: number, total: number) => void
+): Promise<Blob | null> {
+  const byMonth = new Map<number, PhotoView>();
+  const score = (x: PhotoView) => (x.status === 'selected' ? 3 : 0) + (x.aesthetic ?? x.aiScore / 12);
+  for (const p of photos) {
+    if (p.aside) continue;
+    const d = new Date(photoTime(p));
+    const k = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const cur = byMonth.get(k);
+    if (!cur || score(p) > score(cur)) byMonth.set(k, p);
+  }
+  const months = [...byMonth.keys()].sort((a, b) => a - b);
+  if (months.length < 2) return null;
+  const pages: PdfPage[] = [];
+  const total = months.length + 1;
+  const best = [...byMonth.values()].sort((a, b) => score(b) - score(a))[0];
+  const first = await pageJpeg(async ctx => {
+    const img = await loadImage(best.id);
+    if (img) cover(ctx, img, 90, 90, PW - 180, PH * 0.66, 18);
+    ctx.fillStyle = '#2b2620';
+    ctx.font = '700 110px Georgia, serif';
+    ctx.fillText(texts.title, 90, PH * 0.66 + 230, PW - 180);
+    ctx.font = '400 40px Georgia, serif';
+    ctx.fillStyle = '#6b6156';
+    ctx.fillText(`${texts.month(months[0])} – ${texts.month(months[months.length - 1])}`, 90, PH * 0.66 + 310, PW - 180);
+  });
+  if (first) pages.push(first);
+  onProgress?.(1, total);
+  for (const [i, m] of months.entries()) {
+    const p = byMonth.get(m)!;
+    const page = await pageJpeg(async ctx => {
+      const img = await loadImage(p.id);
+      if (img) cover(ctx, img, 90, 90, PW - 180, PH - 420, 16);
+      ctx.fillStyle = '#2b2620';
+      ctx.font = '600 68px Georgia, serif';
+      ctx.fillText(texts.month(m), 90, PH - 220, PW - 180);
+      const age = texts.age(m);
+      if (age) { ctx.font = '400 40px Georgia, serif'; ctx.fillStyle = '#6b6156'; ctx.fillText(age, 90, PH - 150, PW - 180); }
+      ctx.fillStyle = '#9a8f82';
+      ctx.font = '400 26px Georgia, serif';
+      ctx.fillText(`${i + 2}`, PW / 2 - 8, PH - 60);
+    });
+    if (page) pages.push(page);
+    onProgress?.(i + 2, total);
+  }
+  return new Blob([makePdf(pages) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
+}

@@ -3150,6 +3150,8 @@ export const ro = {
   "lx.bulk.sayGo": "Arată",
   "lx.bulk.sayNo": "N-am înțeles ce fel de poze. Încearcă: capturi, mișcate, întunecate, documente.",
   "lx.bulk.kind.dark": "Întunecate",
+  'lx.journal.title': "Jurnalul lui {name}",
+  'lx.journal.button': "Jurnalul lui {name} (PDF)",
 };
 
 export type TranslationKey = keyof typeof ro;

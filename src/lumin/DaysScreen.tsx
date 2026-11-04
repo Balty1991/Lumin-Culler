@@ -16,6 +16,7 @@ import { CollageButton } from './CollageSheet';
 import { PERSON_GROUPS, readPersonGroups, setPersonGroup, type PersonGroup } from './personGroups';
 import { bestSpread } from './momentAlbums';
 import { makeLayoutCollage, shareCollage } from './collage';
+import { makeJournal, shareYearBook } from './yearBook';
 import { enhanceAll, notYetEnhanced } from './Enhance';
 import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
@@ -267,8 +268,25 @@ function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) 
       if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-atunci-azi.jpg`, name);
     } finally { setBusy(false); }
   };
+  const journal = async () => {
+    setBusy(true);
+    try {
+      const bday = readBirthdays()[name];
+      const blob = await makeJournal(name, usable, {
+        title: tr('lx.journal.title', { name }),
+        month: start => capitalizeFirst(monthLabel(start, locale)),
+        age: start => {
+          const a = bday ? ageAt(bday, start + 15 * 86_400_000) : null;
+          return a ? tr(a.years > 0 ? (a.months > 0 ? 'lx.person.ageYm' : 'lx.person.ageY') : 'lx.person.ageM', { years: a.years, months: a.months, name }) : null;
+        }
+      });
+      if (blob) await shareYearBook(blob, `cherrypic-jurnal-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
+      else useStore.getState().setNotice(tr('lx.recap.failed'));
+    } finally { setBusy(false); }
+  };
   return (
     <div className="lx-chips">
+      {months.length >= 2 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void journal()}>{tr('lx.journal.button', { name })}</button>}
       {film.length >= 4 && <StoryButton className="lx-btn ghost small" ids={film.map(p => p.id)} title={tr('lx.person.film', { name })} subtitle={`${new Date(film[0].capturedAt!).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' })} – ${tr('lx.pair.now').toLowerCase()}`} />}
       {span > 180 * 86_400_000 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void pair()}>↔ {tr('lx.pair.button')}</button>}
     </div>
