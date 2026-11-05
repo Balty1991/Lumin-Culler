@@ -4,6 +4,8 @@ import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
 import { onTodayLaunch, scheduleDailyDigest, scheduleMorningMemory, startOfDay, updateHomeWidget } from '../core/todayDigest';
 import { onThisDay } from './momentAlbums';
+import { framePicks, updateFrameWidget } from './frameWidget';
+import { intlTag } from '../i18n';
 import { maybeAskForReviewAfterWin } from '../state/reviewPrompt';
 import { freedSummary } from '../core/freedSpace';
 import { pickImportFiles } from '../core/filePicker';
@@ -250,6 +252,14 @@ export function LuminApp() {
           void updateHomeWidget({ title: t(locale, pick ? 'lx.widget.recent' : 'lx.widget.title'), subtitle, uri: pick?.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
         }
       }
+      // „Rama vie”: pozele familiei de pe widget, câte una pe lună, cu „Acum 2 ani · iulie”.
+      const now = Date.now();
+      void updateFrameWidget(framePicks(all).map(p => {
+        const d = new Date(p.capturedAt!);
+        const years = new Date(now).getFullYear() - d.getFullYear();
+        const month = d.toLocaleDateString(intlTag(locale), { month: 'long', year: years > 0 ? undefined : 'numeric' });
+        return { uri: p.mediaUri!, label: years > 0 ? t(locale, years === 1 ? 'lx.frame.year1' : 'lx.frame.yearN', { count: years, month }) : month };
+      }));
       void scheduleMorningMemory({
         title1: t(locale, 'lx.memory.notify.title1'), titleN: t(locale, 'lx.memory.notify.titleN'),
         body: t(locale, 'lx.memory.notify.body'), channel: t(locale, 'lx.memory.notify.channel'),

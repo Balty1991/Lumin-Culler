@@ -42,6 +42,7 @@ import { DuelCard, ForgottenCard, MissingCard, ProfileCard } from './Insights';
 import { EmotionYearCard } from './EmotionYear';
 import { GrowthCard } from './GrowthButton';
 import { LookalikeCard } from './Lookalike';
+import { BeenHereCard, FirstsCard, YearMinuteCard } from './Moments';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -250,10 +251,13 @@ export function TodayScreen() {
           <LumiFeed />
         </>
       )}
+      <BeenHereCard />
       <CapsuleCard />
       <ForgottenCard />
       <MissingCard />
       <Recaps />
+      <YearMinuteCard />
+      <FirstsCard />
       <GrowthCard />
       <LookalikeCard />
       <ProfileCard />

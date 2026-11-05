@@ -86,6 +86,19 @@
             android:name=".plugins.CapsuleReceiver"
             android:exported="false" />
 
+        <!-- „Rama vie”: pozele familiei pe ecranul telefonului, vezi plugins/FrameWidgetProvider.kt. -->
+        <receiver
+            android:name=".plugins.FrameWidgetProvider"
+            android:label="@string/frame_description"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/frame_widget_info" />
+        </receiver>
+
         <!-- Widgetul de pe ecranul telefonului, vezi plugins/LuminWidgetProvider.kt. -->
         <receiver
             android:name=".plugins.LuminWidgetProvider"

@@ -84,6 +84,13 @@ class NotificationsPlugin : Plugin() {
         call.resolve()
     }
 
+    /** „Rama vie”: pozele de pe widget ({items: [{uri, label}]}). */
+    @PluginMethod
+    fun updateFrameWidget(call: PluginCall) {
+        runCatching { FrameWidgetProvider.save(context, call.getArray("items") ?: com.getcapacitor.JSArray()) }
+        call.resolve()
+    }
+
     @PluginMethod
     fun checkAccess(call: PluginCall) {
         call.resolve(statusResult())

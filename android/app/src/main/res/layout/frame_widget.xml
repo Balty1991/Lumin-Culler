@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- „Rama vie”: patru poze de familie care se schimbă lin, una după alta; vezi plugins/FrameWidgetProvider.kt. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/frame_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/lumin_widget_bg"
+    android:clipToOutline="true">
+
+    <ViewFlipper
+        android:id="@+id/frame_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:autoStart="true"
+        android:flipInterval="12000"
+        android:inAnimation="@anim/frame_in"
+        android:outAnimation="@anim/frame_out">
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <ImageView android:id="@+id/frame_img0" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="centerCrop" android:contentDescription="@null" />
+            <View android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/lumin_widget_shade" />
+            <TextView android:id="@+id/frame_txt0" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="12dp" android:textColor="#FFF6F9" android:textSize="13sp"
+                android:textStyle="bold" android:shadowColor="#99000000" android:shadowRadius="6" android:maxLines="1" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <ImageView android:id="@+id/frame_img1" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="centerCrop" android:contentDescription="@null" />
+            <View android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/lumin_widget_shade" />
+            <TextView android:id="@+id/frame_txt1" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="12dp" android:textColor="#FFF6F9" android:textSize="13sp"
+                android:textStyle="bold" android:shadowColor="#99000000" android:shadowRadius="6" android:maxLines="1" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <ImageView android:id="@+id/frame_img2" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="centerCrop" android:contentDescription="@null" />
+            <View android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/lumin_widget_shade" />
+            <TextView android:id="@+id/frame_txt2" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="12dp" android:textColor="#FFF6F9" android:textSize="13sp"
+                android:textStyle="bold" android:shadowColor="#99000000" android:shadowRadius="6" android:maxLines="1" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <ImageView android:id="@+id/frame_img3" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="centerCrop" android:contentDescription="@null" />
+            <View android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/lumin_widget_shade" />
+            <TextView android:id="@+id/frame_txt3" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="12dp" android:textColor="#FFF6F9" android:textSize="13sp"
+                android:textStyle="bold" android:shadowColor="#99000000" android:shadowRadius="6" android:maxLines="1" />
+        </FrameLayout>
+    </ViewFlipper>
+
+    <TextView
+        android:id="@+id/frame_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="16dp"
+        android:textColor="#FFF6F9"
+        android:textSize="14sp"
+        android:text="@string/frame_empty"
+        android:visibility="gone" />
+</FrameLayout>

@@ -18,4 +18,6 @@
     <string name="sc_today">Sortează azi</string>
     <string name="sc_search">Caută</string>
     <string name="sc_map">Harta pozelor</string>
+    <string name="frame_description">Rama vie: pozele familiei, schimbate lin pe ecranul telefonului</string>
+    <string name="frame_empty">Deschide Cherrypic o dată, ca rama să-și aleagă pozele</string>
 </resources>

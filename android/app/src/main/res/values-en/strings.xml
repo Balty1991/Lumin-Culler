@@ -9,4 +9,6 @@
     <string name="sc_today">Sort today</string>
     <string name="sc_search">Search</string>
     <string name="sc_map">Photo map</string>
+    <string name="frame_description">Living frame: your family photos, gently changing on your home screen</string>
+    <string name="frame_empty">Open Cherrypic once so the frame can pick its photos</string>
 </resources>
