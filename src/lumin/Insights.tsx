@@ -378,3 +378,18 @@ export function ForgottenCard() {
     </section>
   );
 }
+
+/** Din Studio: profilul (sau coperta) lunii, calculat pe loc. */
+export function ProfileOpen({ mode, onClose }: { mode: 'profile' | 'cover'; onClose: () => void }) {
+  const photos = useLxPhotos();
+  const period = useMemo(() => profilePeriod(), []);
+  const profile = useMemo(() => photoProfile(photos, period.from, period.to), [photos, period]);
+  return <ProfileSheet profile={profile} initialMode={mode} onClose={onClose} />;
+}
+
+/** Din Studio: duelul, cu perechile de acum (sau un mesaj dacă nu sunt serii). */
+export function DuelOpen({ onClose }: { onClose: () => void }) {
+  const photos = useLxPhotos();
+  const pairs = useMemo(() => duelPairs(photos, ROUNDS), [photos]);
+  return <Duel pairs={pairs} onClose={onClose} />;
+}

@@ -13,8 +13,10 @@ import type { BurstFilm } from './burstFilm';
  * înainte), așa că și un an întreg încape în memoria telefonului.
  */
 const FPS = 30;
-const HOLD = 13;   // cadre pe poză (~0,43 s)
-const FADE = 4;    // cadre de trecere
+// Raportat: „tranziția e prea rapidă”. Acum fiecare poză stă o secundă, iar trecerea
+// spre următoarea durează o jumătate de secundă; ~40 de zile încap într-un minut.
+const HOLD = 30;   // cadre pe poză (1 s)
+const FADE = 15;   // cadre de trecere (0,5 s)
 
 function coverDraw(ctx: CanvasRenderingContext2D, img: CanvasImageSource, iw: number, ih: number, W: number, H: number, zoom: number) {
   const k = Math.max(W / iw, H / ih) * zoom;
@@ -45,9 +47,9 @@ export async function makeYearMinute(
   };
   const drawFrame = (img: HTMLImageElement | null, next: HTMLImageElement | null, i: number, f: number) => {
     ctx.fillStyle = '#050305'; ctx.fillRect(0, 0, W, H);
-    const z = 1 + (f / (HOLD + FADE)) * 0.05;
+    const z = 1 + (f / (HOLD + FADE)) * 0.04;
     if (img) coverDraw(ctx, img, img.naturalWidth, img.naturalHeight, W, H, z);
-    if (next && f >= HOLD) { ctx.globalAlpha = (f - HOLD + 1) / (FADE + 1); coverDraw(ctx, next, next.naturalWidth, next.naturalHeight, W, H, 1); ctx.globalAlpha = 1; }
+    if (next && f >= HOLD) { const x = (f - HOLD + 1) / (FADE + 1); ctx.globalAlpha = x * x * (3 - 2 * x); coverDraw(ctx, next, next.naturalWidth, next.naturalHeight, W, H, 1); ctx.globalAlpha = 1; }
     const g = ctx.createLinearGradient(0, H * 0.78, 0, H);
     g.addColorStop(0, 'rgba(5,3,5,0)'); g.addColorStop(1, 'rgba(5,3,5,0.7)');
     ctx.fillStyle = g; ctx.fillRect(0, H * 0.78, W, H * 0.22);
@@ -91,23 +93,38 @@ export async function makeYearMinute(
   rec.stop();
   await done;
   m?.stop();
-  // Previzualizarea din aplicație: din miniaturi (puțină memorie); fișierul e la calitate plină.
+  // Previzualizarea din aplicație: la claritate plină, ca fișierul (raportat: „pozele nu
+  // au claritate în video” — înainte se vedeau miniaturile). Pozele se încarcă din mers,
+  // câteva înainte, iar cele trecute se eliberează; miniatura doar cât nu e gata cea clară.
   const thumbs: (HTMLImageElement | null)[] = await Promise.all(items.map(it => getCachedThumbUrl(it.id).then(u => {
     if (!u) return null;
     const im = new Image(); im.src = u;
     return im.decode().then(() => im, () => null);
   }, () => null)));
+  const sharp = new Map<number, HTMLImageElement | null | 'loading'>();
+  const want = (i: number) => {
+    if (i < 0 || i >= items.length || sharp.has(i)) return;
+    sharp.set(i, 'loading');
+    void loadEditable(items[i].id, weak ? 1152 : 1600).then(r => sharp.set(i, r?.img ?? null), () => sharp.set(i, null));
+  };
+  const pick = (i: number): HTMLImageElement | null => {
+    const s2 = sharp.get(i);
+    return s2 && s2 !== 'loading' ? s2 : thumbs[i] ?? null;
+  };
   const per = HOLD + FADE;
   return {
     blob: new Blob(chunks, { type: used.split(';')[0] }), ext: extensionFor(used), music: m ? music : 'none',
     fps: FPS, width: W, height: H, count: total,
     draw: (c, n) => {
       const i = Math.floor((n % total) / per), f = (n % total) % per;
-      const img = thumbs[i], nx = thumbs[i + 1] ?? null;
+      for (let k = 0; k <= 3; k++) want((i + k) % items.length);
+      for (const k of [...sharp.keys()]) if (k < i - 1 && !(i > items.length - 4 && k < 3)) sharp.delete(k);
+      const img = pick(i), nx = i + 1 < items.length ? pick(i + 1) : null;
       const cw = c.canvas.width, ch = c.canvas.height;
       c.fillStyle = '#050305'; c.fillRect(0, 0, cw, ch);
-      if (img) coverDraw(c, img, img.naturalWidth, img.naturalHeight, cw, ch, 1 + (f / per) * 0.05);
-      if (nx && f >= HOLD) { c.globalAlpha = (f - HOLD + 1) / (FADE + 1); coverDraw(c, nx, nx.naturalWidth, nx.naturalHeight, cw, ch, 1); c.globalAlpha = 1; }
+      c.imageSmoothingQuality = 'high';
+      if (img) coverDraw(c, img, img.naturalWidth, img.naturalHeight, cw, ch, 1 + (f / per) * 0.04);
+      if (nx && f >= HOLD) { const x = (f - HOLD + 1) / (FADE + 1); c.globalAlpha = x * x * (3 - 2 * x); coverDraw(c, nx, nx.naturalWidth, nx.naturalHeight, cw, ch, 1); c.globalAlpha = 1; }
       c.fillStyle = '#fff6f9'; c.font = `800 ${Math.round(cw * 0.06)}px system-ui, sans-serif`; c.textAlign = 'left';
       c.fillText(label(items[i].at), cw * 0.06, ch * 0.93);
     }

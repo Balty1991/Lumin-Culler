@@ -186,3 +186,49 @@ export function YearMinuteCard() {
     </section>
   );
 }
+
+/** Din Studio: alegi anul, se face filmul, apoi îl vezi. */
+export function YearMinuteSheet({ onClose }: { onClose: () => void }) {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const locale = useStore(s => s.locale);
+  const years = useMemo(() => {
+    const ys = [...new Set(photos.filter(p => p.capturedAt).map(p => new Date(p.capturedAt!).getFullYear()))].sort((a, b) => b - a);
+    return ys.filter(y => yearDays(photos, y).length >= 10).slice(0, 6);
+  }, [photos]);
+  const [busy, setBusy] = useState<number | null>(null);
+  const [pct, setPct] = useState(0);
+  const [film, setFilm] = useState<BurstFilm | null>(null);
+  const make = async (year: number) => {
+    setBusy(year); setPct(0);
+    try {
+      const days = yearDays(photos, year);
+      const tag = intlTag(locale);
+      const f = await makeYearMinute(days.map(p => ({ id: p.id, at: p.capturedAt! })),
+        at => new Date(at).toLocaleDateString(tag, { day: 'numeric', month: 'short' }), tr('lx.yearMin.cardTitle', { year }), 'happy', setPct);
+      if (f) setFilm(f); else useStore.getState().setNotice(tr('lx.magic.failed'));
+    } catch (e) {
+      logError('yearMinute', e instanceof Error ? e.message : String(e), 'Moments');
+      useStore.getState().setNotice(tr('lx.magic.failed'));
+    } finally { setBusy(null); setPct(0); }
+  };
+  return createPortal(
+    <div className="lx lx-enhance lx-fm" role="dialog" aria-modal="true" aria-label={tr('lx.yearMin.title')}>
+      <header className="lx-viewer-top">
+        <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
+        <span className="lx-viewer-date">{tr('lx.yearMin.title')}</span>
+        <span />
+      </header>
+      <div className="lx-fm-body lx-pick-center">
+        <span className="lx-studio-hero" aria-hidden="true">60″</span>
+        <p className="lx-hint center">{busy !== null ? tr('lx.yearMin.making', { percent: Math.round(pct * 100) }) : years.length ? tr('lx.yearMin.sub') : tr('lx.studio.few')}</p>
+        {busy !== null && <div className="lx-studio-bar"><i style={{ width: `${Math.round(pct * 100)}%` }} /></div>}
+        <div className="lx-chips lx-pick-years">
+          {years.map(y => <button key={y} className={busy === y ? 'lx-chip-btn on' : 'lx-chip-btn'} disabled={busy !== null} onClick={() => void make(y)}>{y}</button>)}
+        </div>
+      </div>
+      {film && <FilmSheet film={film} onClose={() => setFilm(null)} />}
+    </div>,
+    document.body
+  );
+}

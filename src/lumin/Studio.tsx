@@ -1,0 +1,175 @@
+import { useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useStore } from '../state/store';
+import { useTr } from './context';
+import { useLx } from './lxStore';
+import { useLxPhotos } from './useLxPhotos';
+import { Icon } from './icons';
+import { FaceThumb } from './FaceThumb';
+import { usePeopleFaces } from './faces';
+import { burstFilmAvailable } from './burstFilm';
+import { GrowthSheet } from './GrowthButton';
+import { LookalikeSheet } from './Lookalike';
+import { FirstsSheet, YearMinuteSheet } from './Moments';
+import { Connections } from './Connections';
+import { EmotionYear } from './EmotionYear';
+import { DuelOpen, ProfileOpen } from './Insights';
+import { CapsuleCreator } from './Capsule';
+import { FamilyPickSheet } from './FamilyPick';
+import { FilmCreator } from './FilmCreator';
+import { photoTime } from './days';
+
+/**
+ * lumin/Studio.tsx
+ * „Studio”: toate creațiile într-un singur loc, pe categorii (Filme, Familie,
+ * Amintiri, Jocuri), în loc de zece carduri unul sub altul pe Azi (raportat:
+ * „ar trebui prezentare altfel, mai profesională”). Pe Azi rămâne doar o bandă
+ * cu dalele, iar „Vezi tot” deschide Studio.
+ */
+type ToolId = 'yearMin' | 'growth' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
+type Cat = 'films' | 'family' | 'memories' | 'games';
+interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
+
+const TOOLS: Tool[] = [
+  { id: 'yearMin', cat: 'films', glyph: <b>60″</b>, films: true },
+  { id: 'growth', cat: 'films', glyph: <Icon name="sparkle" size={26} />, person: true, films: true },
+  { id: 'film', cat: 'films', glyph: <Icon name="film" size={26} />, films: true },
+  { id: 'look', cat: 'family', glyph: <b>≈</b>, person: true },
+  { id: 'firsts', cat: 'family', glyph: <b>1ª</b>, person: true },
+  { id: 'links', cat: 'family', glyph: <Icon name="similar" size={26} /> },
+  { id: 'together', cat: 'family', glyph: <Icon name="check" size={26} /> },
+  { id: 'capsule', cat: 'memories', glyph: <Icon name="lock" size={24} /> },
+  { id: 'joy', cat: 'memories', glyph: <span className="lx-studio-dots" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ opacity: [0.9, 0.3, 0.6, 1, 0.5, 0.8, 0.2, 0.7, 0.4][i] }} />)}</span> },
+  { id: 'profile', cat: 'memories', glyph: <Icon name="sparkle" size={24} /> },
+  { id: 'cover', cat: 'memories', glyph: <b className="serif">C</b> },
+  { id: 'duel', cat: 'games', glyph: <b>VS</b> }
+];
+const CATS: Cat[] = ['films', 'family', 'memories', 'games'];
+
+function useTools(): Tool[] {
+  const films = burstFilmAvailable();
+  return TOOLS.filter(t => !t.films || films);
+}
+
+/** Ce se deschide pentru o dală (cu alegerea omului înainte, unde trebuie). */
+function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
+  const photos = useLxPhotos();
+  const [person, setPerson] = useState<string | null>(null);
+  if (tool.person && !person) return <PersonPick toolId={tool.id} onPick={setPerson} onClose={onClose} />;
+  switch (tool.id) {
+    case 'yearMin': return <YearMinuteSheet onClose={onClose} />;
+    case 'growth': return <GrowthSheet name={person!} list={photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(person!))} onClose={onClose} />;
+    case 'film': {
+      const recent = [...photos].filter(p => p.status === 'selected' && !p.aside).sort((a, b) => photoTime(b) - photoTime(a));
+      const start = recent[0] ?? photos[0];
+      return start ? <FilmCreator startId={start.id} initialIds={[]} initialTransition="fade" onClose={onClose} /> : null;
+    }
+    case 'look': return <LookalikeSheet name={person!} onClose={onClose} />;
+    case 'firsts': return <FirstsSheet name={person!} onClose={onClose} />;
+    case 'links': return <Connections onClose={onClose} />;
+    case 'together': return <FamilyPickSheet onClose={onClose} />;
+    case 'capsule': {
+      const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+      return <CapsuleCreator initialIds={photos.filter(p => photoTime(p) >= d0.getTime() && p.status === 'selected').map(p => p.id)} onClose={onClose} />;
+    }
+    case 'joy': return <EmotionYear onClose={onClose} />;
+    case 'profile': return <ProfileOpen mode="profile" onClose={onClose} />;
+    case 'cover': return <ProfileOpen mode="cover" onClose={onClose} />;
+    case 'duel': return <DuelOpen onClose={onClose} />;
+  }
+}
+
+/** Alegi omul: fețele recunoscute, cei mai des fotografiați întâi. */
+function PersonPick({ toolId, onPick, onClose }: { toolId: ToolId; onPick: (name: string) => void; onClose: () => void }) {
+  const tr = useTr();
+  const persons = useStore(s => s.persons);
+  const faceVersion = useLx(s => s.faceVersion);
+  const { people } = usePeopleFaces(persons, faceVersion);
+  const sorted = useMemo(() => [...people].sort((a, b) => b.photoIds.length - a.photoIds.length), [people]);
+  return createPortal(
+    <div className="lx lx-enhance lx-fm" role="dialog" aria-modal="true" aria-label={tr(`lx.studio.t.${toolId}`)}>
+      <header className="lx-viewer-top">
+        <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
+        <span className="lx-viewer-date">{tr(`lx.studio.t.${toolId}`)}</span>
+        <span />
+      </header>
+      <div className="lx-fm-body">
+        <p className="lx-hint center">{sorted.length ? tr('lx.studio.pickPerson') : tr('lx.studio.noPeople')}</p>
+        <div className="lx-studio-people">
+          {sorted.map(p => (
+            <button key={p.name} onClick={() => onPick(p.name)}>
+              <FaceThumb photoId={p.photoId} box={p.box} size={76} className="lx-face-img" />
+              <b>{p.name}</b>
+              <small>{tr('lx.brain.photos', { count: p.photoIds.length })}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function Tile({ tool, onOpen, compact }: { tool: Tool; onOpen: () => void; compact?: boolean }) {
+  const tr = useTr();
+  return (
+    <button className={`lx-studio-tile c-${tool.cat}${compact ? ' compact' : ''}`} onClick={onOpen}>
+      <span className="lx-studio-glyph">{tool.glyph}</span>
+      <b>{tr(`lx.studio.t.${tool.id}`)}</b>
+      {!compact && <small>{tr(`lx.studio.d.${tool.id}`)}</small>}
+    </button>
+  );
+}
+
+/** Pe Azi: banda Studio (dale care se derulează) și „Vezi tot”. */
+export function StudioStrip() {
+  const tr = useTr();
+  const tools = useTools();
+  const [open, setOpen] = useState<Tool | null>(null);
+  const [all, setAll] = useState(false);
+  return (
+    <section className="lx-section lx-studio-strip">
+      <div className="lx-section-head">
+        <h2>{tr('lx.studio.title')}</h2>
+        <button className="lx-link" onClick={() => setAll(true)}>{tr('lx.studio.all')} ›</button>
+      </div>
+      <div className="lx-studio-row">
+        {tools.map(t => <Tile key={t.id} tool={t} compact onOpen={() => setOpen(t)} />)}
+      </div>
+      {all && <StudioScreen onClose={() => setAll(false)} />}
+      {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+export function StudioScreen({ onClose }: { onClose: () => void }) {
+  const tr = useTr();
+  const tools = useTools();
+  const [open, setOpen] = useState<Tool | null>(null);
+  return createPortal(
+    <div className="lx lx-enhance lx-studio" role="dialog" aria-modal="true" aria-label={tr('lx.studio.title')}>
+      <header className="lx-viewer-top">
+        <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
+        <span className="lx-viewer-date">{tr('lx.studio.title')}</span>
+        <span />
+      </header>
+      <div className="lx-fm-body">
+        <p className="lx-studio-intro">{tr('lx.studio.intro')}</p>
+        {CATS.map(c => {
+          const list = tools.filter(t => t.cat === c);
+          if (!list.length) return null;
+          return (
+            <section key={c} className="lx-studio-cat">
+              <h3>{tr(`lx.studio.cat.${c}`)}</h3>
+              <div className="lx-studio-grid">
+                {list.map(t => <Tile key={t.id} tool={t} onOpen={() => setOpen(t)} />)}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
+    </div>,
+    document.body
+  );
+}

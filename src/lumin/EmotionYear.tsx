@@ -53,7 +53,7 @@ export function EmotionYearCard() {
   );
 }
 
-function EmotionYear({ onClose }: { onClose: () => void }) {
+export function EmotionYear({ onClose }: { onClose: () => void }) {
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const photos = useLxPhotos();

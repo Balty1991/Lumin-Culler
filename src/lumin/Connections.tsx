@@ -26,7 +26,7 @@ export function ConnectionsButton() {
   );
 }
 
-function Connections({ onClose }: { onClose: () => void }) {
+export function Connections({ onClose }: { onClose: () => void }) {
   const tr = useTr();
   const persons = useStore(s => s.persons);
   const faceVersion = useLx(s => s.faceVersion);

@@ -31,7 +31,7 @@ export function GrowthButton({ name, list }: { name: string; list: PhotoView[] }
   );
 }
 
-function GrowthSheet({ name, list, onClose }: { name: string; list: PhotoView[]; onClose: () => void }) {
+export function GrowthSheet({ name, list, onClose }: { name: string; list: PhotoView[]; onClose: () => void }) {
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const [auto, setAuto] = useState<string[] | null>(null);

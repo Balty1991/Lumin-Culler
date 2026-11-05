@@ -1746,3 +1746,38 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-firsts-thumb img, .lx-firsts-thumb canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lx-firsts-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lx-firsts-text small { color: var(--text-dim); font-size: 13px; }
+
+/* Studio: creațiile într-un singur loc, pe categorii. */
+.lx-studio-row { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; scroll-snap-type: x proximity; }
+.lx-studio-row::-webkit-scrollbar { display: none; }
+.lx-studio-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border-radius: 22px; border: 1px solid rgb(255 255 255 / .08);
+  background: linear-gradient(160deg, rgb(255 255 255 / .06), rgb(255 255 255 / .02)); color: inherit; font: inherit; text-align: left; overflow: hidden; scroll-snap-align: start; }
+.lx-studio-tile::after { content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, var(--tint, rgb(255 79 127 / .35)), transparent 70%); pointer-events: none; }
+.lx-studio-tile.compact { flex: none; width: 124px; min-height: 128px; justify-content: space-between; }
+.lx-studio-tile b { font-size: 14px; line-height: 1.25; font-weight: 700; }
+.lx-studio-tile small { font-size: 12px; line-height: 1.35; color: var(--text-dim); }
+.lx-studio-tile:active { transform: scale(.97); }
+.lx-studio-glyph { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; background: var(--glyph, linear-gradient(135deg, #ff4f7f, #ff8fae)); color: #1a0510; box-shadow: 0 8px 22px -8px var(--tint, rgb(255 79 127 / .7)); }
+.lx-studio-glyph b { font-size: 17px; font-weight: 900; letter-spacing: -.02em; color: #1a0510; }
+.lx-studio-glyph b.serif { font-family: Georgia, serif; font-size: 22px; }
+.lx-studio-tile.c-films { --glyph: linear-gradient(135deg, #ff4f7f, #c86bff); --tint: rgb(200 107 255 / .35); }
+.lx-studio-tile.c-family { --glyph: linear-gradient(135deg, #ff6f7f, #ffb36b); --tint: rgb(255 179 107 / .32); }
+.lx-studio-tile.c-memories { --glyph: linear-gradient(135deg, #ff4f7f, #ffb3c8); --tint: rgb(255 79 127 / .35); }
+.lx-studio-tile.c-games { --glyph: linear-gradient(135deg, #ff4f7f, #6bd6ff); --tint: rgb(107 214 255 / .3); }
+.lx-studio-dots { display: grid; grid-template-columns: repeat(3, 8px); gap: 3px; }
+.lx-studio-dots i { display: block; width: 8px; height: 8px; border-radius: 2px; background: #1a0510; }
+.lx-studio { display: flex; flex-direction: column; }
+.lx-studio-intro { margin: 0 0 4px; color: var(--text-dim); font-size: 14px; }
+.lx-studio-cat h3 { margin: 10px 0 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: #ff8fae; font-weight: 700; }
+.lx-studio-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lx-studio-grid .lx-studio-tile { min-height: 150px; }
+.lx-studio-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.lx-studio-people button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border: 1px solid var(--lx-line); border-radius: 18px; background: rgb(255 255 255 / .04); color: inherit; font: inherit; }
+.lx-studio-people canvas, .lx-studio-people .lx-face-img { width: 76px; height: 76px; border-radius: 50%; box-shadow: 0 0 0 2px rgb(255 79 127 / .5); }
+.lx-studio-people b { font-size: 14px; }
+.lx-studio-people small { font-size: 12px; color: var(--text-dim); }
+.lx-pick-center { align-items: center; justify-content: center; text-align: center; }
+.lx-studio-hero { display: grid; place-items: center; width: 110px; height: 110px; border-radius: 32px; background: linear-gradient(135deg, #ff4f7f, #c86bff); color: #1a0510; font-weight: 900; font-size: 34px; box-shadow: 0 20px 50px -14px rgb(200 107 255 / .7); }
+.lx-pick-years { justify-content: center; }
+.lx-studio-bar { width: min(320px, 80%); height: 6px; border-radius: 3px; background: rgb(255 255 255 / .12); overflow: hidden; }
+.lx-studio-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff4f7f, #c86bff); transition: width .3s; }

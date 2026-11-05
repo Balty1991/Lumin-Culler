@@ -59,7 +59,7 @@ export function FamilyPickCard() {
   );
 }
 
-function FamilyPickSheet({ onClose }: { onClose: () => void }) {
+export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
   const tr = useTr();
   const photos = useLxPhotos();
   const askPrompt = useStore(s => s.askPrompt);

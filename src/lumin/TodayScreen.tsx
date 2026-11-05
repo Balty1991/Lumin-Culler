@@ -25,7 +25,6 @@ import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
 import { Recaps } from './Recaps';
-import { FamilyPickCard } from './FamilyPick';
 import { StoryButton } from './Story';
 import { photoTime } from './days';
 
@@ -38,11 +37,9 @@ import { photoTime } from './days';
 import { EnginesIntro } from './EnginesIntro';
 import { FilmCreator } from './FilmCreator';
 import { CapsuleCard } from './Capsule';
-import { DuelCard, ForgottenCard, MissingCard, ProfileCard } from './Insights';
-import { EmotionYearCard } from './EmotionYear';
-import { GrowthCard } from './GrowthButton';
-import { LookalikeCard } from './Lookalike';
-import { BeenHereCard, FirstsCard, YearMinuteCard } from './Moments';
+import { ForgottenCard, MissingCard } from './Insights';
+import { BeenHereCard } from './Moments';
+import { StudioStrip } from './Studio';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -233,7 +230,6 @@ export function TodayScreen() {
       )}
 
       {!sortingActive && <TrainingCard />}
-      {!sortingActive && <DuelCard />}
 
       {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
         <section className="lx-stats">
@@ -251,18 +247,12 @@ export function TodayScreen() {
           <LumiFeed />
         </>
       )}
+      <StudioStrip />
       <BeenHereCard />
       <CapsuleCard />
       <ForgottenCard />
       <MissingCard />
       <Recaps />
-      <YearMinuteCard />
-      <FirstsCard />
-      <GrowthCard />
-      <LookalikeCard />
-      <ProfileCard />
-      <EmotionYearCard />
-      <FamilyPickCard />
       <OnThisDay />
 
       <GalleryStatus />

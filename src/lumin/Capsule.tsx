@@ -211,7 +211,8 @@ export function CapsuleCard() {
     const d0 = new Date(); d0.setHours(0, 0, 0, 0);
     return photos.filter(p => photoTime(p) >= d0.getTime() && p.status === 'selected').map(p => p.id);
   }, [photos]);
-  if (!list.length && todayKept.length === 0) return null;
+  // Fără capsule: crearea e în Studio; aici apar doar cele sigilate și cele deschise.
+  if (!list.length) return null;
   return (
     <>
       {fresh.map(c => (
