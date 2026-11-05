@@ -55,13 +55,15 @@ export function CapsuleCreator({ initialIds, onClose }: { initialIds: string[]; 
   const [months, setMonths] = useState<(typeof WHEN)[number]>(12);
   const [sealing, setSealing] = useState(false);
   // De ales: pozele din ultimele 7 zile (păstrate întâi), plus cele deja puse.
+  // Pozele de ales: din ultima săptămână sau din toate zilele (cele mai noi întâi).
+  const [allDays, setAllDays] = useState(false);
   const candidates = useMemo(() => {
-    const since = Date.now() - 7 * 86_400_000;
+    const since = allDays ? 0 : Date.now() - 7 * 86_400_000;
     return photos
       .filter(p => ids.includes(p.id) || (photoTime(p) >= since && p.status !== 'rejected' && !p.aside))
       .sort((a, b) => photoTime(b) - photoTime(a))
-      .slice(0, 300);
-  }, [photos, ids]);
+      .slice(0, allDays ? 800 : 300);
+  }, [photos, ids, allDays]);
   const toggle = (id: string) => setIds(cur => (cur.includes(id) ? cur.filter(x => x !== id) : cur.length >= MAX ? cur : [...cur, id]));
   const openAt = openTimeFor(months);
   const seal = async () => {
@@ -106,7 +108,14 @@ export function CapsuleCreator({ initialIds, onClose }: { initialIds: string[]; 
             </div>
           </section>
           <section className="lx-fm-section">
-            <b>{tr('lx.capsule.photos')}</b>
+            <div className="lx-fm-head">
+              <b>{tr('lx.capsule.photos')}</b>
+              <div className="lx-enhance-styles lx-fm-days" role="radiogroup">
+                <button role="radio" aria-checked={!allDays} className={!allDays ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAllDays(false)}>{tr('lx.capsule.week')}</button>
+                <button role="radio" aria-checked={allDays} className={allDays ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAllDays(true)}>{tr('lx.filmMaker.allDays')}</button>
+              </div>
+            </div>
+            <p className="lx-hint lx-fm-hint">{tr('lx.capsule.pickHint', { max: MAX })}</p>
             <div className="lx-fm-grid">
               {candidates.map(p => {
                 const n = ids.indexOf(p.id);

@@ -301,7 +301,8 @@ function Duel({ pairs, onClose }: { pairs: [PhotoView, PhotoView][]; onClose: ()
     // Câștigătoarea rămâne, cealaltă la „Nu azi” (nimic nu se șterge); AI-ul învață din alegere.
     void setStatus(win.id, 'selected');
     void setStatus(lose.id, 'rejected');
-    window.setTimeout(() => { setFlash(null); setRound(r => r + 1); }, 750);
+    try { navigator.vibrate?.(ai ? [10, 40, 18] : 14); } catch { /* fără */ }
+    window.setTimeout(() => { setFlash(null); setRound(r => r + 1); }, 1100);
   };
   return createPortal(
     <div className="lx lx-enhance lx-duel" role="dialog" aria-modal="true" aria-label={tr('lx.duel.title')}>
@@ -310,25 +311,36 @@ function Duel({ pairs, onClose }: { pairs: [PhotoView, PhotoView][]; onClose: ()
         <span className="lx-viewer-date">{done ? tr('lx.duel.title') : tr('lx.duel.round', { n: round + 1, total: pairs.length })}</span>
         <span />
       </header>
+      {!done && (
+        <div className="lx-duel-hud">
+          <div className="lx-duel-dots">{pairs.map((_, i) => <i key={i} className={i < round ? 'done' : i === round ? 'now' : undefined} />)}</div>
+          <div className="lx-duel-meter"><span>{tr('lx.duel.score')}</span><b>{round ? Math.round((agree / round) * 100) : 0}%</b></div>
+        </div>
+      )}
       {done ? (
         <div className="lx-duel-end">
-          <span className="lx-duel-vs big">{agree}/{pairs.length}</span>
+          <div className="lx-duel-ring" style={{ ['--p' as string]: `${pairs.length ? (agree / pairs.length) * 100 : 0}` }}><span>{agree}/{pairs.length}</span></div>
           <b>{tr('lx.duel.endTitle', { agree, total: pairs.length })}</b>
           <p>{tr(agree >= pairs.length * 0.7 ? 'lx.duel.endSame' : 'lx.duel.endLearn')}</p>
           <button className="lx-btn primary" onClick={onClose}>{tr('lx.duel.done')}</button>
         </div>
       ) : (
-        <>
-          <p className="lx-hint center">{tr('lx.duel.ask')}</p>
-          <div className="lx-duel-pair">
-            {pairs[round].map((p, i) => (
-              <button key={p.id} className={flash ? (flash.side === i ? 'lx-duel-photo win' : 'lx-duel-photo lose') : 'lx-duel-photo'} onClick={() => pick(i as 0 | 1)}>
+        <div className="lx-duel-arena" key={round}>
+          {pairs[round].map((p, i) => {
+            const other = pairs[round][1 - i];
+            const aiPick = p.aiScore >= other.aiScore;
+            return (
+              <button key={p.id} className={`lx-duel-photo side-${i}${flash ? (flash.side === i ? ' win' : ' lose') : ''}`} onClick={() => pick(i as 0 | 1)}>
                 <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
+                <span className="lx-duel-corner" aria-hidden="true" />
+                {flash && aiPick && <span className="lx-duel-ai">{tr('lx.duel.aiPick')}</span>}
                 {flash?.side === i && <span className="lx-duel-flash">{tr(flash.agree ? 'lx.duel.agree' : 'lx.duel.learn')}</span>}
               </button>
-            ))}
-          </div>
-        </>
+            );
+          })}
+          <span className="lx-duel-versus" aria-hidden="true"><b>VS</b></span>
+          <p className="lx-duel-ask">{tr('lx.duel.ask')}</p>
+        </div>
       )}
     </div>,
     document.body

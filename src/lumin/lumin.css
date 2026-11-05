@@ -1830,3 +1830,86 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 @keyframes lx-pulse { 50% { transform: scale(1.8); opacity: .5; } }
 @keyframes lx-reveal { from { opacity: 0; transform: scale(.94); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
 @media (prefers-reduced-motion: reduce) { .lx-scan-ring, .lx-scan-line, .lx-scan-mesh *, .lx-look-result { animation: none !important; } }
+
+/* Anul în zâmbete, ca un calendar adevărat. */
+.lx-joy-bars { display: flex; gap: 4px; align-items: flex-end; height: 74px; padding: 4px 0; }
+.lx-joy-bars button { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--text-dim); font: inherit; }
+.lx-joy-bar { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.lx-joy-bar i { display: block; width: 70%; border-radius: 4px; background: linear-gradient(#ff8fae, #ff4f7f); }
+.lx-joy-bars button small { font-size: 11px; text-transform: uppercase; }
+.lx-joy-bars button.on small { color: #fff; font-weight: 800; }
+.lx-joy-bars button.on .lx-joy-bar i { box-shadow: 0 0 12px rgb(255 79 127 / .9); }
+.lx-joy-month { width: 100%; }
+.lx-joy-mhead { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px; }
+.lx-joy-mhead > span { display: flex; flex-direction: column; align-items: center; }
+.lx-joy-mhead b { font-size: 18px; }
+.lx-joy-mhead small { font-size: 12px; color: #ff8fae; min-height: 14px; }
+.lx-joy-week { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.lx-joy-week span { text-align: center; font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
+.lx-joy-days { display: flex; flex-wrap: wrap; }
+.lx-joy-day { position: relative; padding: 0; border: 0; border-radius: 12px; overflow: hidden; background: rgb(255 255 255 / .03); color: rgb(255 246 249 / .35); font: inherit; }
+.lx-joy-day > span { position: absolute; left: 6px; top: 4px; font-size: 12px; font-weight: 700; }
+.lx-joy-day.plain { background: rgb(255 255 255 / .1); color: rgb(255 246 249 / .8); }
+.lx-joy-day.smile { box-shadow: inset 0 0 0 2px #ff4f7f, 0 0 14px -4px rgb(255 79 127 / .9); color: #fff; }
+.lx-joy-day.smile img, .lx-joy-day.smile canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-joy-day.smile > span { z-index: 1; padding: 1px 5px; border-radius: 6px; background: rgb(5 3 5 / .55); }
+.lx-joy-day.on { outline: 2px solid #fff; outline-offset: 2px; }
+.lx-joy-help { margin: 8px 0 0; font-size: 12px; color: var(--text-dim); text-align: center; }
+.lx-joy-topwrap h3 { margin: 14px 0 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: #ff8fae; }
+.lx-joy-top { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.lx-joy-top::-webkit-scrollbar { display: none; }
+.lx-joy-top button { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: 12px; }
+.lx-joy-topimg { display: block; width: 72px; height: 72px; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 2px rgb(255 79 127 / .6); }
+.lx-joy-topimg img, .lx-joy-topimg canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* „Galeria ta” pe Azi: cardurile de stare și curățenie într-un singur bloc, ca o listă grupată. */
+.lx-group { border-radius: 22px; border: 1px solid var(--lx-line); background: rgb(255 255 255 / .03); overflow: hidden; }
+.lx-group > * { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+.lx-group > * + * { border-top: 1px solid var(--lx-line) !important; }
+.lx-recaps-sheet .lx-section-head { display: none; }
+
+/* Duelul pozelor, futurist: arenă cu VS neon, HUD cu runde și acord, verdictul AI. */
+.lx-duel { background: radial-gradient(120% 70% at 50% 50%, #1c0a14 0%, #050305 70%); }
+.lx-duel-hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px 10px; }
+.lx-duel-dots { display: flex; gap: 6px; }
+.lx-duel-dots i { width: 18px; height: 4px; border-radius: 2px; background: rgb(255 255 255 / .15); transition: background .3s, box-shadow .3s; }
+.lx-duel-dots i.done { background: #ff4f7f; }
+.lx-duel-dots i.now { background: #fff; box-shadow: 0 0 10px #ff4f7f; }
+.lx-duel-meter { display: flex; align-items: baseline; gap: 6px; font-family: var(--mono, ui-monospace, monospace); }
+.lx-duel-meter span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+.lx-duel-meter b { font-size: 16px; color: #ff8fae; text-shadow: 0 0 10px rgb(255 79 127 / .7); }
+.lx-duel-arena { position: relative; flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 14px; padding: 0 16px calc(16px + var(--safe-bottom, 0px)); }
+@media (orientation: landscape) { .lx-duel-arena { grid-template-rows: none; grid-template-columns: 1fr 1fr; } }
+.lx-duel-arena .lx-duel-photo { position: relative; min-height: 0; border-radius: 22px; overflow: hidden; border: 1px solid rgb(255 79 127 / .35);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .04), 0 18px 40px -20px rgb(0 0 0 / .9); animation: lx-duel-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.lx-duel-arena .side-0 { --from: -40px; }
+.lx-duel-arena .side-1 { --from: 40px; animation-delay: .06s; }
+@keyframes lx-duel-in { from { opacity: 0; transform: translateY(var(--from)) scale(.96); } to { opacity: 1; transform: none; } }
+.lx-duel-corner { position: absolute; inset: 10px; pointer-events: none; border-radius: 14px;
+  background: linear-gradient(#ff8fae, #ff8fae) left top / 22px 2px no-repeat, linear-gradient(#ff8fae, #ff8fae) left top / 2px 22px no-repeat,
+    linear-gradient(#ff8fae, #ff8fae) right bottom / 22px 2px no-repeat, linear-gradient(#ff8fae, #ff8fae) right bottom / 2px 22px no-repeat; opacity: .8; }
+.lx-duel-versus { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
+  background: radial-gradient(circle, #2a0b18, #050305); box-shadow: 0 0 0 2px #ff4f7f, 0 0 30px rgb(255 79 127 / .8), inset 0 0 14px rgb(255 79 127 / .5); pointer-events: none; animation: lx-vs-pulse 1.6s ease-in-out infinite; }
+.lx-duel-versus b { font-size: 20px; font-weight: 900; letter-spacing: .04em; color: #fff; text-shadow: 0 0 10px #ff4f7f; }
+@keyframes lx-vs-pulse { 50% { box-shadow: 0 0 0 2px #ff8fae, 0 0 46px rgb(255 79 127 / 1), inset 0 0 18px rgb(255 79 127 / .7); } }
+.lx-duel-ask { position: absolute; left: 0; right: 0; top: 50%; margin: 0; transform: translateY(44px); text-align: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: rgb(255 246 249 / .75); pointer-events: none; z-index: 2; }
+.lx-duel-arena .lx-duel-photo.win { border-color: #ff4f7f; box-shadow: 0 0 0 3px #ff4f7f, 0 0 50px -6px rgb(255 79 127 / 1); transform: scale(1.02); transition: transform .3s, box-shadow .3s; }
+.lx-duel-arena .lx-duel-photo.win::after { content: ""; position: absolute; left: 0; right: 0; height: 40%; top: -40%; background: linear-gradient(transparent, rgb(255 143 174 / .45), transparent); animation: lx-duel-sweep .8s ease-out forwards; }
+@keyframes lx-duel-sweep { to { top: 100%; } }
+.lx-duel-arena .lx-duel-photo.lose { opacity: .25; transform: scale(.95); filter: grayscale(1) blur(1px); transition: all .4s; }
+.lx-duel-ai { position: absolute; right: 12px; top: 12px; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: rgb(5 3 5 / .7); border: 1px solid #ff8fae; z-index: 1; }
+.lx-duel-ring { --p: 0; width: 140px; height: 140px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(#ff4f7f calc(var(--p) * 1%), rgb(255 255 255 / .1) 0); box-shadow: 0 0 40px -6px rgb(255 79 127 / .8); }
+.lx-duel-ring span { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 50%; background: #0b0508; font-size: 30px; font-weight: 900; }
+
+/* Butonul „3D” din Galerie: atrage atenția discret — un contur care se rotește
+   și o strălucire care trece peste text la câteva secunde. */
+.lx-density-btn.lx-3d-btn { position: relative; overflow: hidden; isolation: isolate; border-color: transparent !important; color: #fff !important;
+  background: linear-gradient(#0d070a, #0d070a) padding-box, conic-gradient(from var(--a3d, 0deg), #ff4f7f, #c86bff, #6bd6ff, #ff4f7f) border-box !important;
+  border: 1.5px solid transparent !important; animation: lx-3d-spin 3.2s linear infinite; text-shadow: 0 0 10px rgb(255 79 127 / .9); }
+.lx-density-btn.lx-3d-btn::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / .22), transparent); animation: lx-3d-shine 3.6s ease-in-out infinite; }
+@property --a3d { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes lx-3d-spin { to { --a3d: 360deg; } }
+@keyframes lx-3d-shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .lx-density-btn.lx-3d-btn, .lx-density-btn.lx-3d-btn::after { animation: none; } }

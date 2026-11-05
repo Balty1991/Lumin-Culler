@@ -18,6 +18,7 @@ import { CapsuleCreator } from './Capsule';
 import { FamilyPickSheet } from './FamilyPick';
 import { FilmCreator } from './FilmCreator';
 import { photoTime } from './days';
+import { Recaps } from './Recaps';
 
 /**
  * lumin/Studio.tsx
@@ -26,7 +27,7 @@ import { photoTime } from './days';
  * „ar trebui prezentare altfel, mai profesională”). Pe Azi rămâne doar o bandă
  * cu dalele, iar „Vezi tot” deschide Studio.
  */
-type ToolId = 'yearMin' | 'growth' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
+type ToolId = 'recaps' | 'yearMin' | 'growth' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
 type Cat = 'films' | 'family' | 'memories' | 'games';
 interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
 
@@ -38,6 +39,7 @@ const TOOLS: Tool[] = [
   { id: 'firsts', cat: 'family', glyph: <b>1ª</b>, person: true },
   { id: 'links', cat: 'family', glyph: <Icon name="similar" size={26} /> },
   { id: 'together', cat: 'family', glyph: <Icon name="check" size={26} /> },
+  { id: 'recaps', cat: 'memories', glyph: <Icon name="square" size={24} /> },
   { id: 'capsule', cat: 'memories', glyph: <Icon name="lock" size={24} /> },
   { id: 'joy', cat: 'memories', glyph: <span className="lx-studio-dots" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ opacity: [0.9, 0.3, 0.6, 1, 0.5, 0.8, 0.2, 0.7, 0.4][i] }} />)}</span> },
   { id: 'profile', cat: 'memories', glyph: <Icon name="sparkle" size={24} /> },
@@ -57,6 +59,7 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
   const [person, setPerson] = useState<string | null>(null);
   if (tool.person && !person) return <PersonPick toolId={tool.id} onPick={setPerson} onClose={onClose} />;
   switch (tool.id) {
+    case 'recaps': return <RecapsSheet onClose={onClose} />;
     case 'yearMin': return <YearMinuteSheet onClose={onClose} />;
     case 'growth': return <GrowthSheet name={person!} list={photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(person!))} onClose={onClose} />;
     case 'film': {
@@ -169,6 +172,22 @@ export function StudioScreen({ onClose }: { onClose: () => void }) {
         })}
       </div>
       {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
+    </div>,
+    document.body
+  );
+}
+
+/** Rezumatele (săptămâna, cele mai frumoase din lună, anul), mutate de pe Azi în Studio. */
+function RecapsSheet({ onClose }: { onClose: () => void }) {
+  const tr = useTr();
+  return createPortal(
+    <div className="lx lx-enhance lx-fm" role="dialog" aria-modal="true" aria-label={tr('lx.studio.t.recaps')}>
+      <header className="lx-viewer-top">
+        <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
+        <span className="lx-viewer-date">{tr('lx.studio.t.recaps')}</span>
+        <span />
+      </header>
+      <div className="lx-fm-body lx-recaps-sheet"><Recaps /></div>
     </div>,
     document.body
   );

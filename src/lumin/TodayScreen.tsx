@@ -252,22 +252,27 @@ export function TodayScreen() {
       <CapsuleCard />
       <ForgottenCard />
       <MissingCard />
-      <Recaps />
       <OnThisDay />
 
-      <GalleryStatus />
-      <CleanupCard photos={photos} compact />
+      {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
+      <section className="lx-section">
+        <div className="lx-section-head"><h2>{tr('lx.today.galleryGroup')}</h2></div>
+        <div className="lx-group">
+        <GalleryStatus />
+        <CleanupCard photos={photos} compact />
 
-      <FreedCard />
+        <FreedCard />
 
-      <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
-        <Orb mood="learn" size={44} />
-        <div>
-          <b>{tr('lx.brain.title')}</b>
-          <span>{twin.percent !== null ? tr('lx.twin.percent', { percent: twin.percent }) : score.total > 0 ? tr('lx.brain.miniScore', { hits: score.hits, total: score.total }) : tr('lx.brain.miniTrain')}</span>
+        <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
+          <Orb mood="learn" size={44} />
+          <div>
+            <b>{tr('lx.brain.title')}</b>
+            <span>{twin.percent !== null ? tr('lx.twin.percent', { percent: twin.percent }) : score.total > 0 ? tr('lx.brain.miniScore', { hits: score.hits, total: score.total }) : tr('lx.brain.miniTrain')}</span>
+          </div>
+          <span className="lx-chev" aria-hidden="true">›</span>
+        </button>
         </div>
-        <span className="lx-chev" aria-hidden="true">›</span>
-      </button>
+      </section>
 
       {past.length > 0 && (
         <section className="lx-section">
