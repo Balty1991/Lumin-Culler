@@ -89,9 +89,9 @@ export function firstsOf<P extends MomentPhoto>(photos: readonly P[], name: stri
 
 /**
  * „Un an într-un minut”: cea mai frumoasă poză din fiecare zi a anului, cel mult
- * `max` zile (40 × 1,5 s ≈ un minut; pași egali dacă sunt mai multe zile), în ordinea timpului.
+ * `max` zile (30 × 2 s ≈ un minut; pași egali dacă sunt mai multe zile), în ordinea timpului.
  */
-export function yearDays<P extends MomentPhoto>(photos: readonly P[], year: number, max = 40): P[] {
+export function yearDays<P extends MomentPhoto>(photos: readonly P[], year: number, max = 30): P[] {
   const byDay = new Map<number, P>();
   const score = (p: P) => (p.status === 'selected' ? 100 : 0) + p.aiScore;
   for (const p of photos) {

@@ -13,10 +13,11 @@ import type { BurstFilm } from './burstFilm';
  * înainte), așa că și un an întreg încape în memoria telefonului.
  */
 const FPS = 30;
-// Raportat: „tranziția e prea rapidă”. Acum fiecare poză stă o secundă, iar trecerea
-// spre următoarea durează o jumătate de secundă; ~40 de zile încap într-un minut.
-const HOLD = 30;   // cadre pe poză (1 s)
-const FADE = 15;   // cadre de trecere (0,5 s)
+// Raportat de două ori: „tranziția e prea rapidă”. Fiecare poză stă o secundă și
+// jumătate, iar trecerea spre următoarea durează peste o jumătate de secundă; ~30 de
+// zile încap într-un minut.
+const HOLD = 45;   // cadre pe poză (1,5 s)
+const FADE = 18;   // cadre de trecere (0,6 s)
 
 function coverDraw(ctx: CanvasRenderingContext2D, img: CanvasImageSource, iw: number, ih: number, W: number, H: number, zoom: number) {
   const k = Math.max(W / iw, H / ih) * zoom;

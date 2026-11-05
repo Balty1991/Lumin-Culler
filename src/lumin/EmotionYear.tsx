@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
@@ -88,29 +88,8 @@ export function EmotionYear({ onClose }: { onClose: () => void }) {
           {tr('lx.joy.happyDays', { count: happyDays })}
           {bestMonth >= 0 && <> · {tr('lx.joy.bestMonth', { month: new Date(year, bestMonth, 1).toLocaleDateString(tag, { month: 'long' }) })}</>}
         </p>
-        <div className="lx-joy-grid">
-          {Array.from({ length: 12 }, (_, m) => {
-            const len = new Date(year, m + 1, 0).getDate();
-            return (
-              <div key={m} className="lx-joy-row">
-                <span>{new Date(year, m, 1).toLocaleDateString(tag, { month: 'short' })}</span>
-                <div>
-                  {Array.from({ length: 31 }, (_, i) => {
-                    if (i >= len) return <i key={i} className="none" />;
-                    const key = new Date(year, m, i + 1).getTime();
-                    const d = days.get(key);
-                    const cls = !d ? 'empty' : d.joy <= 0 ? 'plain' : 'joy';
-                    return (
-                      <i key={i} className={picked?.day === key ? `${cls} on` : cls} style={d && d.joy > 0 ? { ['--j' as string]: String(0.25 + d.joy * 0.75) } : undefined}
-                        onClick={() => d && setPicked(d)} />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="lx-joy-legend"><i className="plain" />{tr('lx.joy.legendPhotos')}<i className="joy" style={{ ['--j' as string]: '1' }} />{tr('lx.joy.legendSmiles')}</div>
+        <JoyCalendar year={year} days={days} picked={picked?.day ?? null} tag={tag} onPick={setPicked} />
+        <div className="lx-joy-legend"><span className="lx-joy-key plain" />{tr('lx.joy.legendPhotos')}<span className="lx-joy-key joy" />{tr('lx.joy.legendSmiles')}</div>
         {picked && (
           <button className="lx-card lx-joy-pick" onClick={() => { onClose(); useLx.getState().openViewer(picked.ids, Math.max(0, picked.ids.indexOf(picked.best.id))); }}>
             <span className="lx-joy-thumb"><Thumb id={picked.best.id} lqip={picked.best.lqip} edits={picked.best.edits} /></span>
@@ -125,4 +104,71 @@ export function EmotionYear({ onClose }: { onClose: () => void }) {
     </div>,
     document.body
   );
+}
+
+/**
+ * Calendarul desenat pe o pânză: 12 rânduri × 31 de zile. Raportat de două ori
+ * cu captură că pe telefon pătrățelele ieșeau cât tot ecranul (grila din HTML
+ * era așezată altfel de WebView); pe pânză, fiecare zi are exact mărimea ei.
+ */
+function JoyCalendar({ year, days, picked, tag, onPick }: { year: number; days: Map<number, DayJoy>; picked: number | null; tag: string; onPick: (d: DayJoy) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [w, setW] = useState(0);
+  const LABEL = 34, GAP = 2, ROWS = 12;
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ro = new ResizeObserver(() => setW(c.parentElement?.clientWidth ?? 0));
+    if (c.parentElement) ro.observe(c.parentElement);
+    setW(c.parentElement?.clientWidth ?? 0);
+    return () => ro.disconnect();
+  }, []);
+  const cell = Math.max(4, Math.floor((w - LABEL - GAP * 30) / 31));
+  const H = ROWS * (cell + 4) + 4;
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || !w) return;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    c.width = w * dpr; c.height = H * dpr;
+    c.style.width = `${w}px`; c.style.height = `${H}px`;
+    const ctx = c.getContext('2d')!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, H);
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    for (let m = 0; m < ROWS; m++) {
+      const y = 2 + m * (cell + 4);
+      ctx.fillStyle = 'rgba(255,246,249,0.55)';
+      const label = new Date(year, m, 1).toLocaleDateString(tag, { month: 'short' });
+      ctx.fillText(label.charAt(0).toUpperCase() + label.slice(1), 0, y + cell / 2);
+      const len = new Date(year, m + 1, 0).getDate();
+      for (let i = 0; i < len; i++) {
+        const x = LABEL + i * (cell + GAP);
+        const key = new Date(year, m, i + 1).getTime();
+        const d = days.get(key);
+        ctx.shadowBlur = 0;
+        if (!d) ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        else if (d.joy <= 0) ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        else {
+          const j = 0.25 + d.joy * 0.75;
+          ctx.fillStyle = `rgba(255,79,127,${j})`;
+          ctx.shadowColor = `rgba(255,79,127,${j * 0.8})`; ctx.shadowBlur = j * 8;
+        }
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, cell, cell, Math.min(3, cell / 4)); else ctx.rect(x, y, cell, cell);
+        ctx.fill();
+        if (picked === key) { ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+      }
+    }
+  }, [w, H, cell, year, days, picked, tag]);
+  const tap = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left - LABEL, y = e.clientY - r.top - 2;
+    if (x < 0) return;
+    const m = Math.floor(y / (cell + 4)), i = Math.floor(x / (cell + GAP));
+    if (m < 0 || m >= ROWS || i < 0 || i > 30 || i >= new Date(year, m + 1, 0).getDate()) return;
+    const d = days.get(new Date(year, m, i + 1).getTime());
+    if (d) onPick(d);
+  };
+  return <div className="lx-joy-canvas"><canvas ref={ref} onPointerUp={tap} /></div>;
 }

@@ -1781,3 +1781,8 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-pick-years { justify-content: center; }
 .lx-studio-bar { width: min(320px, 80%); height: 6px; border-radius: 3px; background: rgb(255 255 255 / .12); overflow: hidden; }
 .lx-studio-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff4f7f, #c86bff); transition: width .3s; }
+.lx-joy-canvas { width: 100%; }
+.lx-joy-canvas canvas { display: block; touch-action: manipulation; }
+.lx-joy-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.lx-joy-key.plain { background: rgb(255 255 255 / .16); }
+.lx-joy-key.joy { margin-left: 10px; background: #ff4f7f; box-shadow: 0 0 8px rgb(255 79 127 / .8); }
