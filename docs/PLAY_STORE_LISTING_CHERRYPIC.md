@@ -67,8 +67,8 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Totul se face pe telefon: nicio poză și nicio căutare nu pleacă; motoarele AI se descarcă o singură dată
 • Fără cont, fără reclame
 
-Gratuit: sortare, curățenie, galerie, căutare, oameni, editare.
-Cherrypic Pro: AI-ul decide singur toate pozele (tu doar te uiți), arhiva și exportul. 7 zile de probă.
+Gratuit, pentru totdeauna: sortarea nelimitată, galeria, căutarea, oamenii, tot Studio, guma și o curățenie mare pe lună. Ce e gratuit azi rămâne gratuit.
+Cherrypic Pro: Pilot automat (AI-ul decide toată galeria, „Acceptă tot”, curățenie nelimitată dintr-o atingere) și filme fără semnătura Cherrypic, plus stiluri avansate în editor. Lunar, anual sau o singură dată, pe viață.
 ```
 
 ## English (en-US)
@@ -128,8 +128,8 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Everything runs on your phone: no photo or search ever leaves it; AI engines download once
 • No account, no ads
 
-Free: sorting, cleanup, gallery, search, people, editing.
-Cherrypic Pro: the AI decides every photo for you, plus archive and export. 7-day free trial.
+Free, forever: unlimited sorting, gallery, search, people, all of Studio, the eraser and one big cleanup a month. What's free today stays free.
+Cherrypic Pro: Autopilot (the AI decides your whole gallery, "Accept all", unlimited one-tap cleanup) and films without the Cherrypic signature, plus advanced editor styles. Monthly, yearly or once, for life.
 ```
 
 ## Cuvinte-cheie de urmărit (titlu, descrieri, răspunsuri la recenzii)
@@ -156,3 +156,10 @@ Din 2025, Play cere o declarație în Play Console că accesul permanent la poze
 6. Familie: cu cine seamănă copilul?
 7. Studio: coperta lunii, din pozele tale
 8. Confidențialitate: nicio poză nu pleacă de pe telefon
+
+## Prețuri și produse în Play Console (noiembrie 2026)
+- Abonamente (Generează bani cu Play → Produse → Abonamente):
+  - `lumin_premium_monthly`, plan de bază lunar: 12,99 RON / 3,99 € / 3,99 USD, **fără** perioadă de probă.
+  - `lumin_premium_yearly`, plan de bază anual: 69,99 RON / 24,99 € / 24,99 USD, cu ofertă „probă gratuită 7 zile” pentru utilizatori noi.
+- Produs unic (Generează bani cu Play → Produse → Produse în aplicație): `cherrypic_pro_lifetime`, „Cherrypic Pro pe viață”: 149,99 RON / 49,99 € / 49,99 USD.
+- Fără plan săptămânal. Motivația și sursele: `reports/Abonamentul Pro Cherrypic.md`.

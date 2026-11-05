@@ -80,6 +80,13 @@ class BillingPlugin : Plugin() {
      */
     private val productIds = listOf(monthlyId, yearlyId)
 
+    /**
+     * Pro pe viata: produs UNIC (in-app, ne-consumabil), nu abonament. Se
+     * creeaza in Play Console → Produse → Produse in aplicatie, cu exact acest
+     * ID. Lipsa lui nu strica nimic: planul pur si simplu nu apare.
+     */
+    private val lifetimeId = "cherrypic_pro_lifetime"
+
     private var pendingPurchaseCall: PluginCall? = null
 
     /**
@@ -225,7 +232,22 @@ class BillingPlugin : Plugin() {
                 val active = purchases.filter { p -> p.isActive() && p.products.any { it in productIds } }
                 // O achizitie facuta pe alt dispozitiv ajunge aici neconfirmata.
                 active.forEach { acknowledge(it) }
-                call.resolve(JSObject().put("active", active.isNotEmpty()))
+                if (active.isNotEmpty()) {
+                    call.resolve(JSObject().put("active", true))
+                    return@queryPurchasesAsync
+                }
+                // Fara abonament activ: poate are Pro pe viata (produs unic).
+                client.queryPurchasesAsync(
+                    QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
+                ) { inappResult, inapp ->
+                    if (inappResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                        call.resolve(JSObject().put("active", false))
+                        return@queryPurchasesAsync
+                    }
+                    val owned = inapp.filter { p -> p.isActive() && lifetimeId in p.products }
+                    owned.forEach { acknowledge(it) }
+                    call.resolve(JSObject().put("active", owned.isNotEmpty()))
+                }
             }
         }
     }
@@ -351,6 +373,38 @@ class BillingPlugin : Plugin() {
         }
     }
 
+    /** Detaliile produsului unic „Pro pe viata”, sau null daca nu exista in Play Console. */
+    private fun queryLifetime(onResult: (ProductDetails?) -> Unit) {
+        val params = QueryProductDetailsParams.newBuilder().setProductList(
+            listOf(
+                QueryProductDetailsParams.Product.newBuilder()
+                    .setProductId(lifetimeId)
+                    .setProductType(BillingClient.ProductType.INAPP)
+                    .build()
+            )
+        ).build()
+        client.queryProductDetailsAsync(params) { result, productDetailsResult ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) { onResult(null); return@queryProductDetailsAsync }
+            onResult(productDetailsResult.productDetailsList.firstOrNull { it.productId == lifetimeId })
+        }
+    }
+
+    /** Oferta de cumparare a produsului unic (din Billing 8 pot fi mai multe; luam prima). */
+    private fun lifetimeOffer(details: ProductDetails): ProductDetails.OneTimePurchaseOfferDetails? =
+        details.oneTimePurchaseOfferDetailsList?.firstOrNull()
+
+    /** „Pe viata”, ca plan pentru JS: periodDays 0 inseamna plata unica, fara reinnoire. */
+    private fun describeLifetime(details: ProductDetails): JSObject? {
+        val offer = lifetimeOffer(details) ?: return null
+        return JSObject()
+            .put("id", details.productId)
+            .put("price", offer.formattedPrice)
+            .put("priceMicros", offer.priceAmountMicros.toString())
+            .put("currency", offer.priceCurrencyCode)
+            .put("period", "")
+            .put("periodDays", 0)
+    }
+
     /**
      * Toate planurile pe care contul acesta chiar le poate cumpara ACUM.
      *
@@ -365,7 +419,11 @@ class BillingPlugin : Plugin() {
             queryProducts(call) { products ->
                 val plans = JSArray()
                 for (details in products) describePlan(details)?.let { plans.put(it) }
-                call.resolve(JSObject().put("plans", plans))
+                // Pro pe viata, ultimul in lista; lipsa sau o eroare nu ascunde abonamentele.
+                queryLifetime { lifetime ->
+                    lifetime?.let { describeLifetime(it) }?.let { plans.put(it) }
+                    call.resolve(JSObject().put("plans", plans))
+                }
             }
         }
     }
@@ -407,6 +465,10 @@ class BillingPlugin : Plugin() {
     @PluginMethod
     fun subscribe(call: PluginCall) {
         val wanted = call.getString("productId") ?: monthlyId
+        if (wanted == lifetimeId) {
+            buyLifetime(call)
+            return
+        }
         if (wanted !in productIds) {
             call.reject("Unknown subscription plan: $wanted")
             return
@@ -442,6 +504,32 @@ class BillingPlugin : Plugin() {
                 ).build()
                 // `call` e tinut deschis pana raspunde listener-ul; setKeepAlive
                 // impiedica Capacitor sa-l elibereze la iesirea din metoda.
+                call.setKeepAlive(true)
+                pendingPurchaseCall = call
+                activity.runOnUiThread {
+                    val launch = client.launchBillingFlow(activity, flowParams)
+                    if (launch.responseCode != BillingClient.BillingResponseCode.OK) {
+                        pendingPurchaseCall = null
+                        call.reject("Could not open the purchase flow: ${launch.debugMessage} (${launch.responseCode})")
+                    }
+                }
+            }
+        }
+    }
+
+    /** Fluxul de cumparare pentru „Pro pe viata” (produs unic). Rezultatul vine tot pe purchasesUpdated. */
+    private fun buyLifetime(call: PluginCall) {
+        withConnection(call) {
+            queryLifetime { details ->
+                if (details == null) {
+                    call.reject("Lifetime product not available — check that '$lifetimeId' exists in Play Console as an active in-app product.")
+                    return@queryLifetime
+                }
+                val productParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details)
+                lifetimeOffer(details)?.offerToken?.let { productParams.setOfferToken(it) }
+                val flowParams = BillingFlowParams.newBuilder()
+                    .setProductDetailsParamsList(listOf(productParams.build()))
+                    .build()
                 call.setKeepAlive(true)
                 pendingPurchaseCall = call
                 activity.runOnUiThread {

@@ -1833,6 +1833,20 @@ function outsideVault(photos: PhotoView[], collections: CollectionRecord[]): Pho
   return photos.filter(p => !hidden.has(p.id));
 }
 
+/** Cheia lunii curente ("2026-11"); o curățenie gratuită pe cheie. */
+const FREE_CLEANUP_KEY = 'cp.freeCleanup.month';
+export function takeFreeMonthlyCleanup(now = new Date()): boolean {
+  const month = `${now.getFullYear()}-${now.getMonth() + 1}`;
+  try {
+    if (localStorage.getItem(FREE_CLEANUP_KEY) === month) return false;
+    localStorage.setItem(FREE_CLEANUP_KEY, month);
+    return true;
+  } catch {
+    // Fără stocare nu putem ține socoteala: nu dăm curățenii nelimitate gratuit.
+    return false;
+  }
+}
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -1864,6 +1878,12 @@ export const useStore = create<AppState>((set, get) => ({
    */
   gatePremium: reason => {
     if (!isPremiumFeatureLocked()) return false;
+    // O curățenie mare gratuită pe lună: valoarea se vede înainte de plată,
+    // iar Pro rămâne pentru cine curăță des (vezi reports/Abonamentul Pro Cherrypic.md).
+    if (reason === 'cleanup' && takeFreeMonthlyCleanup()) {
+      set({ notice: t(get().locale, 'lx.clean.freeMonthly') });
+      return false;
+    }
     set({ premiumOpen: true, premiumReason: reason ?? null });
     return true;
   },

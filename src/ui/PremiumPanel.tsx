@@ -66,7 +66,7 @@ export function PremiumPanel() {
    * se marcheaza nimic — nu exista un "implicit", fiindca n-a cerut nimic.
    */
   const highlightedPerk: string | null = premiumReason === null ? null : ({
-    acceptAll: 'auto', cloud: 'cloud', film: 'film', styles: 'styles', cleanup: 'cleanup'
+    acceptAll: 'accept', cloud: 'cloud', film: 'film', styles: 'styles', cleanup: 'cleanup'
   } as Partial<Record<string, string>>)[premiumReason] ?? null;
   const photosUsed = useStore(s => s.photosUsedThisWindow);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,7 +170,10 @@ export function PremiumPanel() {
             Deci: DOAR marcarea randului. Fara nicio eticheta. Daca vreodata
             pare ca lipseste ceva acolo, raspunsul de trei ori incercat e ca nu
             lipseste. */}
-        <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.lead')}</h3>
+        {/* Pro vinde liniștea, nu AI-ul (vezi reports/Abonamentul Pro Cherrypic.md):
+            titlul e rezultatul pentru om, subtitlul spune cei doi piloni. */}
+        <h3 className="premium-lead">{tr(premium ? 'premium.lead.active' : 'premium.cp.headline')}</h3>
+        {!premium && <p className="premium-personal">{tr('premium.cp.subhead')}</p>}
         {/* Pe galeria omului, nu o listă de funcții: câte poze ar decide Lumi singură chiar acum. */}
         {!premium && waitingCount >= 5 && <p className="premium-personal">{tr('premium.personal', { count: waitingCount })}</p>}
         {!premium && junk.count >= 10 && <p className="premium-personal">{tr('premium.personalClean', { count: junk.count, size: formatBytes(junk.bytes, locale) })}</p>}
@@ -180,7 +183,7 @@ export function PremiumPanel() {
         {!premium && (picked ?? price) && (
           <p className="premium-price">
             {picked
-              ? tr(picked.periodDays > 31 ? 'premium.price.tagYear' : 'premium.price.tag', { price: picked.price })
+              ? tr(picked.periodDays === 0 ? 'premium.price.tagOnce' : picked.periodDays > 31 ? 'premium.price.tagYear' : 'premium.price.tag', { price: picked.price })
               : tr('premium.price.tag', { price: price! })}
           </p>
         )}
@@ -193,38 +196,44 @@ export function PremiumPanel() {
             beneficii de sub ea. */}
         <LifetimeProof locale={locale} premium={premium} />
 
-        <h4 className="premium-group-head">{tr('premium.section.unlock')}</h4>
-        {/* Doar ce deblochează Pro CU ADEVĂRAT în Cherrypic (vezi gatePremium('acceptAll')
-            și autonomia „tot”). Lista veche (export, locații, XMP, prezentare...) era a
-            aplicației vechi și nu mai corespundea cu nimic de pe ecran. */}
-        <div className={highlightedPerk === 'auto' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">✦</i>
-          <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
-        </div>
-        {/* AI-ul online apare doar când serverul chiar e pornit în build: un
-            abonament nu are voie să promită o funcție care nu există. */}
-        {cloudAvailable() && (
-          <div className={highlightedPerk === 'cloud' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">☁</i>
-            <span><b>{tr('premium.cp.cloud.title', { n: FREE_CLOUD_WRITES })}</b><span>{tr('premium.cp.cloud.sub', { n: FREE_CLOUD_WRITES })}</span></span>
+        {/* Doi piloni, nu o listă de funcții. „AI decide tot” singur nu se vinde
+            (gratuit decide deja pozele sigure); se vinde acțiunea în masă și
+            filmul fără semnătură — tiparul care chiar se plătește în categorie. */}
+        <section className="premium-group">
+          <h4 className="premium-group-head">{tr('premium.cp.pillar.pilot')}</h4>
+          <div className={highlightedPerk === 'auto' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">✦</i>
+            <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
           </div>
-        )}
-        <div className={highlightedPerk === 'cleanup' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">🧹</i>
-          <span><b>{tr('premium.cp.cleanup.title')}</b><span>{tr('premium.cp.cleanup.sub')}</span></span>
-        </div>
-        <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">🎨</i>
-          <span><b>{tr('premium.cp.styles.title')}</b><span>{tr('premium.cp.styles.sub')}</span></span>
-        </div>
-        <div className={highlightedPerk === 'film' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">🎬</i>
-          <span><b>{tr('premium.cp.film.title')}</b><span>{tr('premium.cp.film.sub')}</span></span>
-        </div>
-        <div className={highlightedPerk === 'accept' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">✓</i>
-          <span><b>{tr('premium.cp.accept.title')}</b><span>{tr('premium.cp.accept.sub')}</span></span>
-        </div>
+          <div className={highlightedPerk === 'accept' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">✓</i>
+            <span><b>{tr('premium.cp.accept.title')}</b><span>{tr('premium.cp.accept.sub')}</span></span>
+          </div>
+          <div className={highlightedPerk === 'cleanup' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">🧹</i>
+            <span><b>{tr('premium.cp.cleanup.title')}</b><span>{tr('premium.cp.cleanup.sub')}</span></span>
+          </div>
+          {/* AI-ul online apare doar când serverul chiar e pornit în build: un
+              abonament nu are voie să promită o funcție care nu există. */}
+          {cloudAvailable() && (
+            <div className={highlightedPerk === 'cloud' ? 'premium-perk is-wanted' : 'premium-perk'}>
+              <i aria-hidden="true">☁</i>
+              <span><b>{tr('premium.cp.cloud.title', { n: FREE_CLOUD_WRITES })}</b><span>{tr('premium.cp.cloud.sub', { n: FREE_CLOUD_WRITES })}</span></span>
+            </div>
+          )}
+        </section>
+        <section className="premium-group">
+          <h4 className="premium-group-head">{tr('premium.cp.pillar.studio')}</h4>
+          <div className={highlightedPerk === 'film' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">🎬</i>
+            <span><b>{tr('premium.cp.film.title')}</b><span>{tr('premium.cp.film.sub')}</span></span>
+          </div>
+          <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">🎨</i>
+            <span><b>{tr('premium.cp.styles.title')}</b><span>{tr('premium.cp.styles.sub')}</span></span>
+          </div>
+        </section>
+        {!premium && <p className="premium-personal">{tr('premium.cp.trust')}</p>}
 
         {/* Un abonat nu are de ce sa vada cat i-a mai ramas dintr-un plafon pe
             care nu-l mai are — vezi remainingFreePhotos(), care intoarce Infinity. */}
@@ -246,6 +255,14 @@ export function PremiumPanel() {
             <span>
               <b>{tr('premium.perk.engine.title', { name: tr('engine.name') })}</b>
               <span>{tr('premium.perk.engine.sub')}</span>
+            </span>
+          </div>
+          {/* Promisiunea publică: ce e gratuit azi nu se mută după paywall mâine. */}
+          <div className="premium-perk">
+            <i aria-hidden="true"><CheckIcon /></i>
+            <span>
+              <b>{tr('premium.cp.promise.title')}</b>
+              <span>{tr('premium.cp.promise.sub')}</span>
             </span>
           </div>
         </section>
@@ -324,7 +341,7 @@ export function PremiumPanel() {
                       />
                       <span className="premium-plan-body">
                         <b>
-                          {tr(plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
+                          {tr(plan.periodDays === 0 ? 'premium.plan.lifetime' : plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
                           {savings !== null && (
                             <i className="premium-plan-save" title={tr('premium.plan.saveTitle', { percent: savings })}>
                               {tr('premium.plan.save', { percent: savings })}
@@ -369,7 +386,9 @@ export function PremiumPanel() {
                 ? tr('premium.subscribing')
                 : picked?.trialDays
                   ? tr('premium.subscribe.trial', { price: picked.price })
-                  : tr('premium.subscribe', { price: picked?.price ?? price! })}
+                  : picked?.periodDays === 0
+                    ? tr('premium.subscribe.once', { price: picked.price })
+                    : tr('premium.subscribe', { price: picked?.price ?? price! })}
             </button>
             {/* CONDITIILE, sub buton, inainte de plata.
 
@@ -389,7 +408,7 @@ export function PremiumPanel() {
                 {picked.trialDays
                   ? tr(plural(picked.trialDays, 'premium.renewal.trial.one', 'premium.renewal.trial.other'),
                       { count: picked.trialDays, price: picked.price })
-                  : tr(picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
+                  : tr(picked.periodDays === 0 ? 'premium.renewal.once' : picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
                       { price: picked.price })}
               </p>
             )}
@@ -411,6 +430,9 @@ export function PremiumPanel() {
               {tr('premium.restore')}
             </button>
             {restored === 'none' && <p className="premium-soon" role="status">{tr('premium.restore.none')}</p>}
+            {/* Ieșirea vizibilă, cu cuvinte: paywall-ul se închide fără vinovăție. */}
+            <button className="ghost premium-restore" onClick={() => setOpen(false)}>{tr('premium.notNow')}</button>
+            <p className="premium-soon">{tr('premium.cp.indie')}</p>
           </>
         ) : (
           <p className="premium-soon">{tr('premium.soon')}</p>
