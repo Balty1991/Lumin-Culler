@@ -32,14 +32,15 @@ import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1080, 1920
-SRC = os.environ.get('LUMIN_SHOTS_SRC', '/root/.claude/uploads/09c12659-4c3c-54cc-87dd-ec28ff8ac38b')
+SRC = os.environ.get('LUMIN_SHOTS_SRC', '/root/.claude/uploads/dd7d00d0-84cf-5dcc-9e60-641b623909f8')
 OUT_BASE = 'store/screenshots-new'
 FONTS = '/tmp/fonts'
 
 TEXT = (247, 248, 252)
 SUB = (158, 165, 182)
-TEAL = (94, 234, 212)
-VIOLET = (139, 92, 246)
+# Tema black rose a aplicației (Cherrypic): roz aprins și un mov-trandafiriu.
+TEAL = (255, 128, 166)   # eticheta și conturul insignei (numele vechi păstrat)
+VIOLET = (200, 107, 255)
 
 # Bara de stare de sus are inaltime fixa pe acelasi telefon.
 CROP_TOP = 118
@@ -92,11 +93,11 @@ def pregateste_fonturile():
 def fundal():
     """Doua lumini colorate peste un fond aproape negru — turcoaz sus-stanga,
     violet jos-dreapta. Aceleasi doua culori ca degradeul aplicatiei."""
-    bg = Image.new('RGB', (W, H), (8, 10, 16))
+    bg = Image.new('RGB', (W, H), (8, 4, 7))
     lum = Image.new('RGB', (W, H), (0, 0, 0))
     d = ImageDraw.Draw(lum)
-    d.ellipse([-460, -560, 760, 620], fill=(10, 78, 76))
-    d.ellipse([420, H - 900, W + 520, H + 260], fill=(58, 30, 104))
+    d.ellipse([-460, -560, 760, 620], fill=(110, 18, 52))
+    d.ellipse([420, H - 900, W + 520, H + 260], fill=(70, 24, 96))
     lum = lum.filter(ImageFilter.GaussianBlur(210))
     return Image.blend(bg, lum, 0.92)
 
@@ -171,10 +172,10 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
     im = im.resize((ecran_lat, ecran_inalt), Image.LANCZOS)
     ecran = rotunjeste(im, 30)
 
-    corp = Image.new('RGB', (ecran_lat + rama * 2, ecran_inalt + rama * 2), (16, 18, 24))
+    corp = Image.new('RGB', (ecran_lat + rama * 2, ecran_inalt + rama * 2), (14, 9, 12))
     corp = rotunjeste(corp, 46)
     ImageDraw.Draw(corp).rounded_rectangle(
-        [0, 0, corp.width - 1, corp.height - 1], 46, outline=(64, 70, 86), width=2)
+        [0, 0, corp.width - 1, corp.height - 1], 46, outline=(90, 52, 70), width=2)
     corp.paste(ecran, (rama, rama), ecran)
 
     x = (W - corp.width) // 2
@@ -189,7 +190,7 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
         f_c = ImageFont.truetype(bold, 34)
         f_j = ImageFont.truetype(med, 25)
         lat = int(max(d.textlength(cap, font=f_c), d.textlength(jos, font=f_j))) + 56
-        pil = Image.new('RGB', (lat, 104), (13, 16, 22))
+        pil = Image.new('RGB', (lat, 104), (20, 9, 15))
         pd = ImageDraw.Draw(pil)
         pd.rounded_rectangle([0, 0, lat - 1, 103], 20, outline=TEAL, width=2)
         pd.text(((lat - pd.textlength(cap, font=f_c)) / 2, 18), cap, font=f_c, fill=TEXT)
@@ -198,7 +199,7 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
         bg.paste(pil, (x + corp.width - lat + 46, sus - 46), pil)
 
     f_b = ImageFont.truetype(bold, 27)
-    centrat(d, H - 74, 'LUMINCULLER', f_b, (108, 116, 136), spatiere=3)
+    centrat(d, H - 74, 'CHERRYPIC', f_b, (150, 110, 128), spatiere=3)
 
     out = f'{OUT_BASE}/{limba}'
     os.makedirs(out, exist_ok=True)
@@ -217,42 +218,50 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
 # Varianta corecta e sa refaci ACELEASI sase capturi cu aplicatia comutata pe
 # EN (Meniu -> Setari -> limba), sa le pui in acelasi folder si sa schimbi doar
 # numele fisierelor din `SURSE_EN`. Restul scriptului nu se atinge.
+# Numele fișierelor din SRC, pe ecran (se completează când vin capturile noi,
+# FĂRĂ oameni în poze — vezi antetul).
 SURSE_RO = {
-    'scoruri': '25537cf9-image.jpg', 'cauze': '40e959de-image.jpg',
-    'dece': 'a5734068-image.jpg', 'metrici': '69016b10-image.jpg',
-    'decizie': '0dc65acc-image.jpg', 'privat': '3f64d51d-image.jpg'
+    'azi': '', 'sortare': '', 'curatenie': '', 'studio': '',
+    'tunel': '', 'editor': '', 'film': '', 'galerie': ''
 }
-# Cand ai capturile cu aplicatia in engleza, inlocuieste valorile de aici.
 SURSE_EN = dict(SURSE_RO)
 
 TEXTE = {
     'ro': [
-        ('scoruri', 'Triaj cu AI', 'Un scor pentru fiecare poză',
-         'Import, analiză și sortare — oricâte poze, gratuit.', ('12 poze', 'decise în 83%')),
-        ('cauze', 'Coada de verificat', 'Nu doar cât. Și de ce.',
-         'Grupate pe cauze: un gest, nu o sută.', ('5 cauze', 'nu 17 decizii')),
-        ('dece', 'Explicabilitate', 'Fiecare scor, explicat',
-         'Ce a cântărit pentru și ce împotrivă. Tu confirmi, AI-ul învață.', None),
-        ('metrici', 'Ce măsoară', 'Claritate, ochi, zâmbet',
-         'Măsurate pe telefon, arătate pe înțelesul tău.', None),
-        ('decizie', 'Fluxul de lucru', 'Următoarea decizie, pregătită',
-         'Tu doar confirmi. Nimic nu se șterge fără acordul tău.', None),
-        ('privat', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
-         'Fără cont, fără upload, fără reclame.', ('0 upload', 'nimic nu pleacă'))
+        ('azi', 'Alege ca tine', 'Din 30 de poze, cele 4 bune',
+         'AI-ul îți învață gustul și alege în fiecare seară.', ('3 din 25', 'păstrate')),
+        ('sortare', 'Un minut pe zi', 'Păstrez sau Nu azi',
+         'Glisezi, iar AI-ul învață din fiecare alegere.', None),
+        ('curatenie', 'Curățenie', 'Serii, dubluri, poze neclare',
+         'Eliberezi spațiu. Totul ajunge în coș, se poate recupera.', ('324 MB', 'eliberați')),
+        ('studio', 'Studio', 'Filme și amintiri din pozele tale',
+         'Un an într-un minut, Cum a crescut, Capsula timpului și altele.', None),
+        ('tunel', 'Galerie 3D', 'Călătorește prin anii tăi',
+         'Un tunel al amintirilor, lună cu lună.', None),
+        ('editor', 'Editor', 'Mai frumoasă dintr-o atingere',
+         'Lumină, culoare, portret, gumă. Fără filigran.', None),
+        ('film', 'Mini-film', 'Pozele tale prind viață',
+         'Mișcare AI între poze, muzică, gata de trimis.', None),
+        ('galerie', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
+         'Tot AI-ul rulează pe telefon. Fără cont, fără reclame.', ('0 upload', 'totul pe telefon'))
     ],
     'en': [
-        ('scoruri', 'AI culling', 'A score for every photo',
-         'Import, analysis and sorting — any number of photos, free.', ('12 photos', '83% decided')),
-        ('cauze', 'Your review queue', 'Not just how many. Why.',
-         'Grouped by cause: one gesture, not a hundred.', ('5 causes', 'not 17 calls')),
-        ('dece', 'Explainable', 'Every score, explained',
-         'What counted for it and what against. You confirm, the AI learns.', None),
-        ('metrici', 'What it measures', 'Sharpness, eyes, smile',
-         'Measured on your phone, shown in plain words.', None),
-        ('decizie', 'The workflow', 'Your next decision, ready',
-         'You just confirm. Nothing is deleted without your say-so.', None),
-        ('privat', 'Privacy', 'No photo ever leaves your phone',
-         'No account, no upload, no ads.', ('0 uploads', 'nothing leaves'))
+        ('azi', 'Picks like you', 'From 30 photos, the 4 good ones',
+         'The AI learns your taste and picks every evening.', ('3 of 25', 'kept')),
+        ('sortare', 'One minute a day', 'Keep or Not today',
+         'Swipe, and the AI learns from every choice.', None),
+        ('curatenie', 'Cleanup', 'Bursts, duplicates, blurry shots',
+         'Free up space. Everything goes to the trash, recoverable.', ('324 MB', 'freed')),
+        ('studio', 'Studio', 'Films and memories from your photos',
+         'A year in a minute, How they grew, Time capsule and more.', None),
+        ('tunel', '3D gallery', 'Travel through your years',
+         'A tunnel of memories, month by month.', None),
+        ('editor', 'Editor', 'Better in one tap',
+         'Light, color, portrait, eraser. No watermark.', None),
+        ('film', 'Mini-film', 'Your photos come alive',
+         'AI motion between photos, music, ready to share.', None),
+        ('galerie', 'Privacy', 'No photo ever leaves your phone',
+         'All the AI runs on your phone. No account, no ads.', ('0 uploads', 'all on device'))
     ]
 }
 
@@ -263,4 +272,7 @@ if __name__ == '__main__':
     for limba in limbi:
         surse = SURSE_RO if limba == 'ro' else SURSE_EN
         for i, (cheie, et, ti, su, ins) in enumerate(TEXTE[limba], start=1):
+            if not surse.get(cheie):
+                print('lipsește captura pentru', cheie)
+                continue
             compune(surse[cheie], et, ti, su, f'{i:02d}-{cheie}', insigna=ins, limba=limba)
