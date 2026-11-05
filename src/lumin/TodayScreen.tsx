@@ -41,6 +41,7 @@ import { CapsuleCard } from './Capsule';
 import { DuelCard, ForgottenCard, MissingCard, ProfileCard } from './Insights';
 import { EmotionYearCard } from './EmotionYear';
 import { GrowthCard } from './GrowthButton';
+import { LookalikeCard } from './Lookalike';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -254,6 +255,7 @@ export function TodayScreen() {
       <MissingCard />
       <Recaps />
       <GrowthCard />
+      <LookalikeCard />
       <ProfileCard />
       <EmotionYearCard />
       <FamilyPickCard />

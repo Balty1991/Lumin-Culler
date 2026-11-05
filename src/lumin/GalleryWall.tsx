@@ -35,6 +35,7 @@ import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable } from './burstFilm';
 import { FilmCreator } from './FilmCreator';
 import { CapsuleCreator } from './Capsule';
+import { useShieldedShare } from './ShareShield';
 import { LivePhotoSheet } from './LivePhoto';
 import { livePhotoAvailable } from './livePhoto';
 import { RephotoSheet, canRephoto } from './Rephoto';
@@ -645,6 +646,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   const [filmOpen, setFilmOpen] = useState(false);
   const [capsuleOpen, setCapsuleOpen] = useState(false);
   const [tool, setTool] = useState<null | 'live' | 'rephoto' | 'vote'>(null);
+  // Trimite: cu scutul (fețe străine estompate, fără locație) când e ceva de protejat.
+  const shield = useShieldedShare(p, () => void exportSelection('apps', [p.id]).then(() => learnFromShare([p])));
   const makeBestTake = async () => {
     setBestBusy(true);
     try {
@@ -903,7 +906,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         <div className="lx-viewer-tools2">
           <button className="lx-tbtn magic" onClick={() => setEnhancing(true)}><span><Icon name="sparkle" /></span>{tr('lx.viewer.enhanceShort')}</button>
           <button className="lx-tbtn" onClick={() => setMagic(true)}><span><Icon name="eraser" /></span>{tr('lx.magic.erase')}</button>
-          <button className="lx-tbtn" onClick={() => void exportSelection('apps', [p.id]).then(() => learnFromShare([p]))}><span><Icon name="share" /></span>{tr('lx.wall.share')}</button>
+          <button className="lx-tbtn" onClick={shield.share}><span><Icon name="share" /></span>{tr('lx.wall.share')}</button>
           <button className={more ? 'lx-tbtn on' : 'lx-tbtn'} aria-expanded={more} onClick={() => setMore(v => !v)}><span><Icon name="more" /></span>{tr('lx.viewer.more')}</button>
         </div>
         {more && (
@@ -912,6 +915,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
             {livePhotoAvailable() && !!p.mediaUri && <button onClick={() => setTool('live')}><span><Icon name="sparkle" /></span>{tr('lx.live.title')}</button>}
             {canRephoto() && p.capturedAt !== undefined && Date.now() - p.capturedAt > 90 * 86_400_000 && <button onClick={() => setTool('rephoto')}><span><Icon name="target" /></span>{tr('lx.rephoto.title')}</button>}
             {burstIds.split(',').length >= 2 && <button onClick={() => setTool('vote')}><span><Icon name="check" /></span>{tr('lx.vote.title')}</button>}
+            <button onClick={shield.open}><span><Icon name="lock" /></span>{tr('lx.shield.title')}</button>
             <button onClick={() => setCapsuleOpen(true)}><span><Icon name="lock" /></span>{tr('lx.capsule.button')}</button>
             {burstFilmAvailable() && <button onClick={() => setFilmOpen(true)}><span><Icon name="film" /></span>{tr('lx.burstFilm.button')}</button>}
             {onSimilar && <button onClick={() => onSimilar(p.id)}><span><Icon name="similar" /></span>{tr('lx.viewer.similarShort')}</button>}
@@ -949,6 +953,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {tool === 'live' && <LivePhotoSheet photoId={id} onClose={() => setTool(null)} />}
       {tool === 'rephoto' && <RephotoSheet photoId={id} takenAt={p.capturedAt} onClose={() => setTool(null)} />}
       {tool === 'vote' && <FamilyVote ids={burstIds.split(',')} onClose={() => setTool(null)} />}
+      {shield.sheet}
       {capsuleOpen && <CapsuleCreator initialIds={[id]} onClose={() => setCapsuleOpen(false)} />}
       {filmOpen && <FilmCreator startId={id} initialIds={burstIds ? burstIds.split(',') : [id]} onClose={() => setFilmOpen(false)} />}
       {magic && <MagicSheet photo={p} onClose={() => setMagic(false)} />}

@@ -1,5 +1,6 @@
 import { ConnectionsButton } from './Connections';
 import { GrowthButton } from './GrowthButton';
+import { LookalikeSheet } from './Lookalike';
 import { Capacitor } from '@capacitor/core';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces, suggestFaces } from './faceIdentity';
 import { useLxPhotos } from './useLxPhotos';
@@ -290,6 +291,7 @@ function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) 
   return (
     <div className="lx-chips">
       {usable.length >= 2 && <GrowthButton name={name} list={usable} />}
+      <LookButton name={name} />
       {months.length >= 2 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void journal()}>{tr('lx.journal.button', { name })}</button>}
       {film.length >= 4 && <StoryButton className="lx-btn ghost small" ids={film.map(p => p.id)} title={tr('lx.person.film', { name })} subtitle={`${new Date(film[0].capturedAt!).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' })} – ${tr('lx.pair.now').toLowerCase()}`} />}
       {span > 180 * 86_400_000 && <button className="lx-btn ghost small" disabled={busy} onClick={() => void pair()}>↔ {tr('lx.pair.button')}</button>}
@@ -615,5 +617,17 @@ function SortAllButton({ count, small }: { count?: number; small?: boolean }) {
     <button className={small ? 'lx-btn primary small' : 'lx-btn primary wide'} disabled={busy} onClick={run}>
       {busy ? tr('lx.sortAll.busy') : count ? tr('lx.sortAll.count', { count }) : tr('lx.sortAll.short')}
     </button>
+  );
+}
+
+/** „Cu cine seamănă {name}?” pe pagina omului. */
+function LookButton({ name }: { name: string }) {
+  const tr = useTr();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="lx-btn ghost small" onClick={() => setOpen(true)}>≈ {tr('lx.look.button', { name })}</button>
+      {open && <LookalikeSheet name={name} onClose={() => setOpen(false)} />}
+    </>
   );
 }
