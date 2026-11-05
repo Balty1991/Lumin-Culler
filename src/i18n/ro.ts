@@ -3213,6 +3213,7 @@ export const ro = {
   'lx.growth.button': "Cum a crescut {name}",
   'lx.growth.making': "Aliniez fețele",
   'lx.growth.few': "Am nevoie de poze cu {name} din cel puțin 3 luni diferite.",
+  'lx.settings.dataHint': "Albume în galerie, poze private, copii de rezervă, export… Atinge ca să vezi tot.",
   'lx.firsts.wrong': "Nu e bine",
   'lx.capsule.week': "Săptămâna asta",
   'lx.capsule.pickHint': "Atinge pozele pe care vrei să le pui în capsulă (cel mult {max}).",

@@ -3127,6 +3127,7 @@ export const en: Record<TranslationKey, string> = {
   'lx.growth.button': "How {name} grew",
   'lx.growth.making': "Aligning faces",
   'lx.growth.few': "I need photos of {name} from at least 3 different months.",
+  'lx.settings.dataHint': "Gallery albums, private photos, backups, export… Tap to see all.",
   'lx.firsts.wrong': "Not right",
   'lx.capsule.week': "This week",
   'lx.capsule.pickHint': "Tap the photos you want in the capsule (up to {max}).",

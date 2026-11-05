@@ -1863,9 +1863,9 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-joy-topimg img, .lx-joy-topimg canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* „Galeria ta” pe Azi: cardurile de stare și curățenie într-un singur bloc, ca o listă grupată. */
-.lx-group { border-radius: 22px; border: 1px solid var(--lx-line); background: rgb(255 255 255 / .03); overflow: hidden; }
-.lx-group > * { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
-.lx-group > * + * { border-top: 1px solid var(--lx-line) !important; }
+.lx-today-group { border-radius: 22px; border: 1px solid var(--lx-line); background: rgb(255 255 255 / .03); overflow: hidden; }
+.lx-today-group > * { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+.lx-today-group > * + * { border-top: 1px solid var(--lx-line) !important; }
 .lx-recaps-sheet .lx-section-head { display: none; }
 
 /* Duelul pozelor, futurist: arenă cu VS neon, HUD cu runde și acord, verdictul AI. */
@@ -1914,3 +1914,10 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 @keyframes lx-3d-shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .lx-density-btn.lx-3d-btn, .lx-density-btn.lx-3d-btn::after { animation: none; } }
 .lx-firsts-wrong { margin-left: auto; flex: none; align-self: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; color: var(--text-dim); border: 1px solid var(--lx-line); }
+
+/* Setări: secțiune pliabilă (titlul e buton, cu săgeată). */
+.lx-fold-head { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
+.lx-fold-head h2 { margin: 0; }
+.lx-fold-head i { font-style: normal; font-size: 18px; color: var(--text-dim); transition: transform .25s; }
+.lx-fold-head[aria-expanded="true"] i { transform: rotate(90deg); }
+.lx-fold-hint { margin: 6px 0 0; font-size: 13px; color: var(--text-dim); }

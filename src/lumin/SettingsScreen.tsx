@@ -37,6 +37,9 @@ const MODE_ICON: Record<SortMode, string> = { everyday: '☀', parent: '♡', se
  */
 export function SettingsScreen() {
   const tr = useTr();
+  // „Date și unelte”: pliată implicit (ocupa mult loc); ținută minte.
+  const [dataOpen, setDataOpen] = useState(() => { try { return localStorage.getItem('lx.settings.dataOpen') === '1'; } catch { return false; } });
+  const toggleData = () => setDataOpen(o => { try { localStorage.setItem('lx.settings.dataOpen', o ? '0' : '1'); } catch { /* fără */ } return !o; });
   const strictness = useStore(s => s.cullingStrictness);
   const setStrictness = useStore(s => s.setCullingStrictness);
   const locale = useStore(s => s.locale);
@@ -150,30 +153,37 @@ export function SettingsScreen() {
       )}
 
       <section className="lx-group">
-        <h2>{tr('lx.settings.data')}</h2>
-        {canMakePhoneAlbums() && (
-          <button className="lx-row button" onClick={() => void organizeKeptByMonth()}>
-            <span><b>{tr('lx.phone.organize')}</b><small>{tr('lx.phone.organizeSub')}</small></span>
+        <button className="lx-fold-head" onClick={() => toggleData()} aria-expanded={dataOpen}>
+          <h2>{tr('lx.settings.data')}</h2><i aria-hidden="true">›</i>
+        </button>
+        {!dataOpen && <p className="lx-fold-hint">{tr('lx.settings.dataHint')}</p>}
+        {dataOpen && (
+          <>
+          {canMakePhoneAlbums() && (
+            <button className="lx-row button" onClick={() => void organizeKeptByMonth()}>
+              <span><b>{tr('lx.phone.organize')}</b><small>{tr('lx.phone.organizeSub')}</small></span>
+              <span className="lx-chev" aria-hidden="true">›</span>
+            </button>
+          )}
+          {canMakePhoneAlbums() && (
+            <button className="lx-row button" onClick={() => void organizeKeptByPeople()}>
+              <span><b>{tr('lx.phone.organizePeople')}</b><small>{tr('lx.phone.organizePeopleSub')}</small></span>
+              <span className="lx-chev" aria-hidden="true">›</span>
+            </button>
+          )}
+          {canMakePhoneAlbums() && <PeopleAlbumsAutoRow />}
+          <PrivatePhotosRow />
+          <AutoBackupRow />
+          <AutoArchiveRow />
+          <button className="lx-row button" onClick={() => void exportBackup()}>
+            <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
             <span className="lx-chev" aria-hidden="true">›</span>
           </button>
-        )}
-        {canMakePhoneAlbums() && (
-          <button className="lx-row button" onClick={() => void organizeKeptByPeople()}>
-            <span><b>{tr('lx.phone.organizePeople')}</b><small>{tr('lx.phone.organizePeopleSub')}</small></span>
-            <span className="lx-chev" aria-hidden="true">›</span>
+          <button className="lx-row button danger" onClick={() => void clear()} disabled={photos.length === 0}>
+            <span><b>{tr('lx.settings.clear')}</b><small>{tr('lx.settings.clearSub')}</small></span>
           </button>
+          </>
         )}
-        {canMakePhoneAlbums() && <PeopleAlbumsAutoRow />}
-        <PrivatePhotosRow />
-        <AutoBackupRow />
-        <AutoArchiveRow />
-        <button className="lx-row button" onClick={() => void exportBackup()}>
-          <span><b>{tr('lx.settings.backup')}</b><small>{tr('lx.settings.backupSub')}</small></span>
-          <span className="lx-chev" aria-hidden="true">›</span>
-        </button>
-        <button className="lx-row button danger" onClick={() => void clear()} disabled={photos.length === 0}>
-          <span><b>{tr('lx.settings.clear')}</b><small>{tr('lx.settings.clearSub')}</small></span>
-        </button>
       </section>
 
       <button className="lx-row button" onClick={() => void sendReport()}>

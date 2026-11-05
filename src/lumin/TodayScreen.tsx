@@ -257,7 +257,7 @@ export function TodayScreen() {
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
       <section className="lx-section">
         <div className="lx-section-head"><h2>{tr('lx.today.galleryGroup')}</h2></div>
-        <div className="lx-group">
+        <div className="lx-today-group">
         <GalleryStatus />
         <CleanupCard photos={photos} compact />
 
