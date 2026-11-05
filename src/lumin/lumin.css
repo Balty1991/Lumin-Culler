@@ -1786,3 +1786,47 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-joy-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .lx-joy-key.plain { background: rgb(255 255 255 / .16); }
 .lx-joy-key.joy { margin-left: 10px; background: #ff4f7f; box-shadow: 0 0 8px rgb(255 79 127 / .8); }
+
+/* Cu cine semeni?: alegerea pe fețe, scanarea futuristă, rezultatul. */
+.lx-look-pick { align-items: center; text-align: center; }
+.lx-look-face { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+.lx-look-face canvas, .lx-look-face .lx-face-img, .lx-look-noface { border-radius: 50%; box-shadow: 0 0 0 2px rgb(255 255 255 / .12); transition: box-shadow .2s, transform .2s, opacity .2s; }
+.lx-look-noface { display: grid; place-items: center; background: #2a1520; font-weight: 800; font-size: 26px; }
+.lx-look-face b { font-size: 13px; font-weight: 700; }
+.lx-look-face.big canvas, .lx-look-face.big .lx-face-img { box-shadow: 0 0 0 3px #ff4f7f, 0 0 40px -6px rgb(255 79 127 / .8); }
+.lx-look-face.big b { font-size: 18px; }
+button.lx-look-face { opacity: .55; }
+button.lx-look-face.on { opacity: 1; }
+button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow: 0 0 0 3px #ff4f7f, 0 0 26px -4px rgb(255 79 127 / .9); transform: scale(1.05); }
+.lx-look-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; width: 100%; max-width: 380px; }
+.lx-look-how { margin: 4px 0 0; max-width: 380px; font-size: 12px; line-height: 1.5; color: var(--text-dim); }
+.lx-scan-btn { letter-spacing: .02em; }
+
+.lx-scan { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 16px;
+  background-image: linear-gradient(rgb(255 79 127 / .06) 1px, transparent 1px), linear-gradient(90deg, rgb(255 79 127 / .06) 1px, transparent 1px); background-size: 22px 22px; }
+.lx-scan-target { position: relative; width: 250px; height: 250px; display: grid; place-items: center; }
+.lx-scan-target .lx-look-face b { display: none; }
+.lx-scan-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 60%, rgb(255 79 127 / .9) 85%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%); mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%); animation: lx-spin 1.6s linear infinite; }
+.lx-scan-hud { position: absolute; inset: 14px; pointer-events: none; }
+.lx-scan-hud i { position: absolute; width: 26px; height: 26px; border: 2px solid #ff8fae; }
+.lx-scan-hud i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.lx-scan-hud i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.lx-scan-hud i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.lx-scan-hud i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+.lx-scan-line { position: absolute; left: 30px; right: 30px; height: 3px; top: 30px; border-radius: 2px; background: linear-gradient(90deg, transparent, #ff8fae, #fff, #ff8fae, transparent);
+  box-shadow: 0 0 18px 4px rgb(255 79 127 / .6); animation: lx-scan-sweep 1.5s ease-in-out infinite alternate; }
+.lx-scan-mesh { position: absolute; left: 30px; top: 30px; width: 190px; height: 190px; pointer-events: none; }
+.lx-scan-mesh polyline { fill: none; stroke: rgb(255 179 200 / .55); stroke-width: .5; stroke-dasharray: 3 2; animation: lx-dash 1.2s linear infinite; }
+.lx-scan-mesh circle { fill: #fff; filter: drop-shadow(0 0 2px #ff4f7f); animation: lx-pulse 1s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.lx-scan-step { margin: 0; min-height: 22px; font-family: var(--mono, ui-monospace, monospace); font-size: 13px; letter-spacing: .06em; color: #ff8fae; text-transform: uppercase; }
+.lx-scan-others { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; }
+.lx-scan-other { display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0; animation: lx-cap-in .5s ease forwards; }
+.lx-scan-pct { font-family: var(--mono, ui-monospace, monospace); font-size: 18px; font-weight: 800; color: #fff6f9; text-shadow: 0 0 10px rgb(255 79 127 / .8); }
+.lx-look-result { animation: lx-reveal .6s cubic-bezier(.2,.8,.2,1); }
+@keyframes lx-spin { to { transform: rotate(360deg); } }
+@keyframes lx-scan-sweep { from { top: 30px; } to { top: 218px; } }
+@keyframes lx-dash { to { stroke-dashoffset: -10; } }
+@keyframes lx-pulse { 50% { transform: scale(1.8); opacity: .5; } }
+@keyframes lx-reveal { from { opacity: 0; transform: scale(.94); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .lx-scan-ring, .lx-scan-line, .lx-scan-mesh *, .lx-look-result { animation: none !important; } }

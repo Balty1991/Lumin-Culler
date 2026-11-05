@@ -5,8 +5,11 @@ import { cosine } from './faceIdentity';
  * lumin/lookalike.ts
  * „Cu cine semeni?”: cât de mult seamănă fața unui om (de obicei un copil) cu
  * a altor oameni din familie, din amprentele fețelor deja calculate pe telefon
- * (aceleași care recunosc oamenii). Pentru distracție: o comparație de trăsături,
- * nu un test genetic.
+ * (aceleași care recunosc oamenii). Nu e la întâmplare: fiecare față are o amprentă
+ * de măsurători (vectorul modelului de recunoaștere), comparată prin similaritate
+ * cosinus între toate perechile de fețe; contează media celor mai bune potriviri.
+ * Aceleași poze dau mereu același rezultat. Pentru distracție: o comparație de
+ * trăsături, nu un test genetic.
  */
 export interface FaceRef { photoId: string; box: [number, number, number, number]; embedding: number[] }
 export interface LookalikeResult {
@@ -16,6 +19,8 @@ export interface LookalikeResult {
   percent: number;
   /** Perechea de fețe cea mai asemănătoare: a omului comparat și a acestui om. */
   best: { child: FaceRef; other: FaceRef } | null;
+  /** Câte fețe ale acestui om au intrat în comparație. */
+  faces: number;
 }
 
 const MAX_FACES = 40;
@@ -59,12 +64,13 @@ export function shares(scores: number[], k = 14): number[] {
   return out;
 }
 
-export async function lookalike(name: string, others: string[]): Promise<{ results: LookalikeResult[]; enough: boolean }> {
+export async function lookalike(name: string, others: string[]): Promise<{ results: LookalikeResult[]; enough: boolean; faces: number; dims: number }> {
   const mine = await facesOf(name);
-  const scored = await Promise.all(others.map(async o => ({ name: o, ...affinity(mine, await facesOf(o)) })));
+  const scored = await Promise.all(others.map(async o => { const f = await facesOf(o); return { name: o, faces: f.length, ...affinity(mine, f) }; }));
   const valid = scored.filter(s => s.best);
   const pct = shares(valid.map(v => v.score));
-  const results = valid.map((v, i) => ({ name: v.name, score: v.score, percent: pct[i], best: v.best }))
+  const results = valid.map((v, i) => ({ name: v.name, score: v.score, percent: pct[i], best: v.best, faces: v.faces }))
     .sort((a, b) => b.percent - a.percent);
-  return { results, enough: mine.length > 0 && results.length > 0 };
+  // Câte fețe au intrat în comparație și câte măsurători are amprenta (pentru explicația de pe card).
+  return { results, enough: mine.length > 0 && results.length > 0, faces: mine.length + results.reduce((t, r) => t + r.faces, 0), dims: mine[0]?.embedding.length ?? 0 };
 }

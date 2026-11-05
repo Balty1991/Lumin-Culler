@@ -7,6 +7,9 @@ import { loadEditable } from './sharp';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { lookalike, type FaceRef, type LookalikeResult } from './lookalike';
+import { useLx } from './lxStore';
+import { FaceThumb } from './FaceThumb';
+import { usePeopleFaces, type PersonFace } from './faces';
 
 /**
  * lumin/Lookalike.tsx
@@ -137,57 +140,124 @@ export function LookalikeCard() {
   );
 }
 
+/** Fețele oamenilor (din „Oameni”), după nume: pentru alegere și pentru scanare. */
+function useFaceMap() {
+  const persons = useStore(s => s.persons);
+  const faceVersion = useLx(s => s.faceVersion);
+  const { people } = usePeopleFaces(persons, faceVersion);
+  return useMemo(() => new Map(people.map(p => [p.name, p])), [people]);
+}
+
+function FaceDot({ name, faces, size, className, onClick, on }: { name: string; faces: Map<string, PersonFace>; size: number; className?: string; onClick?: () => void; on?: boolean }) {
+  const f = faces.get(name);
+  const inner = f ? <FaceThumb photoId={f.photoId} box={f.box} size={size} className="lx-face-img" /> : <span className="lx-look-noface" style={{ width: size, height: size }}>{name.charAt(0)}</span>;
+  return onClick
+    ? <button className={`lx-look-face${on ? ' on' : ''}${className ? ` ${className}` : ''}`} onClick={onClick} aria-pressed={on}>{inner}<b>{name}</b></button>
+    : <span className={`lx-look-face${className ? ` ${className}` : ''}`}>{inner}<b>{name}</b></span>;
+}
+
+/**
+ * Scanarea: fața omului într-un inel care se rotește, o linie de scanare care o
+ * parcurge, punctele trăsăturilor care pulsează și procentele care „caută” până
+ * vine rezultatul. Cel puțin câteva secunde, ca să se vadă (cerut: „animație
+ * futuristă de scanare, apoi rezultatul”).
+ */
+function ScanView({ name, others, faces }: { name: string; others: string[]; faces: Map<string, PersonFace> }) {
+  const tr = useTr();
+  const [step, setStep] = useState(0);
+  const [nums, setNums] = useState<number[]>(others.map(() => 0));
+  useEffect(() => {
+    const a = window.setInterval(() => setStep(x => x + 1), 950);
+    const b = window.setInterval(() => setNums(others.map(() => Math.floor(10 + Math.random() * 80))), 90);
+    return () => { window.clearInterval(a); window.clearInterval(b); };
+  }, [others]);
+  const steps = [tr('lx.look.scan.detect'), tr('lx.look.scan.eyes'), tr('lx.look.scan.shape'), ...others.map(o => tr('lx.look.scan.compare', { name: o })), tr('lx.look.scan.calc')];
+  return (
+    <div className="lx-scan">
+      <div className="lx-scan-target">
+        <span className="lx-scan-ring" aria-hidden="true" />
+        <span className="lx-scan-hud" aria-hidden="true"><i /><i /><i /><i /></span>
+        <FaceDot name={name} faces={faces} size={190} className="big" />
+        <span className="lx-scan-line" aria-hidden="true" />
+        <svg className="lx-scan-mesh" viewBox="0 0 100 100" aria-hidden="true">
+          <polyline points="34,42 50,36 66,42 62,72 50,78 38,72 34,42" />
+          <polyline points="34,42 50,58 66,42 M50,58 50,36 M38,72 50,58 62,72" />
+          {[[34, 42], [66, 42], [50, 58], [38, 72], [62, 72], [50, 36], [50, 78]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.8" style={{ animationDelay: `${i * 0.18}s` }} />)}
+        </svg>
+      </div>
+      <p className="lx-scan-step">{steps[step % steps.length]}</p>
+      <div className="lx-scan-others">
+        {others.map((o, i) => (
+          <div key={o} className="lx-scan-other" style={{ animationDelay: `${i * 0.25}s` }}>
+            <FaceDot name={o} faces={faces} size={64} />
+            <span className="lx-scan-pct">{nums[i] ?? 0}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function LookalikeSheet({ name, onClose }: { name: string; onClose: () => void }) {
   const tr = useTr();
   const people = usePeopleByCount();
+  const faces = useFaceMap();
   const suggested = useCompanions(name);
   const [others, setOthers] = useState<string[] | null>(null);
   const chosen = others ?? suggested;
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
-  const [state, setState] = useState<'work' | 'none' | 'done'>('work');
-  const key = chosen.join('|');
-  useEffect(() => {
-    if (!chosen.length) { setState('none'); return; }
-    let alive = true;
-    setState('work'); setBlob(null); setUrl(null);
+  const [phase, setPhase] = useState<'pick' | 'scan' | 'done' | 'none'>('pick');
+  const scan = () => {
+    if (!chosen.length) return;
+    setPhase('scan'); setBlob(null); setUrl(null);
+    const t0 = performance.now();
     void (async () => {
-      const { results, enough } = await lookalike(name, chosen);
-      if (!alive) return;
-      if (!enough) { setState('none'); return; }
-      const b = await renderCard(name, results, { title: tr('lx.look.cardTitle', { name }), pair: tr('lx.look.pair'), note: tr('lx.look.note') });
-      if (!alive || !b) return;
-      setBlob(b); setUrl(URL.createObjectURL(b)); setState('done');
+      const { results, enough, faces: nFaces, dims } = await lookalike(name, chosen);
+      const b = enough ? await renderCard(name, results, { title: tr('lx.look.cardTitle', { name }), pair: tr('lx.look.pair'), note: tr('lx.look.noteData', { faces: nFaces, dims }) }) : null;
+      // Scanarea se vede cel puțin 4 secunde, chiar dacă rezultatul vine mai repede.
+      const wait = 4200 - (performance.now() - t0);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      if (!b) { setPhase('none'); return; }
+      setBlob(b); setUrl(URL.createObjectURL(b)); setPhase('done');
+      try { navigator.vibrate?.([12, 60, 24]); } catch { /* fără */ }
     })();
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, key]);
+  };
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
   const toggle = (n: string) => setOthers(cur => {
     const base = cur ?? suggested;
     return base.includes(n) ? base.filter(x => x !== n) : base.length >= 3 ? [...base.slice(1), n] : [...base, n];
   });
   return createPortal(
-    <div className="lx lx-enhance lx-film" role="dialog" aria-modal="true" aria-label={tr('lx.look.title')}>
+    <div className="lx lx-enhance lx-film lx-look" role="dialog" aria-modal="true" aria-label={tr('lx.look.title')}>
       <header className="lx-viewer-top">
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
         <span className="lx-viewer-date">{tr('lx.look.cardTitle', { name })}</span>
         <span />
       </header>
-      <div className="lx-enhance-styles lx-profile-modes" role="group" aria-label={tr('lx.look.compare')}>
-        {people.filter(p => p !== name).slice(0, 8).map(p => (
-          <button key={p} className={chosen.includes(p) ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => toggle(p)}>{p}</button>
-        ))}
-      </div>
-      <div className="lx-enhance-stage">
-        {state === 'done' && url ? <img className="lx-film-video" src={url} alt="" />
-          : state === 'none' ? <p className="lx-empty">{tr('lx.look.none', { name })}</p>
-          : <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.look.working')}</div>}
-      </div>
+      {phase === 'pick' && (
+        <div className="lx-fm-body lx-look-pick">
+          <FaceDot name={name} faces={faces} size={150} className="big" />
+          <p className="lx-hint center">{tr('lx.look.pickWho')}</p>
+          <p className="lx-look-how">{tr('lx.look.how')}</p>
+          <div className="lx-look-grid">
+            {people.filter(p => p !== name).slice(0, 12).map(p => <FaceDot key={p} name={p} faces={faces} size={72} on={chosen.includes(p)} onClick={() => toggle(p)} />)}
+          </div>
+        </div>
+      )}
+      {phase === 'scan' && <ScanView name={name} others={chosen} faces={faces} />}
+      {phase === 'done' && url && <div className="lx-enhance-stage lx-look-result"><img className="lx-film-video" src={url} alt="" /></div>}
+      {phase === 'none' && <div className="lx-enhance-stage"><p className="lx-empty">{tr('lx.look.none', { name })}</p></div>}
       <div className="lx-viewer-info">
         <div className="lx-decide-actions">
-          <button className="lx-btn ghost" disabled={!blob} onClick={() => blob && void saveEditedBlob(blob, 'semeni').then(ok => useStore.getState().setNotice(tr(ok ? 'lx.profile.saved' : 'lx.magic.failed')))}>{tr('lx.burstFilm.save')}</button>
-          <button className="lx-btn primary" disabled={!blob} onClick={() => blob && void shareCollage(blob, `cherrypic-semeni-${Date.now()}.jpg`, tr('lx.look.shareText', { name }))}>↗ {tr('lx.wall.share')}</button>
+          {phase === 'pick' && <button className="lx-btn primary lx-scan-btn" disabled={!chosen.length} onClick={scan}>◎ {tr('lx.look.scanBtn')}</button>}
+          {(phase === 'done' || phase === 'none') && <button className="lx-btn ghost" onClick={() => setPhase('pick')}>{tr('lx.look.again')}</button>}
+          {phase === 'done' && (
+            <>
+              <button className="lx-btn ghost" disabled={!blob} onClick={() => blob && void saveEditedBlob(blob, 'semeni').then(ok => useStore.getState().setNotice(tr(ok ? 'lx.profile.saved' : 'lx.magic.failed')))}>{tr('lx.burstFilm.save')}</button>
+              <button className="lx-btn primary" disabled={!blob} onClick={() => blob && void shareCollage(blob, `cherrypic-semeni-${Date.now()}.jpg`, tr('lx.look.shareText', { name }))}>↗ {tr('lx.wall.share')}</button>
+            </>
+          )}
         </div>
       </div>
     </div>,
