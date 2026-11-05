@@ -26,11 +26,14 @@ describe('moments', () => {
   it('firstsOf: prima zăpadă și primul tort, în ordinea timpului', () => {
     const a = ph(400, { personNames: ['Ami'], aiDescription: 'a child playing in the snow' });
     const b = ph(300, { personNames: ['Ami'], aiDescription: 'a girl in the snow' });
-    const c = ph(200, { personNames: ['Ami'], sceneTags: ['cake'] });
-    const d = ph(100, { personNames: ['Tata'], sceneTags: ['boat'] });
-    const out = firstsOf([a, b, c, d], 'Ami');
+    const c = ph(200, { personNames: ['Ami'], aiDescription: 'a girl with a birthday cake' });
+    const d = ph(100, { personNames: ['Tata'], aiDescription: 'a man on a boat' });
+    const e = ph(50, { personNames: ['Ami'], sceneTags: ['horse'] });
+    const out = firstsOf([a, b, c, d, e], 'Ami');
     expect(out.map(f => f.key)).toEqual(['snow', 'cake']);
     expect(out[0].photo.id).toBe(a.id);
+    // „Nu e bine” pe prima zăpadă: următoarea poză cu zăpadă.
+    expect(firstsOf([a, b, c], 'Ami', { snow: [a.id] })[0].photo.id).toBe(b.id);
   });
 
   it('yearDays: cea mai bună poză pe zi, doar din anul ales', () => {

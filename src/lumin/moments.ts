@@ -69,19 +69,25 @@ export const FIRSTS: { key: string; re: RegExp }[] = [
   { key: 'school', re: /\b(school|classroom|backpack)\b/ }
 ];
 
+/**
+ * Textul după care se caută premierele: descrierea în cuvinte (Florence) și tipul
+ * scenei. NU etichetele de obiecte (COCO): raportat cu captură că o pisică neagră
+ * în brațe a ieșit „Primul căluț” — detectorul confundă animalele între ele.
+ */
 function textOf(p: MomentPhoto): string {
-  return `${p.sceneSemantic ?? ''} ${(p.sceneTags ?? []).join(' ')} ${p.aiDescription ?? ''}`.toLowerCase();
+  return `${p.sceneSemantic ?? ''} ${p.aiDescription ?? ''}`.toLowerCase();
 }
 
 export interface FirstMoment<P> { key: string; photo: P; at: number }
 
-/** Prima poză a omului pentru fiecare premieră găsită, în ordinea timpului. */
-export function firstsOf<P extends MomentPhoto>(photos: readonly P[], name: string): FirstMoment<P>[] {
+/** Prima poză a omului pentru fiecare premieră găsită, în ordinea timpului. `wrong`: poze marcate „Nu e bine”, pe premieră. */
+export function firstsOf<P extends MomentPhoto>(photos: readonly P[], name: string, wrong: Record<string, string[]> = {}): FirstMoment<P>[] {
   const mine = photos.filter(p => p.capturedAt !== undefined && !p.aside && p.personNames?.includes(name))
     .sort((a, b) => a.capturedAt! - b.capturedAt!);
   const out: FirstMoment<P>[] = [];
   for (const f of FIRSTS) {
-    const hit = mine.find(p => f.re.test(textOf(p)));
+    const skip = new Set(wrong[f.key] ?? []);
+    const hit = mine.find(p => !skip.has(p.id) && f.re.test(textOf(p)));
     if (hit) out.push({ key: f.key, photo: hit, at: hit.capturedAt! });
   }
   return out.sort((a, b) => a.at - b.at);

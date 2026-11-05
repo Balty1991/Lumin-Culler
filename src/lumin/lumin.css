@@ -1913,3 +1913,4 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 @keyframes lx-3d-spin { to { --a3d: 360deg; } }
 @keyframes lx-3d-shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .lx-density-btn.lx-3d-btn, .lx-density-btn.lx-3d-btn::after { animation: none; } }
+.lx-firsts-wrong { margin-left: auto; flex: none; align-self: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; color: var(--text-dim); border: 1px solid var(--lx-line); }

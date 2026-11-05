@@ -94,11 +94,24 @@ export function FirstsCard() {
   );
 }
 
+const WRONG_KEY = 'lx.firsts.wrong';
+function readWrong(): Record<string, Record<string, string[]>> {
+  try { return JSON.parse(localStorage.getItem(WRONG_KEY) ?? '{}') as Record<string, Record<string, string[]>>; } catch { return {}; }
+}
+
 export function FirstsSheet({ name, onClose }: { name: string; onClose: () => void }) {
   const tr = useTr();
   const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
-  const list = useMemo(() => firstsOf(photos, name), [photos, name]);
+  const [wrong, setWrong] = useState(() => readWrong()[name] ?? {});
+  const list = useMemo(() => firstsOf(photos, name, wrong), [photos, name, wrong]);
+  // „Nu e bine”: poza nu mai e luată pentru premiera asta; se caută următoarea.
+  const reject = (key: string, id: string) => {
+    const all = readWrong();
+    const mine = { ...(all[name] ?? {}), [key]: [...((all[name] ?? {})[key] ?? []), id] };
+    try { localStorage.setItem(WRONG_KEY, JSON.stringify({ ...all, [name]: mine })); } catch { /* fără */ }
+    setWrong(mine);
+  };
   const [film, setFilm] = useState(false);
   const bday = readBirthdays()[name];
   const ids = list.map(f => f.photo.id);
@@ -123,6 +136,7 @@ export function FirstsSheet({ name, onClose }: { name: string; onClose: () => vo
                     <small>{new Date(f.at).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'long', year: 'numeric' })}
                       {a ? ` · ${tr(a.years > 0 ? (a.months > 0 ? 'lx.person.ageYm' : 'lx.person.ageY') : 'lx.person.ageM', { years: a.years, months: a.months, name })}` : ''}</small>
                   </span>
+                  <span role="button" tabIndex={0} className="lx-firsts-wrong" onClick={e => { e.stopPropagation(); reject(f.key, f.photo.id); }}>{tr('lx.firsts.wrong')}</span>
                 </button>
               );
             })}
