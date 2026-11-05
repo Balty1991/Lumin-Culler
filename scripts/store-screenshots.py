@@ -243,8 +243,8 @@ TEXTE = {
          'Comparat după trăsăturile feței, direct pe telefon.', None),
         ('studio', 'Studio', 'Coperta lunii, din pozele tale',
          'Plus filme, Cum a crescut, Capsula timpului și altele.', None),
-        ('momente', 'Confidențialitate', 'Pozele tale rămân pe telefon',
-         'AI-ul rulează pe telefon. Fără cont, fără reclame.', None)
+        ('momente', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
+         'Tot AI-ul rulează pe telefon. Fără cont, fără reclame.', None)
     ],
     'en': [
         ('sortare', 'Picks like you', 'Keep or Not today',
@@ -261,16 +261,49 @@ TEXTE = {
          'Compared by facial features, right on your phone.', None),
         ('studio', 'Studio', 'Cover of the month, from your photos',
          'Plus films, How they grew, Time capsule and more.', None),
-        ('momente', 'Privacy', 'Your photos stay on your phone',
-         'The AI runs on your phone. No account, no ads.', None)
+        ('momente', 'Privacy', 'No photo ever leaves your phone',
+         'All the AI runs on your phone. No account, no ads.', None)
     ]
 }
+
+
+def grafica(limba):
+    """Grafica prezentată 1024×500: aceeași lumină black rose ca la capturi,
+    cireșele din pictogramă în stânga, numele și promisiunea în dreapta."""
+    bold, med = pregateste_fonturile()
+    gw, gh = 1024, 500
+    bg = Image.new('RGB', (gw, gh), (8, 4, 7))
+    lum = Image.new('RGB', (gw, gh), (0, 0, 0))
+    d = ImageDraw.Draw(lum)
+    d.ellipse([-260, -300, 520, 520], fill=(120, 20, 58))
+    d.ellipse([560, 180, 1300, 760], fill=(72, 26, 100))
+    bg = Image.blend(bg, lum.filter(ImageFilter.GaussianBlur(130)), 0.95)
+    ic = rotunjeste(Image.open('docs/play/icon-512.png').convert('RGB').resize((300, 300), Image.LANCZOS), 66)
+    umbra = Image.new('RGBA', (420, 420), (0, 0, 0, 0))
+    umbra.paste((0, 0, 0, 170), (60, 76, 360, 376), ic.split()[3])
+    umbra = umbra.filter(ImageFilter.GaussianBlur(28))
+    bg.paste(umbra, (40, 40), umbra)
+    bg.paste(ic, (100, 100), ic)
+    d = ImageDraw.Draw(bg)
+    ti, su = ('AI-ul care îți alege cele mai bune poze', 'Învață gustul tău · totul pe telefon') if limba == 'ro' \
+        else ('The AI that picks your best photos', 'Learns your taste · all on your phone')
+    x = 460
+    d.text((x, 118), 'Cherrypic', font=ImageFont.truetype(bold, 92), fill=TEXT)
+    y = 238
+    for linie in randuri(d, ti, ImageFont.truetype(bold, 38), gw - x - 50):
+        d.text((x, y), linie, font=ImageFont.truetype(bold, 38), fill=TEAL); y += 48
+    d.text((x, y + 16), su, font=ImageFont.truetype(med, 26), fill=SUB)
+    os.makedirs(OUT_BASE, exist_ok=True)
+    cale = f'{OUT_BASE}/feature-graphic-{limba}.png'
+    bg.save(cale)
+    print(cale, bg.size)
 
 
 if __name__ == '__main__':
     import sys
     limbi = sys.argv[1:] or ['ro', 'en']
     for limba in limbi:
+        grafica(limba)
         surse = SURSE_RO if limba == 'ro' else SURSE_EN
         for i, (cheie, et, ti, su, ins) in enumerate(TEXTE[limba], start=1):
             if not surse.get(cheie):

@@ -7,8 +7,8 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 
 ## Imagini
 - Pictograma aplicației (512×512): `docs/play/icon-512.png`
-- Grafica prezentată (1024×500): `docs/play/feature-graphic-1024x500-ro.png` (română) și `docs/play/feature-graphic-1024x500.png` (engleză)
-- Capturile de ecran trebuie refăcute: noul ecran Azi cu „Cherrypic îți propune”, Galerie, poza mare, Mai frumoasă, Evenimente. Pe Azi trebuie să se vadă propunerile AI-ului.
+- Grafica prezentată (1024×500), tema black rose: `store/screenshots-new/feature-graphic-ro.png` și `feature-graphic-en.png`
+- Capturile (8 pe limbă, 1080×1920): `store/screenshots-new/ro/` și `en/`, făcute cu familia demo generată de AI (fără oameni reali). Se refac cu `python3 scripts/store-screenshots.py`.
 
 ## Română (ro-RO), limba implicită
 
@@ -55,6 +55,13 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Portret: fundal estompat pe orice poză, cu oameni, animale sau obiecte
 • Stiluri: Natural, Vie, Caldă, Clară, Film, Alb-negru — sau pornești de la original și reglezi tu
 • Film scurt pentru story din pozele zilei
+
+★ AMINTIRI ȘI FAMILIE
+• Acum un an, în ziua asta: amintirile te găsesc singure
+• Galerie 3D: un tunel prin anii tăi, lună cu lună, pe fiecare om drag
+• Cum a crescut: un film cu fața copilului, de la bebeluș până azi
+• Cu cine seamănă? Comparat după trăsăturile feței, direct pe telefon
+• Coperta lunii, Capsula timpului, Anul în zâmbete, filme din pozele tale
 
 ★ PRIVATĂ
 • Totul se face pe telefon: nicio poză și nicio căutare nu pleacă; motoarele AI se descarcă o singură dată
@@ -110,6 +117,13 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Styles: Natural, Vivid, Warm, Clear, Film, B&W — or start from the original and adjust yourself
 • Short story video from the day's photos
 
+★ MEMORIES AND FAMILY
+• One year ago, on this day: your memories find you
+• 3D gallery: a tunnel through your years, month by month, for everyone you love
+• How they grew: a film of your child's face, from baby to today
+• Who do they look like? Compared by facial features, right on your phone
+• Cover of the month, Time capsule, Year in smiles, films from your photos
+
 ★ PRIVATE
 • Everything runs on your phone: no photo or search ever leaves it; AI engines download once
 • No account, no ads
@@ -134,11 +148,11 @@ Serverul (Cherrypic Cloud) e oprit în aplicație: toate analizele și edităril
 Din 2025, Play cere o declarație în Play Console că accesul permanent la poze e funcția de bază: aplicația e un manager de galerie și selector de poze (sortare zilnică, curățare, organizare). Atașează un video scurt: importul, ritualul de sortare, ștergerea în coș.
 
 ## Ordinea capturilor (8)
-1. Înainte/după: 25 de poze aproape la fel → 3 păstrate („Alege ca tine”)
-2. Ritualul de seară: swipe Păstrez / Nu azi, cu „de ce” sub poză
-3. Curățenie: „Am găsit 28 de serii… Eliberezi 289 MB”, totul în coș, recuperabil
-4. Oamenii tăi: albume pe persoane, „nu se șterg niciodată în bloc”
-5. Căutare după ce se vede: „copii la mare la apus” (+ N după ce se vede în poze)
-6. Editor: Mai frumoasă înainte/după, cu Portret
-7. Gumă: atingi obiectul → dispare (gratuit, fără filigran)
-8. „100% pe telefon · fără cont · fără reclame”
+1. Alege ca tine: Păstrez sau Nu azi
+2. Curățenie: din fiecare serie, cea mai bună
+3. Ordine: bonuri și capturi, puse deoparte
+4. Azi: acum un an, în ziua asta
+5. Galerie 3D: călătorește prin anii tăi
+6. Familie: cu cine seamănă copilul?
+7. Studio: coperta lunii, din pozele tale
+8. Confidențialitate: nicio poză nu pleacă de pe telefon
