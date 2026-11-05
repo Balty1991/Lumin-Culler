@@ -117,6 +117,7 @@ jobs:
           cp -r public/models site/
           cp public/privacy-policy.html public/favicon-32.png public/icon-192.png public/icon-512.png public/apple-touch-icon.png site/
           cp site-static/index.html site/index.html
+          cp site-static/sw.js site/sw.js
           touch site/.nojekyll
           du -sh site
       - uses: actions/upload-pages-artifact@v3
