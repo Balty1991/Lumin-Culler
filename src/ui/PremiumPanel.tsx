@@ -8,7 +8,7 @@ import { annualSavingsPercent, perMonthPrice, defaultPlanId, resolvePlan } from 
 import { t, plural } from '../i18n';
 import { LifetimeProof } from './LifetimeProof';
 import { resumeFor } from './premiumResume';
-import { FREE_DAILY } from '../lumin/cloud';
+import { FREE_DAILY, cloudAvailable } from '../lumin/cloud';
 import { seriesExtras } from '../lumin/LumiFeed';
 import { formatBytes } from '../core/freedSpace';
 
@@ -201,10 +201,14 @@ export function PremiumPanel() {
           <i aria-hidden="true">✦</i>
           <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
         </div>
-        <div className={highlightedPerk === 'cloud' ? 'premium-perk is-wanted' : 'premium-perk'}>
-          <i aria-hidden="true">☁</i>
-          <span><b>{tr('premium.cp.cloud.title', { n: FREE_CLOUD_WRITES })}</b><span>{tr('premium.cp.cloud.sub', { n: FREE_CLOUD_WRITES })}</span></span>
-        </div>
+        {/* AI-ul online apare doar când serverul chiar e pornit în build: un
+            abonament nu are voie să promită o funcție care nu există. */}
+        {cloudAvailable() && (
+          <div className={highlightedPerk === 'cloud' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true">☁</i>
+            <span><b>{tr('premium.cp.cloud.title', { n: FREE_CLOUD_WRITES })}</b><span>{tr('premium.cp.cloud.sub', { n: FREE_CLOUD_WRITES })}</span></span>
+          </div>
+        )}
         <div className={highlightedPerk === 'cleanup' ? 'premium-perk is-wanted' : 'premium-perk'}>
           <i aria-hidden="true">🧹</i>
           <span><b>{tr('premium.cp.cleanup.title')}</b><span>{tr('premium.cp.cleanup.sub')}</span></span>
