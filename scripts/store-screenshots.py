@@ -47,24 +47,24 @@ CROP_TOP = 118
 
 
 def taie_bara_de_sistem(im):
-    """Taie bara de navigare a Android-ului din josul capturii.
+    """Taie bara de stare (sus) si bara de navigare a Android-ului (jos).
 
-    Nu cu un numar fix: inaltimea ei difera de la captura la captura (gesturi
-    vs. trei butoane, iar unele ecrane o deseneaza peste continut). Ramasa in
-    rama de telefon, apare ca o dunga alba lata sub aplicatie — singurul lucru
-    din toata imaginea care striga "captura de ecran", exact ce incearca rama
-    sa ascunda.
-
-    Cautam de jos in sus prima linie care NU mai e deschisa la culoare.
-    Aplicatia e intunecata peste tot, deci granita e neta si nu are cum sa
-    prinda din greseala continut real.
+    Doua feluri de capturi:
+     - bara de navigare DESCHISA la culoare (telefonul vechi de test): cautam de
+       jos in sus prima linie care nu mai e deschisa — aplicatia e intunecata,
+       deci granita e neta;
+     - bara NEAGRA cu trei butoane (Honor 8X, EMUI): nu are contrast cu aplicatia,
+       asa ca o taiem la proportia ei fixa pe ecranele 9:19.5 (5,1% jos, 3,6% sus).
+    Ramasa in rama, bara striga "captura de ecran" — exact ce incearca rama sa ascunda.
     """
     mic = im.convert('L').resize((1, im.height))
     px = mic.load()
-    y = im.height - 1
-    while y > im.height - 320 and px[0, y] > 110:
-        y -= 1
-    return im.crop((0, CROP_TOP, im.width, y + 1))
+    if px[0, im.height - 5] > 110:
+        y = im.height - 1
+        while y > im.height - 320 and px[0, y] > 110:
+            y -= 1
+        return im.crop((0, CROP_TOP, im.width, y + 1))
+    return im.crop((0, round(im.height * 0.036), im.width, im.height - round(im.height * 0.051)))
 
 
 def pregateste_fonturile():
@@ -221,47 +221,48 @@ def compune(sursa, eticheta, titlu, subtitlu, nume, insigna=None, limba='ro'):
 # Numele fișierelor din SRC, pe ecran (se completează când vin capturile noi,
 # FĂRĂ oameni în poze — vezi antetul).
 SURSE_RO = {
-    'azi': '', 'sortare': '', 'curatenie': '', 'studio': '',
-    'tunel': '', 'editor': '', 'film': '', 'galerie': ''
+    'sortare': 'f7aaeb5f-image.jpg', 'serii': '14fa3884-image.jpg', 'deoparte': '90df1155-image.jpg',
+    'azi': 'a8274629-image.jpg', 'tunel': '6f2725b7-image.jpg', 'seamana': 'c1ad7fe3-image.jpg',
+    'studio': '53f0c274-image.jpg', 'momente': '3f0d5d98-image.jpg'
 }
 SURSE_EN = dict(SURSE_RO)
 
 TEXTE = {
     'ro': [
-        ('azi', 'Alege ca tine', 'Din 30 de poze, cele 4 bune',
-         'AI-ul îți învață gustul și alege în fiecare seară.', ('3 din 25', 'păstrate')),
-        ('sortare', 'Un minut pe zi', 'Păstrez sau Nu azi',
-         'Glisezi, iar AI-ul învață din fiecare alegere.', None),
-        ('curatenie', 'Curățenie', 'Serii, dubluri, poze neclare',
-         'Eliberezi spațiu. Totul ajunge în coș, se poate recupera.', ('324 MB', 'eliberați')),
-        ('studio', 'Studio', 'Filme și amintiri din pozele tale',
-         'Un an într-un minut, Cum a crescut, Capsula timpului și altele.', None),
+        ('sortare', 'Alege ca tine', 'Păstrez sau Nu azi',
+         'Glisezi, iar AI-ul îți învață gustul din fiecare alegere.', None),
+        ('serii', 'Curățenie', 'Din fiecare serie, cea mai bună',
+         'Dublurile și pozele mișcate trec la „Nu azi”. Nimic nu se șterge fără tine.', None),
+        ('deoparte', 'Ordine', 'Bonuri și capturi, puse deoparte',
+         'AI-ul le recunoaște singur și nu ți le mai cere la sortare.', None),
+        ('azi', 'Azi', 'Acum un an, în ziua asta',
+         'Amintirile tale te găsesc singure, în fiecare zi.', None),
         ('tunel', 'Galerie 3D', 'Călătorește prin anii tăi',
-         'Un tunel al amintirilor, lună cu lună.', None),
-        ('editor', 'Editor', 'Mai frumoasă dintr-o atingere',
-         'Lumină, culoare, portret, gumă. Fără filigran.', None),
-        ('film', 'Mini-film', 'Pozele tale prind viață',
-         'Mișcare AI între poze, muzică, gata de trimis.', None),
-        ('galerie', 'Confidențialitate', 'Nicio poză nu pleacă de pe telefon',
-         'Tot AI-ul rulează pe telefon. Fără cont, fără reclame.', ('0 upload', 'totul pe telefon'))
+         'Un tunel al amintirilor, lună cu lună, pe fiecare om drag.', None),
+        ('seamana', 'Familie', 'Cu cine seamănă copilul?',
+         'Comparat după trăsăturile feței, direct pe telefon.', None),
+        ('studio', 'Studio', 'Coperta lunii, din pozele tale',
+         'Plus filme, Cum a crescut, Capsula timpului și altele.', None),
+        ('momente', 'Confidențialitate', 'Pozele tale rămân pe telefon',
+         'AI-ul rulează pe telefon. Fără cont, fără reclame.', None)
     ],
     'en': [
-        ('azi', 'Picks like you', 'From 30 photos, the 4 good ones',
-         'The AI learns your taste and picks every evening.', ('3 of 25', 'kept')),
-        ('sortare', 'One minute a day', 'Keep or Not today',
-         'Swipe, and the AI learns from every choice.', None),
-        ('curatenie', 'Cleanup', 'Bursts, duplicates, blurry shots',
-         'Free up space. Everything goes to the trash, recoverable.', ('324 MB', 'freed')),
-        ('studio', 'Studio', 'Films and memories from your photos',
-         'A year in a minute, How they grew, Time capsule and more.', None),
+        ('sortare', 'Picks like you', 'Keep or Not today',
+         'Swipe, and the AI learns your taste from every choice.', None),
+        ('serii', 'Cleanup', 'The best shot of every burst',
+         'Duplicates and blurry shots move to “Not today”. Nothing is deleted without you.', None),
+        ('deoparte', 'Tidy', 'Receipts and screenshots, set aside',
+         'The AI spots them on its own and keeps them out of sorting.', None),
+        ('azi', 'Today', 'One year ago, on this day',
+         'Your memories find you, every day.', None),
         ('tunel', '3D gallery', 'Travel through your years',
-         'A tunnel of memories, month by month.', None),
-        ('editor', 'Editor', 'Better in one tap',
-         'Light, color, portrait, eraser. No watermark.', None),
-        ('film', 'Mini-film', 'Your photos come alive',
-         'AI motion between photos, music, ready to share.', None),
-        ('galerie', 'Privacy', 'No photo ever leaves your phone',
-         'All the AI runs on your phone. No account, no ads.', ('0 uploads', 'all on device'))
+         'A tunnel of memories, month by month, for everyone you love.', None),
+        ('seamana', 'Family', 'Who does your child look like?',
+         'Compared by facial features, right on your phone.', None),
+        ('studio', 'Studio', 'Cover of the month, from your photos',
+         'Plus films, How they grew, Time capsule and more.', None),
+        ('momente', 'Privacy', 'Your photos stay on your phone',
+         'The AI runs on your phone. No account, no ads.', None)
     ]
 }
 
