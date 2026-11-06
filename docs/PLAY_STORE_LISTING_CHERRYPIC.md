@@ -14,12 +14,12 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 
 **Numele aplicației (max. 30):**
 ```
-Cherrypic: AI Photo Picker
+Cherrypic: Curățare galerie AI
 ```
 
 **Descriere scurtă (max. 80):**
 ```
-Curăță galeria: AI-ul păstrează cele mai bune poze, șterge duplicate și neclare
+AI-ul îți alege cele mai bune poze și curăță duplicatele și pozele neclare.
 ```
 
 **Descriere completă:**
@@ -31,7 +31,7 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 ★ ALEGE CA TINE
 • Învață din fiecare „Păstrez” și „Nu azi” și îți arată cât de des alege ca tine
 • Din fiecare serie de poze aproape identice păstrează una: cea clară, cu toți cu ochii deschiși
-• Îți explică de ce: „Ai păstra-o: e Ami, și are lumina caldă de apus”
+• Îți explică de ce: „Ai păstra-o: e Mia și are lumina caldă de apus”
 • Știe ce e o poză frumoasă: un model AI antrenat pe note date de oameni, ajustat apoi după gustul tău
 
 ★ CURĂȚĂ GALERIA
@@ -44,7 +44,7 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Citește toată galeria în fundal, de la cele mai noi poze la cele vechi
 • Momente și evenimente făcute singure: Crăciun, Paște, zile de naștere, vacanțe
 • Oameni recunoscuți după față, cu albumul lor
-• Căutare în cuvinte: „Ami și mama”, „mare”, „pisică”, „octombrie”
+• Căutare în cuvinte: „Mia și mama”, „mare”, „pisică”, „octombrie”
 • Caută după ce se vede, în română: „copii la mare la apus”, „tort cu lumânări”
 • Bonuri, documente și capturi puse deoparte, în dosare
 
@@ -52,8 +52,8 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • O atingere: lumină, culoare, claritate, cu înainte/după
 • Gumă: atingi obiectul și se selectează singur; îl ștergi gratuit, fără filigran (și pe obiecte mari)
 • Fundal alb pentru Vinted/OLX și Claritate pentru pozele mici sau mișcate
-• Portret: fundal estompat pe orice poză, cu oameni, animale sau obiecte
-• Stiluri: Natural, Vie, Caldă, Clară, Film, Alb-negru — sau pornești de la original și reglezi tu
+• Stiluri gratuite: Natural, Vie, Caldă — sau pornești de la original și reglezi tu
+• Cu Pro: Portret (fundal estompat), Clară, Film, Alb-negru, Dramatică
 • Film scurt pentru story din pozele zilei
 
 ★ AMINTIRI ȘI FAMILIE
@@ -92,7 +92,7 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 ★ PICKS LIKE YOU
 • Learns from every Keep and Not today, and shows how often it agrees with you
 • From every burst keeps the sharp one with everybody's eyes open
-• Tells you why: "You'd keep it: it's Ami, in warm sunset light"
+• Tells you why: "You'd keep it: it's Mia, in warm sunset light"
 • Knows what a beautiful photo is: an AI model trained on human ratings, then tuned to your taste
 
 ★ CLEANS YOUR GALLERY
@@ -105,7 +105,7 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Reads your whole gallery in the background, newest first
 • Moments and events made automatically: Christmas, Easter, birthdays, trips
 • People recognized by face, each with an album
-• Search in words: "Ami and mom", "beach", "cat", "October"
+• Search in words: "Mia and mom", "beach", "cat", "October"
 • Search by what's in the photo, in your language: "kids at the beach at sunset"
 • Receipts, documents and screenshots set aside, in folders
 
@@ -113,8 +113,8 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • One tap: light, colour, clarity, with before/after
 • Eraser: tap an object and it selects itself; remove it free, no watermark (large objects too)
 • White background for marketplaces, and Clarity for small or soft photos
-• Portrait: background blur on any photo — people, pets or objects
-• Styles: Natural, Vivid, Warm, Clear, Film, B&W — or start from the original and adjust yourself
+• Free styles: Natural, Vivid, Warm — or start from the original and adjust yourself
+• With Pro: Portrait (background blur), Clear, Film, B&W, Dramatic
 • Short story video from the day's photos
 
 ★ MEMORIES AND FAMILY
