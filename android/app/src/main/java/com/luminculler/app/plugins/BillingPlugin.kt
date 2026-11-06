@@ -85,7 +85,7 @@ class BillingPlugin : Plugin() {
      * creeaza in Play Console → Produse → Produse in aplicatie, cu exact acest
      * ID. Lipsa lui nu strica nimic: planul pur si simplu nu apare.
      */
-    private val lifetimeId = "cherrypic_pro_lifetime"
+    private val lifetimeId = "cherrypic_pro_forever"
 
     private var pendingPurchaseCall: PluginCall? = null
 

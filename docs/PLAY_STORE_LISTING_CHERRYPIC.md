@@ -161,5 +161,5 @@ Din 2025, Play cere o declarație în Play Console că accesul permanent la poze
 - Abonamente (Generează bani cu Play → Produse → Abonamente):
   - `lumin_premium_monthly`, plan de bază lunar: 12,99 RON / 3,99 € / 3,99 USD, **fără** perioadă de probă.
   - `lumin_premium_yearly`, plan de bază anual: 69,99 RON / 24,99 € / 24,99 USD, cu ofertă „probă gratuită 7 zile” pentru utilizatori noi.
-- Produs unic (Generează bani cu Play → Produse → Produse în aplicație): `cherrypic_pro_lifetime`, „Cherrypic Pro pe viață”: 149,99 RON / 49,99 € / 49,99 USD.
+- Produs unic (Generează bani cu Play → Produse → Produse unice / în aplicație): `cherrypic_pro_forever` (ID-ul `cherrypic_pro_lifetime` a fost ocupat din greșeală de un abonament fără plan de bază; nu se mai poate refolosi), „Cherrypic Pro pe viață”: 149,99 RON / 49,99 € / 49,99 USD.
 - Fără plan săptămânal. Motivația și sursele: `reports/Abonamentul Pro Cherrypic.md`.
