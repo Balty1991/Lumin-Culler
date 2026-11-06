@@ -263,6 +263,21 @@ jobs:
       # singurul mod de a afla cat s-a mai umflat APK-ul era sa-l descarci —
       # exact lucrul care doare pe o legatura mobila. Cu asta se vede din
       # browser, inainte de descarcare.
+      - name: Pagini de memorie de 16 KB (cerință Google Play)
+        # Play respinge versiunile cu biblioteci native aliniate la 4 KB
+        # („Aplicația nu acceptă dimensiuni ale paginii de memorie de 16 KB”).
+        # Bug real: ONNX Runtime 1.19.2 avea libonnxruntime.so la 0x1000.
+        run: |
+          f=android/app/build/outputs/apk/debug/app-debug.apk
+          dir=$(mktemp -d)
+          unzip -q -o "$f" 'lib/arm64-v8a/*' -d "$dir" || true
+          bad=0
+          for so in $(find "$dir" -name '*.so'); do
+            min=$(readelf -lW "$so" | awk '/LOAD/{print $NF}' | sort -u | head -1)
+            if [ $(( min )) -lt $(( 0x4000 )) ]; then echo "::error::$(basename "$so") aliniat la $min (trebuie 0x4000)"; bad=1; fi
+          done
+          [ "$bad" = 0 ] && echo "Toate bibliotecile native sunt aliniate la 16 KB."
+          exit $bad
       - name: Raporteaza marimea APK-ului
         run: |
           apk=android/app/build/outputs/apk/debug/app-debug.apk
