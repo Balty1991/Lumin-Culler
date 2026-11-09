@@ -99,6 +99,33 @@ export function VideoCleanup() {
   );
 }
 
+/** Pe Azi: un rând. Lista se deschide doar la atingere, nu ocupă ecranul. */
+export function VideoToday() {
+  const tr = useTr();
+  const [open, setOpen] = useState(false);
+  if (!isNativeMediaLibraryAvailable()) return null;
+  return (
+    <>
+      <button className="lx-card lx-gallery-status" onClick={() => setOpen(true)}>
+        <div>
+          <b>{tr('lx.videos.title')}</b>
+          <span>{tr('lx.videos.introSub')}</span>
+        </div>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
+      {open && createPortal(
+        <div className="lx lx-sheet-wrap" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
+          <div className="lx-sheet lx-video-today" onClick={e => e.stopPropagation()}>
+            <button className="lx-icon-btn" onClick={() => setOpen(false)} aria-label={tr('lx.close')}>✕</button>
+            <VideoCleanup />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 /** Alege un clip; Cherrypic îi caută cel mai clar cadru și îl salvează ca poză. */
 function FrameSheet({ list, onClose }: { list: GalleryVideo[]; onClose: () => void }) {
   const tr = useTr();

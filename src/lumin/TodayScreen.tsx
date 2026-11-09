@@ -41,6 +41,10 @@ import { CapsuleCard } from './Capsule';
 import { ForgottenCard, MissingCard } from './Insights';
 import { BeenHereCard } from './Moments';
 import { StudioStrip } from './Studio';
+import { VideoToday } from './VideoCleanup';
+import { FamilyVote } from './FamilyVote';
+import { LivePhotoSheet } from './LivePhoto';
+import { livePhotoAvailable } from './livePhoto';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
 
@@ -255,6 +259,7 @@ export function TodayScreen() {
         </>
       )}
       <StudioStrip />
+      <WeekVote />
       <BeenHereCard />
       <CapsuleCard />
       <ForgottenCard />
@@ -267,6 +272,7 @@ export function TodayScreen() {
         <div className="lx-today-group">
         <GalleryStatus />
         <CleanupCard photos={photos} compact />
+        <VideoToday />
 
         <FreedCard />
 
@@ -379,6 +385,36 @@ function OnThisDay({ heroCoversFirst }: { heroCoversFirst: boolean }) {
   );
 }
 
+/** Cea mai mare rafală din ultimele 7 zile: votul trece telefonul din mână în mână. */
+function WeekVote() {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const [open, setOpen] = useState(false);
+  const series = useMemo(() => {
+    const week = Date.now() - 7 * 86_400_000;
+    const groups = new Map<string, typeof photos>();
+    for (const p of photos) {
+      if (!p.groupId || p.aside || photoTime(p) < week) continue;
+      const g = groups.get(p.groupId);
+      if (g) g.push(p); else groups.set(p.groupId, [p]);
+    }
+    return [...groups.values()].filter(g => g.length >= 3).sort((a, b) => b.length - a.length)[0];
+  }, [photos]);
+  if (!series) return null;
+  return (
+    <>
+      <button className="lx-card lx-gallery-status" onClick={() => setOpen(true)}>
+        <div>
+          <b>{tr('lx.vote.week')}</b>
+          <span>{tr('lx.vote.weekSub', { count: series.length })}</span>
+        </div>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
+      {open && <FamilyVote ids={series.map(p => p.id)} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
 /** Citirea a fost oprită de om: cât a rămas și butonul care o reia. */
 function ReaderStopped() {
   const tr = useTr();
@@ -431,13 +467,16 @@ function DayPhotoHero() {
   const tr = useTr();
   const pick = useHeroPick();
   const [redo, setRedo] = useState(false);
+  const [live, setLive] = useState(false);
   if (!pick) return null;
   const hero = pick.photos[0];
   const ids = pick.photos.map(p => p.id);
   const canRedo = pick.years !== undefined && canRephoto();
+  const canLive = livePhotoAvailable() && !!hero.mediaUri;
   return (
     <section className="lx-day-hero">
       {redo && <RephotoSheet photoId={hero.id} takenAt={hero.capturedAt} onClose={() => setRedo(false)} />}
+      {live && <LivePhotoSheet photoId={hero.id} onClose={() => setLive(false)} />}
       <button className="lx-hero-tile in" onClick={() => useLx.getState().openViewer(ids, 0)} aria-label={pick.title}>
         <span className="lx-hero-media"><Thumb id={hero.id} lqip={hero.lqip} edits={hero.edits} full /></span>
         <span className="lx-hero-shade" />
@@ -456,6 +495,7 @@ function DayPhotoHero() {
       </button>
       <div className="lx-day-hero-actions">
         <button className="lx-btn primary" onClick={() => useLx.getState().openViewer(ids, 0)}>{tr('lx.hero.open')}</button>
+        {canLive && <button className="lx-btn ghost" onClick={() => setLive(true)}>{tr('lx.live.title')}</button>}
         {canRedo && <button className="lx-btn ghost" onClick={() => setRedo(true)}>{tr('lx.rephoto.title')}</button>}
         <StoryButton className="lx-btn ghost" ids={ids.slice(0, 12)} title={pick.title} subtitle={tr('lx.hero.count', { count: pick.photos.length })} />
       </div>

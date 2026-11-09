@@ -93,6 +93,14 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
   const mine = round.filter(p => p.status === 'selected' || p.status === 'rejected');
   const agree = mine.filter(p => (p.status === 'selected') === !!picks[p.id]).length;
   const both = liked.filter(p => p.status === 'selected');
+  const shareNamed = async (name: string, ids: string[]) => {
+    setBusy(true);
+    try {
+      const title = tr('lx.family.favTitle', { name });
+      const blob = await makeCollage(ids.slice(0, 9), title, '');
+      if (blob) await shareCollage(blob, `cherrypic-preferatele-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, title);
+    } finally { setBusy(false); }
+  };
   const share = async () => {
     if (!liked.length) return;
     setBusy(true);
@@ -116,11 +124,15 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
                 {Object.entries(past).map(([name, votes]) => {
                   const mine = Object.keys(votes).map(id => photos.find(p => p.id === id)).filter((p): p is PhotoView => !!p && (p.status === 'selected' || p.status === 'rejected'));
                   const agree = mine.filter(p => (p.status === 'selected') === !!votes[p.id]).length;
+                  const likedIds = Object.entries(votes).filter(([, yes]) => yes).map(([id]) => id).filter(id => photos.some(p => p.id === id));
                   return (
-                    <p key={name} className="lx-family-match">
+                    <div key={name} className="lx-family-match">
                       <b>{name}</b>
                       {mine.length >= 3 && <span> · {tr('lx.family.pastMatch', { percent: Math.round((agree / mine.length) * 100) })}</span>}
-                    </p>
+                      {likedIds.length >= 2 && (
+                        <button type="button" className="lx-link" disabled={busy} onClick={() => void shareNamed(name, likedIds)}>{tr('lx.family.pastCollage')}</button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
