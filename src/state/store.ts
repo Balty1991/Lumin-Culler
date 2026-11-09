@@ -854,7 +854,7 @@ interface AppState {
    */
   cullingStrictness: CullingStrictness;
   /** Schimba severitatea SI reeticheteaza pozele pe care nu le-ai decis tu. */
-  setCullingStrictness: (value: CullingStrictness) => Promise<void>;
+  setCullingStrictness: (value: CullingStrictness, force?: boolean) => Promise<void>;
   /**
    * Antrenament prea puțin: refuzurile AI-ului (nu ale omului) devin „de văzut”.
    * Vezi lumin/trainingGate.ts. Nu antrenează nimic și nu atinge deciziile omului.
@@ -3931,14 +3931,17 @@ export const useStore = create<AppState>((set, get) => ({
    * recalculeaza doar eticheta (pastrat/respins/de verificat), nu se reia
    * analiza AI. Scorul nu depinde de severitate — doar pragurile.
    */
-  setCullingStrictness: async value => {
+  setCullingStrictness: async (value, force = false) => {
     const before = get().cullingStrictness;
-    if (before === value) return;
-    writeCullingStrictness(value);
-    set({ cullingStrictness: value });
+    if (before === value && !force) return;
+    if (before !== value) {
+      writeCullingStrictness(value);
+      set({ cullingStrictness: value });
+    }
 
     const locale = get().locale;
     const photos = get().photos;
+    const beforeStatus = force ? new Map(photos.map(p => [p.id, p.status])) : null;
     const thresholds = applyStrictness(deriveThresholds(await readLibraryScores()), value);
 
     const updates = new Map<string, PhotoRecord['status']>();
@@ -3969,6 +3972,12 @@ export const useStore = create<AppState>((set, get) => ({
       notice: t(locale, updates.size === 1 ? 'strictness.applied.one' : 'strictness.applied.other', { count: updates.size })
     });
     await get().applyMoments();
+    // Schimbarea modului (Părinte / Vânzător / Creator) nu mută pragul, deci
+    // înainte ieșea aici fără să atingă nicio poză. Acum reia etichetele.
+    if (beforeStatus) {
+      const changed = get().photos.filter(p => beforeStatus.get(p.id) !== undefined && beforeStatus.get(p.id) !== p.status).length;
+      if (changed > 0) set({ notice: t(locale, changed === 1 ? 'lx.mode.applied.one' : 'lx.mode.applied.other', { count: changed }) });
+    }
   },
 
   guessTastePair: async (aId, bId) => {

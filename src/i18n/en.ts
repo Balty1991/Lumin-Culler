@@ -2417,6 +2417,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.mode.seller.sub": "Vinted/eBay: one per item, the sharpest",
   "lx.mode.creator": "Creator",
   "lx.mode.creator.sub": "Instagram: only the very best frame",
+  "lx.mode.applied.one": "Mode applied — one photo got a new label.",
+  "lx.mode.applied.other": "Mode applied — {count} photos got a new label.",
   "lx.brain.loved": "You love:",
   "lx.people.pickHint": "Tap every face of the same person, then \"Name\". Or tap someone already named to add them there.",
   "lx.people.picked": "{count} faces picked",

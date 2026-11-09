@@ -2503,6 +2503,8 @@ export const ro = {
   "lx.mode.seller.sub": "Vinted/OLX: una pe produs, cea mai clară",
   "lx.mode.creator": "Creator",
   "lx.mode.creator.sub": "Instagram: doar cadrul cel mai bun",
+  "lx.mode.applied.one": "Modul e aplicat — o poză are altă etichetă.",
+  "lx.mode.applied.other": "Modul e aplicat — {count} poze au altă etichetă.",
   "lx.brain.loved": "Ții la:",
   "lx.people.pickHint": "Atinge toate fețele aceleiași persoane, apoi „Numește”. Sau atinge pe cineva deja numit ca să le adaugi la el.",
   "lx.people.picked": "{count} fețe alese",

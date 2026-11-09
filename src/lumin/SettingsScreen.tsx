@@ -57,9 +57,11 @@ export function SettingsScreen() {
   const [mode, setMode] = useState<SortMode>(readSortMode);
   // Schimbarea modului reia deciziile AI-ului de la zero (ale tale rămân), apoi momentele.
   const chooseMode = async (m: SortMode) => {
+    if (m === mode) return;
     setMode(m);
     writeSortMode(m);
-    await setStrictness(strictness);
+    // Același prag, dar momentele se recalculează: altfel modul se salva și galeria rămânea la fel.
+    await setStrictness(strictness, true);
   };
 
   const clear = async () => {

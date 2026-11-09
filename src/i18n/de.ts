@@ -382,6 +382,8 @@ export const dict: Record<string, string> = {
   "lx.mode.seller.sub": "Vinted/eBay: eins pro Artikel, das schärfste",
   "lx.mode.creator": "Creator",
   "lx.mode.creator.sub": "Instagram: nur die allerbeste Aufnahme",
+  "lx.mode.applied.one": "Modus angewendet — ein Foto hat ein neues Etikett.",
+  "lx.mode.applied.other": "Modus angewendet — {count} Fotos haben ein neues Etikett.",
   "lx.brain.loved": "Du liebst:",
   "lx.people.pickHint": "Tippe alle Gesichter derselben Person an, dann „Benennen“. Oder tippe jemanden mit Namen an, um sie dort hinzuzufügen.",
   "lx.people.picked": "{count} Gesichter gewählt",
