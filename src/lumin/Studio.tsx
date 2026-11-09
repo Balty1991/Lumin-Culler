@@ -19,6 +19,9 @@ import { FamilyPickSheet } from './FamilyPick';
 import { FilmCreator } from './FilmCreator';
 import { photoTime } from './days';
 import { Recaps } from './Recaps';
+import { EnhanceSheet } from './Enhance';
+import { BrainScreen } from './BrainScreen';
+import type { PhotoView } from '../state/store';
 
 /**
  * lumin/Studio.tsx
@@ -174,6 +177,47 @@ export function StudioScreen({ onClose }: { onClose: () => void }) {
       {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
     </div>,
     document.body
+  );
+}
+
+const STUDIO_ORDER: ToolId[] = ['film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
+
+/** Tab-ul Studio: editorul, filmele și amintirile, în ordinea în care se folosesc. */
+export function StudioTab() {
+  const tr = useTr();
+  const tools = useTools();
+  const ordered = STUDIO_ORDER.map(id => tools.find(t => t.id === id)).filter((t): t is Tool => !!t);
+  const rest = tools.filter(t => !STUDIO_ORDER.includes(t.id));
+  const [open, setOpen] = useState<Tool | null>(null);
+  const [enhance, setEnhance] = useState<PhotoView | null>(null);
+  const openEditor = () => {
+    const photos = useStore.getState().photos.filter(p => !p.aside);
+    const best = [...photos].sort((a, b) => b.aiScore - a.aiScore)[0];
+    if (best) setEnhance(best);
+    else useLx.getState().setTab('days');
+  };
+  return (
+    <div className="lx-screen">
+      <header className="lx-head"><h1 className="lx-title">{tr('lx.studio.title')}</h1></header>
+      <p className="lx-sub">{tr('lx.studio.intro')}</p>
+      <div className="lx-studio-grid">
+        <button className="lx-studio-tile c-films" onClick={openEditor}>
+          <span className="lx-studio-glyph"><Icon name="sparkle" size={26} /></span>
+          <b>{tr('lx.enhance.title')}</b>
+          <small>{tr('lx.enhance.style')}</small>
+        </button>
+        {ordered.map(t => <Tile key={t.id} tool={t} onOpen={() => setOpen(t)} />)}
+      </div>
+      {rest.length > 0 && (
+        <section className="lx-studio-cat">
+          <h3>{tr('lx.studio.all')}</h3>
+          <div className="lx-studio-grid">{rest.map(t => <Tile key={t.id} tool={t} onOpen={() => setOpen(t)} />)}</div>
+        </section>
+      )}
+      <BrainScreen embedded />
+      {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
+      {enhance && <EnhanceSheet photo={enhance} onClose={() => setEnhance(null)} />}
+    </div>
   );
 }
 

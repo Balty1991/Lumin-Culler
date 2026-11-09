@@ -6,6 +6,7 @@ import { Icon } from './icons';
 import { loadEditable } from './sharp';
 import { saveEditedBlob } from './saveEdited';
 import { shareCollage } from './collage';
+import { shareCaption } from './shareCards';
 import { filmFromKeyframes, type BurstFilm } from './burstFilm';
 import { FilmSheet } from './FilmSheet';
 import { intlTag } from '../i18n';
@@ -101,7 +102,7 @@ export function RephotoSheet({ photoId, takenAt, onClose }: { photoId: string; t
     const ok = b ? await saveEditedBlob(b, 'refacuta') : false;
     useStore.getState().setNotice(tr(ok ? 'lx.rephoto.saved' : 'lx.magic.failed'));
   };
-  const sharePair = async () => { const b = await pair(); if (b) await shareCollage(b, `cherrypic-atunci-acum-${Date.now()}.jpg`, tr('lx.rephoto.shareText')); };
+  const sharePair = async () => { const b = await pair(); if (b) await shareCollage(b, `cherrypic-atunci-acum-${Date.now()}.jpg`, shareCaption(tr('lx.rephoto.shareText'), tr('lx.share.cta'))); };
   const makeFilm = async () => {
     if (!shot || !old) return;
     setBusy(true);

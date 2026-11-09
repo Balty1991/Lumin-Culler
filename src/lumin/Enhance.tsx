@@ -17,6 +17,7 @@ import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
 import { vibrate } from '../ui/haptics';
+import { renderBeforeAfterCard, shareCard } from './shareCards';
 
 /**
  * lumin/Enhance.tsx
@@ -794,6 +795,16 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
         )}
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" onClick={onClose}>{tr(nothing ? 'lx.close' : 'lx.enhance.cancel')}</button>
+          {!nothing && orig && view && (
+            <button className="lx-btn ghost" onClick={() => {
+              const fixes = issues.length
+                ? issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ')
+                : tr('lx.enhance.title');
+              void renderBeforeAfterCard(orig, view, fixes, tr('lx.share.cta')).then(blob => {
+                if (blob) void shareCard(blob, `cherrypic-inainte-dupa-${Date.now()}.jpg`, fixes, tr('lx.share.cta'));
+              });
+            }}>{tr('lx.freed.share')}</button>
+          )}
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}
         </div>
       </div>

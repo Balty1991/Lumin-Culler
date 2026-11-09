@@ -3,7 +3,7 @@ import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
 import { recordDailyGuess } from '../core/tasteScore';
 import { recordPersonDecision } from '../core/personTaste';
-import { recordTwinDecision } from './twin';
+import { readTwin, recordTwinDecision } from './twin';
 import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/importPipeline';
 import { personalWhy, useWhyContext } from './why';
 import { CloudLine } from './CloudParts';
@@ -11,6 +11,8 @@ import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { haptic } from '../core/device';
+import { claimPaywall, setPaywallContext } from './paywallMoment';
+import { t } from '../i18n';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -66,6 +68,20 @@ export function SwipeSort() {
   const current = index < queue.length ? byId.get(queue[index]) : undefined;
   const next = index + 1 < queue.length ? byId.get(queue[index + 1]) : undefined;
   const shown = (peek && byId.get(peek)) || current;
+  // După ce rezultatul e pe ecran (coada s-a terminat), nu în timpul alegerilor.
+  useEffect(() => {
+    if (current || decisions < 7 || !useStore.getState().premiumLocked) return;
+    const timer = window.setTimeout(() => {
+      const st = useStore.getState();
+      if (!st.premiumLocked || !claimPaywall()) return;
+      const percent = readTwin().percent;
+      setPaywallContext(percent === null
+        ? t(st.locale, 'lx.paywall.afterSortPlain', { count: decisions })
+        : t(st.locale, 'lx.paywall.afterSort', { percent }));
+      useStore.setState({ premiumOpen: true, premiumReason: 'acceptAll' });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [current, decisions]);
 
   useEffect(() => {
     if (!lesson) return;

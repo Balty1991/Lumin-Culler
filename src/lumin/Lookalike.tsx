@@ -5,6 +5,7 @@ import { useTr } from './context';
 import { useLxPhotos } from './useLxPhotos';
 import { loadEditable } from './sharp';
 import { shareCollage } from './collage';
+import { shareCaption } from './shareCards';
 import { saveEditedBlob } from './saveEdited';
 import { lookalike, type FaceRef, type LookalikeResult } from './lookalike';
 import { useLx } from './lxStore';
@@ -255,7 +256,7 @@ export function LookalikeSheet({ name, onClose }: { name: string; onClose: () =>
           {phase === 'done' && (
             <>
               <button className="lx-btn ghost" disabled={!blob} onClick={() => blob && void saveEditedBlob(blob, 'semeni').then(ok => useStore.getState().setNotice(tr(ok ? 'lx.profile.saved' : 'lx.magic.failed')))}>{tr('lx.burstFilm.save')}</button>
-              <button className="lx-btn primary" disabled={!blob} onClick={() => blob && void shareCollage(blob, `cherrypic-semeni-${Date.now()}.jpg`, tr('lx.look.shareText', { name }))}>↗ {tr('lx.wall.share')}</button>
+              <button className="lx-btn primary" disabled={!blob} onClick={() => blob && void shareCollage(blob, `cherrypic-semeni-${Date.now()}.jpg`, shareCaption(tr('lx.look.shareText', { name }), tr('lx.share.cta')))}>↗ {tr('lx.wall.share')}</button>
             </>
           )}
         </div>

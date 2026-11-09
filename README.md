@@ -1,150 +1,30 @@
-# Lumin Culler Pro v2.0
+# Cherrypic
 
-Aplicatie profesionala de **sortare si alegere fotografii** (culling) pentru fotografi.
-AI real (TensorFlow.js) ruleaza **100% local, in browser** — pozele nu parasesc niciodata dispozitivul.
+Asistentul foto cu AI care rulează pe telefon. Alege pozele zilei, grupează seriile, face curățenie în galerie și poate înfrumuseța o poză — fără să urce fotografiile pe un server. Pe Google Play înlocuiește Lumin Culler, cu același pachet `com.luminculler.app`.
 
-## Ce face
+Versiunea afișată vine din `package.json` (acum 3.3.0). `versionCode`-ul local din `android/app/build.gradle` crește la fiecare încărcare; pachetul din Play e construit de `.github/workflows/release-android.yml`, care pune `versionCode` din numărul rulării GitHub.
 
-- **Detectie AI reala a fetelor** (BlazeFace + Face Mesh 468 puncte): zambete, ochi deschisi/inchisi (EAR pe landmark-uri), calitatea fetei.
-- **Tehnici de compozitie foto**: regula treimilor si headroom, calculate geometric din pozitia
-  subiectului principal fata de cadru (nu simulate) — intra in scor si se invata per context,
-  la fel ca restul criteriilor.
-- **Recunoastere persoane cunoscute**: inrolezi familia (ex. Ami, sotia) cu cateva poze de referinta; AI-ul separa automat pozele cu cei dragi de cele cu straini (embeddings 1024-dim + similaritate cosinus).
-- **1000+ poze fara blocare**: toata inferenta ruleaza in Web Workers (pool pe N-1 nuclee), imaginile se transfera zero-copy, miniaturile si metadatele stau in IndexedDB, nu in RAM.
-- **Motor de invatare per context**: fiecare decizie manuala (Selecteaza/Respinge) antreneaza un model de regresie logistica online separat pe context (`portrait:known`, `landscape`, `group:mixed`...). Invata preferinte de tipul „portrete dramatice usor subexpuse, dar peisaje luminoase si clare".
-- **Grupare serii/duplicate** (dHash perceptual): din rafale pastreaza propusa doar cea mai buna.
-- **Export selectie**: fisierele foto SELECTATE, in formatul original (aceiasi bytes/extensie
-  ca la import) — copiate direct intr-un folder ales (File System Access API) sau descarcate
-  individual pe browsere fara suport pentru API-ul de folder. Optional, si o lista JSON
-  cu numele fisierelor, pentru selectie-dupa-nume in Lightroom.
+## Ce rămâne neschimbat la publicare
 
-## Structura proiectului (ce urci in GitHub)
+- Pachet: `com.luminculler.app`. Semnarea de release citește `android/app/keystore.properties` (nu e în git).
+- Abonamente: `lumin_premium_monthly`, `lumin_premium_yearly`.
+- Produs unic: `cherrypic_pro_forever`. ID-ul `lumin_premium_lifetime` a fost folosit de aplicația pe care o înlocuiește; `cherrypic_pro_lifetime` e ocupat greșit ca abonament. Nu le redenumi în cod fără un produs nou în Play Console.
+- Fără reclame, fără plan săptămânal. Sortarea, galeria, căutarea, oamenii, corecția automată și stilurile Natural / Vie / Caldă rămân gratuite. O curățenie mare pe lună e gratuită.
+- Dacă Play nu răspunde cu produse (web, build nesemnat), nimic nu se blochează.
 
-```
-lumin-culler-pro/
-├── .github/workflows/deploy.yml      # build + deploy automat (Actions)
-├── index.html
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── capacitor.config.ts               # packaging Android (Capacitor)
-├── android/                          # proiect nativ Android — Capacitor (generat, vezi mai jos)
-├── src-tauri/                        # packaging Desktop (Tauri) — tauri.conf.json, Cargo.toml
-├── electron/                         # packaging Desktop (Electron) — main.cjs, preload.cjs
-├── mobile-rn/                        # alternativa mobil (Expo/React Native + WebView), proiect separat
-├── src/
-│   ├── main.tsx                      # bootstrap React
-│   ├── App.tsx                       # shell UI (fara logica)
-│   ├── styles.css
-│   ├── vite-env.d.ts
-│   ├── state/
-│   │   └── store.ts                  # Zustand — starea, separata de UI
-│   ├── core/
-│   │   ├── db.ts                     # schema IndexedDB (Dexie)
-│   │   ├── workerPool.ts             # pool de Web Workers
-│   │   ├── importPipeline.ts         # decodare → analiza → scor → persistare
-│   │   ├── exportPhotos.ts           # export selectie in format original
-│   │   └── learning/
-│   │       └── ContextEngine.ts      # ML activ: invata din corectii, per context
-│   ├── workers/
-│   │   └── faceAnalysis.worker.ts    # TF.js: fete, zambete, ochi, recunoastere
-│   └── ui/
-│       ├── PhotoCard.tsx
-│       ├── DetailView.tsx
-│       └── PersonsPanel.tsx
+## Ecrane
+
+Patru locuri, jos: **Azi**, **Galerie**, **Studio**, **Setări**. Sortarea, curățenia, editorul și Pro se ating în cel mult două atingeri. Oferta Pro apare după un rezultat văzut (o curățenie sau cel puțin șapte alegeri), nu la prima deschidere.
+
+## Dezvoltare
+
+```bash
+npm ci
+npm test
+npm run dev
+npm run build
 ```
 
-**NU urci:** `node_modules/`, `dist/`, `public/models/` — workflow-ul le genereaza singur la build.
+Android: `npm run cap:sync`, apoi Android Studio. Fără `keystore.properties`, build-ul de release rămâne nesemnat.
 
-## Instalare pe GitHub (pas cu pas, de pe Android)
-
-1. **Creeaza repo nou** pe github.com (ex. `lumin-culler`), Public, fara README.
-2. **Urca fisierele** pastrand structura de foldere de mai sus (Add file → Upload files,
-   sau creeaza fiecare fisier cu Add file → Create new file, scriind calea completa
-   ex. `src/core/db.ts` — editorul creeaza folderele automat).
-3. **Activeaza Pages cu Actions**: Settings → Pages → Source: **GitHub Actions** (nu „Deploy from a branch"!).
-4. La primul push pe `main`, tab-ul **Actions** porneste „Build & Deploy" (~2-3 min).
-5. Aplicatia e live la `https://USERNAME.github.io/NUMELE-REPO/`.
-
-Orice modificare ulterioara: editezi fisierul in web editor → Commit → Actions redeplioaza automat.
-
-## Cum se foloseste
-
-1. **Inroleaza persoanele cunoscute** (butonul ★ Persoane): nume + 2-4 poze clare, frontale
-   pentru fiecare. Fa asta INAINTE de primul import mare.
-2. **Alege fotografiile** (JPEG/PNG/WebP/AVIF si RAW — CR2/CR3/NEF/ARW/DNG/RAF/ORF/RW2 etc.).
-   Progresul apare in timp real; UI-ul ramane fluid.
-3. AI-ul propune automat: **verde = selectata** (scor ≥ 65), **rosu = respinsa** (≤ 35),
-   **galben = de verificat**. Insigne pe carduri: ★ persoana cunoscuta, ? strain, ◑ ochi inchisi, ≡ serie.
-4. **Deschide orice poza** → vezi metricile AI → decide cu **Selecteaza (P)** / **Respinge (X)**;
-   pe desktop navighezi cu sagetile. Fiecare decizie antreneaza motorul pentru acel context.
-5. **Exporta poze** → fisierele originale ale selectiei (folder ales sau descarcari,
-   dupa suportul browserului). **Lista (JSON)** → doar numele fisierelor.
-
-## Limitari cunoscute
-
-- **RAW se decodeaza direct in browser** (CR2/CR3/NEF/ARW/DNG/RAF/ORF/RW2/PEF/SRW si
-  altele — vezi `RAW_EXTENSIONS` in `src/core/rawDecoder.ts`), via libraw-wasm intr-un
-  Worker propriu, fara build nativ si fara instalare separata. Nu mai e nevoie de
-  shooting RAW+JPEG. Costul real ramane viteza: cand fisierul are un preview JPEG
-  incorporat destul de mare (majoritatea aparatelor moderne), decodarea e instant;
-  altfel se face demosaicing complet, care ia secunde per fisier, nu milisecunde.
-- Prima incarcare descarca ~16 MB de modele ML (apoi sunt in cache).
-- Recunoasterea are prag de similaritate 0.55 — daca apar confuzii, adauga mai multe
-  poze de referinta per persoana (unghiuri/lumini diferite).
-
-## Model de monetizare
-
-Triajul e **gratuit si nelimitat** — import, scor AI, sortare, grupare, comparare serii,
-oricate poze. Se plateste pentru ce faci cu rezultatul:
-
-| | Gratuit | Premium |
-|---|---|---|
-| Poze scoase din aplicatie (exportate **sau** sterse din telefon) | 150 la 30 de zile | nelimitat |
-| Persoane recunoscute inrolate | 1 | oricate |
-| Predare Lightroom (XMP), plansa de contact, dosar privat | — | da |
-| Recap lunar, prezentare, calatorii | — | da |
-| Sugestia de combinare a doua cadre | — | da |
-
-Doua planuri, lunar si anual (`lumin_premium_monthly` / `lumin_premium_yearly`).
-Ecranul Premium le arata pe amandoua doar cand Play chiar raspunde cu amandoua;
-eticheta de economie a anualului se calculeaza din preturile REALE primite de la
-Play, si nu se afiseaza deloc sub 5% (vezi `src/core/premiumPlans.ts`) — o
-reducere de rotunjire nu e o oferta. Perioada de proba, daca e configurata ca
-oferta in Play Console, apare singura pe card si pe buton, fara schimbari de cod.
-
-Numerele stau intr-un singur loc, `src/core/entitlement.ts`. Plata merge prin Google Play
-Billing (`android/.../plugins/BillingPlugin.kt`) — nu exista server, deci nici validare de
-chitanta pe partea noastra; vezi comentariul din acel fisier pentru de ce e compromisul
-corect aici. Regula care tine tot modelul: **nimic nu se blocheaza cat timp nu exista o
-cale reala de plata pe dispozitiv** (`isPurchasable()`), deci pe web/PWA plafoanele doar
-informeaza.
-
-## Drumul spre Desktop si Mobil
-
-Arhitectura e web-first cu logica separata de UI, deci impachetarea e deja pregatita in repo,
-cu cate doua variante pentru fiecare platforma:
-
-**Desktop**
-- **Tauri** (`src-tauri/`, identifier `com.luminculler.app`) — instalator mic (~10 MB),
-  foloseste webview-ul de sistem. `npm run tauri:dev` / `npm run tauri:build`.
-  Necesita toolchain Rust (`rustup` + `cargo`) local sau in CI.
-- **Electron** (`electron/main.cjs`, `electron/preload.cjs`) — Chromium propriu, deci
-  comportament identic pe toate SO-urile, dar instalator mai mare (~150 MB).
-  `npm run electron:dev` / `npm run electron:build` (electron-builder,
-  config in `package.json` → `"build"`). Necesita descarcarea binarului Electron
-  (~propriu registry, poate fi blocat de firewall-uri restrictive).
-
-**Mobil**
-- **Capacitor** (`capacitor.config.ts` + `android/`, appId `com.luminculler.app`) —
-  bridge nativ, acces la plugin-uri native ulterior daca e nevoie (camera, fisiere).
-  `npm run cap:sync` (build + sincronizare) / `npm run cap:android` (deschide Android Studio).
-- **React Native / Expo** (`mobile-rn/`, proiect separat cu propriul `package.json`) —
-  WebView peste acelasi build web; nu reimplementeaza pipeline-ul ML nativ
-  (Web Workers/IndexedDB/WebGL nu au echivalent RN). Vezi `mobile-rn/README.md`.
-  `cd mobile-rn && npx expo start`.
-
-Ambele perechi necesita toolchain nativ (Rust / Android SDK / Xcode) local sau in CI —
-niciunul nu e inclus in acest repo. Fisierele generate de build (`android/app/build`,
-`android/app/src/main/assets/public`, `src-tauri/target`, `electron/release` → `release/`,
-`mobile-rn/.expo`, `mobile-rn/android`, `mobile-rn/ios`) sunt in `.gitignore`.
+Pozele de probă pentru editor stau în `docs/real-photo-samples/` (licențe CC BY-SA, nu o galerie de 12 fotografii de pe telefon). Rezultatul pe un telefon real rămâne de confirmat de proprietar.

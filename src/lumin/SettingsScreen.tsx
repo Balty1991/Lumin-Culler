@@ -25,6 +25,7 @@ import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } 
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 import { autoBackupAvailable, autoBackupOn, lastAutoBackupAt, setAutoBackup } from './autoBackup';
 import { canMakePhoneAlbums, organizeKeptByMonth, organizeKeptByPeople, peopleAlbumsAuto, setPeopleAlbumsAuto, syncPeopleAlbums } from './phoneAlbums';
+import { readPaywallLog } from './paywallMoment';
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
 const THEMES: Theme[] = ['dark', 'light', 'auto'];
@@ -188,6 +189,8 @@ export function SettingsScreen() {
         )}
       </section>
 
+      <PaywallDiag />
+
       <button className="lx-row button" onClick={() => void sendReport()}>
         <span><b>🛠 {tr('lx.report.title')}</b><small>{tr('lx.report.sub', { count: readErrorLog().length })}</small></span>
         <span className="lx-chev" aria-hidden="true">›</span>
@@ -199,6 +202,28 @@ export function SettingsScreen() {
 
       <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__}</p>
     </div>
+  );
+}
+
+function PaywallDiag() {
+  const tr = useTr();
+  const locale = useStore(s => s.locale);
+  const rows = readPaywallLog();
+  return (
+    <section className="lx-group">
+      <h2>{tr('lx.diag.title')}</h2>
+      {rows.length === 0 ? <p className="lx-hint">{tr('lx.diag.empty')}</p> : (
+        <ul className="lx-notes">
+          {rows.slice(0, 8).map(r => (
+            <li key={`${r.at}-${r.event}`}>{tr('lx.diag.line', {
+              when: new Date(r.at).toLocaleString(locale === 'ro' ? 'ro-RO' : 'en-GB'),
+              event: r.event,
+              source: r.source
+            })}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -1465,7 +1465,7 @@ html, body { overflow-x: hidden; }
 /* Fila activă de sus rămâne albă (tema black rose o făcea vișinie pe negru). */
 :root[data-palette] .lx-screen > .lx-seg.scroll button.on { color: var(--text) !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
 /* „Cea mai bună din lună”: pe un rând, mai mic. */
-.lx-hero-badge { white-space: nowrap; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; letter-spacing: .06em; }
+.lx-hero-badge { white-space: normal; max-width: calc(100% - 8px); font-size: 10.5px; letter-spacing: .06em; }
 /* Motoarele AI: pliate într-un rând. */
 .lx-engines-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 2px; border: 0; border-top: 1px solid var(--lx-line); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .lx-engines-head span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

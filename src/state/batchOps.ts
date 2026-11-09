@@ -91,6 +91,16 @@ export interface DeletableRejectedResult {
  * neatinse, in loc sa lase impresia falsa ca "sterge pozele respinse"
  * curata toata biblioteca de respinse.
  */
+/**
+ * Autopilotul nu șterge în bloc familia și nu aruncă documentele sau capturile.
+ * O ștergere de o singură poză, din vizualizare, nu trece pe aici.
+ */
+export function autopilotKeeps(p: { personNames?: readonly string[] | null; aside?: string | null }): 'family' | 'aside' | null {
+  if ((p.personNames?.length ?? 0) > 0) return 'family';
+  if (p.aside === 'document' || p.aside === 'screenshot') return 'aside';
+  return null;
+}
+
 export function selectDeletableRejected(photos: PhotoView[]): DeletableRejectedResult {
   const rejected = photos.filter(p => p.status === 'rejected');
   const deletable = rejected.filter(p => !!p.mediaUri);

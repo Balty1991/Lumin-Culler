@@ -59,7 +59,7 @@ import {
   pushHistory, popHistory, MAX_HISTORY, type HistoryEvent,
   pushBatchHistory, popBatchHistory, type BatchHistoryEvent, type FieldBatchHistoryEvent
 } from './history';
-import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected, isUserDecided } from './batchOps';
+import { selectBulkRejectTargets, resolveGroups, selectTopPercent, selectHighlights, selectBlinks, selectBlurry, selectDeletableRejected, autopilotKeeps, isUserDecided } from './batchOps';
 import {
   isNativeMediaLibraryAvailable, deleteNativePhotos, readGalleryOverview, readGalleryDateRange, pickPhotosInRange, listPhotosInRange, readPhotoFiles,
   readGalleryFolders, pickPhotosInFolder, getPhotosAccess, readNativePhotoLocations
@@ -4073,15 +4073,19 @@ export const useStore = create<AppState>((set, get) => ({
     const locale = get().locale;
     const only = onlyIds ? new Set(onlyIds) : null;
     const picked = selectDeletableRejected(outsideVault(get().photos, get().collections).filter(p => !only || only.has(p.id)));
-    // „Protejează oamenii mei”: la ștergerea în bloc, pozele cu persoane numite
-    // (copiii, partenerul) nu pleacă niciodată. Ștergerea unei singure poze, din
-    // vizualizare, rămâne la alegerea omului.
+    // În bloc: familia nu intră în coș, iar documentele și capturile rămân la
+    // „Deoparte”. O singură poză, ștearsă din vizualizare, rămâne alegerea omului.
     const bulk = !onlyIds || onlyIds.length > 1;
-    const deletable = bulk ? picked.deletable.filter(p => !(p.personNames?.length)) : picked.deletable;
-    const protectedCount = picked.deletable.length - deletable.length;
-    const skippedCount = picked.skippedCount + protectedCount;
-    if (protectedCount > 0) set({ notice: t(locale, 'store.delete.protectedPeople', { count: protectedCount }) });
-    if (!deletable.length) return { deleted: 0, skipped: skippedCount, cancelled: false };
+    const familyCount = bulk ? picked.deletable.filter(p => autopilotKeeps(p) === 'family').length : 0;
+    const asideCount = bulk ? picked.deletable.filter(p => autopilotKeeps(p) === 'aside').length : 0;
+    const deletable = bulk ? picked.deletable.filter(p => autopilotKeeps(p) === null) : picked.deletable;
+    const skippedCount = picked.skippedCount + familyCount + asideCount;
+    if (!deletable.length) {
+      if (bulk && (familyCount > 0 || asideCount > 0)) {
+        set({ notice: t(locale, 'store.autopilot.summary', { trashed: 0, protected: familyCount, aside: asideCount }) });
+      }
+      return { deleted: 0, skipped: skippedCount, cancelled: false };
+    }
     if (!isNativeMediaLibraryAvailable()) return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
 
     // STERGEREA NU MAI CONSUMA PLAFONUL. (Aici statea plafonul, si tot aici era
@@ -4156,7 +4160,7 @@ export const useStore = create<AppState>((set, get) => ({
     clearThumbUrlCache();
 
     const totalSkipped = skippedCount + nativeSkippedCount;
-    const deletedNotice = t(locale, 'store.deleteRejected.notice', { deleted: ids.length });
+    const deletedNotice = t(locale, 'store.autopilot.summary', { trashed: ids.length, protected: familyCount, aside: asideCount });
     const skippedNotice = totalSkipped > 0 ? t(locale, 'store.deleteRejected.skippedPart', { skipped: totalSkipped }) : '';
     set(state => ({
       photos: state.photos.filter(p => !idSet.has(p.id)),
@@ -4375,6 +4379,14 @@ export const useStore = create<AppState>((set, get) => ({
       else if (kind === 'document' || paper) asides.set(r.id, 'document');
     }
     for (const id of asides.keys()) changes.delete(id);
+    // Familia nu trece la „Nu azi” dintr-un lot: curățenia de după ar trimite-o în coș.
+    let protectedFamily = 0;
+    for (const [id, status] of [...changes]) {
+      if (status !== 'rejected') continue;
+      const view = byId.get(id);
+      if (view && autopilotKeeps(view) === 'family') { changes.delete(id); protectedFamily += 1; }
+    }
+    if (protectedFamily > 0) set({ notice: t(get().locale, 'store.delete.protectedPeople', { count: protectedFamily }) });
     if (asides.size) {
       await Promise.all([...asides].map(([id, aside]) => db.photos.update(id, { aside, status: 'review', aiDecided: true })));
       set(state => ({ photos: state.photos.map(p => (asides.has(p.id) ? { ...p, aside: asides.get(p.id), status: 'review' as const, aiDecided: true } : p)) }));
@@ -4393,10 +4405,13 @@ export const useStore = create<AppState>((set, get) => ({
   acceptDayPicks: async reviewIds => {
     if (!reviewIds.length) return 0;
     if (get().gatePremium('acceptAll')) return 0;
-    const byId = new Map(get().photos.map(p => [p.id, p.status]));
-    const ids = reviewIds.filter(id => byId.get(id) === 'review');
+    const byId = new Map(get().photos.map(p => [p.id, p]));
+    const ids = reviewIds.filter(id => {
+      const p = byId.get(id);
+      return p?.status === 'review' && autopilotKeeps(p) !== 'family';
+    });
     if (!ids.length) return 0;
-    const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id) ?? 'pending' as PhotoRecord['status'] }));
+    const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id)?.status ?? 'pending' as PhotoRecord['status'] }));
     // Fără antrenare: omul n-a privit pozele, doar a avut încredere în AI.
     const { quotaError } = await applyBulkStatusChanges(ids.map(id => ({ id, status: 'rejected' as const })), () => null);
     const idSet = new Set(ids);

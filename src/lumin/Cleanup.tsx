@@ -5,6 +5,7 @@ import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { plural } from '../i18n';
 import { useTr } from './context';
 import { formatBytes } from '../core/freedSpace';
+import { claimPaywall, setPaywallContext } from './paywallMoment';
 
 /**
  * lumin/Cleanup.tsx
@@ -28,7 +29,14 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
     try {
       haptic('long');
       const r = await deleteRejectedPhotos(rejected.map(p => p.id));
-      if (!r.cancelled) setDone(r.deleted);
+      if (!r.cancelled) {
+        setDone(r.deleted);
+        // Oferta vine după rezultat, nu în locul curățeniei. Cel mult una pe zi.
+        if (r.deleted > 0 && useStore.getState().premiumLocked && claimPaywall()) {
+          setPaywallContext(tr('lx.paywall.afterClean', { size: formatBytes(bytes, locale) }));
+          useStore.setState({ premiumOpen: true, premiumReason: 'cleanup' });
+        }
+      }
     } finally { setBusy(false); }
   };
 

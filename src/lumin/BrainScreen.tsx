@@ -22,7 +22,7 @@ import { baseLocale, plural } from '../i18n';
  * lor, ca să știi pe cine numești (raportat: „Cine e această persoană?” fără
  * miniatura feței nu spunea la cine se referă).
  */
-export function BrainScreen() {
+export function BrainScreen({ embedded = false }: { embedded?: boolean }) {
   const tr = useTr();
   const photos = useStore(s => s.photos);
   const persons = useStore(s => s.persons);
@@ -75,10 +75,12 @@ export function BrainScreen() {
 
   return (
     <div className="lx-screen lx-brain">
-      <header className="lx-head">
-        <h1 className="lx-title">{tr('lx.brain.title')}</h1>
-        <span className="lx-pill violet">{tr(levelKey)}</span>
-      </header>
+      {!embedded && (
+        <header className="lx-head">
+          <h1 className="lx-title">{tr('lx.brain.title')}</h1>
+          <span className="lx-pill violet">{tr(levelKey)}</span>
+        </header>
+      )}
 
       <TwinHero />
 
