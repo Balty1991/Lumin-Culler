@@ -29,14 +29,17 @@ function blobOf(c: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 function paintBrand(ctx: CanvasRenderingContext2D, w: number, h: number, cta: string): void {
-  ctx.fillStyle = 'rgba(5,3,5,0.55)';
-  ctx.fillRect(0, h - 120, w, 120);
-  ctx.fillStyle = '#fff6f9';
+  const bar = ctx.createLinearGradient(0, h - 132, 0, h);
+  bar.addColorStop(0, 'rgba(7,9,16,0)');
+  bar.addColorStop(1, 'rgba(7,9,16,0.82)');
+  ctx.fillStyle = bar;
+  ctx.fillRect(0, h - 132, w, 132);
+  ctx.fillStyle = '#f4f7fb';
   ctx.font = '600 36px system-ui, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.fillText('Cherrypic', 48, h - 78);
   ctx.font = '500 26px system-ui, sans-serif';
-  ctx.fillStyle = '#ffd0dc';
+  ctx.fillStyle = '#d7c6ff';
   ctx.fillText(cta, 48, h - 36);
 }
 
@@ -48,13 +51,18 @@ export async function renderFreedCard(size: string, detail: string, cta: string,
   if (!box) return null;
   const { c, ctx } = box;
   const g = ctx.createLinearGradient(0, 0, w, h);
-  g.addColorStop(0, '#1a0a12');
-  g.addColorStop(1, '#050305');
+  g.addColorStop(0, '#1a1030');
+  g.addColorStop(0.55, '#120818');
+  g.addColorStop(1, '#070910');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = '#ff4f7f';
-  ctx.fillRect(0, 0, w, 12);
-  ctx.fillStyle = '#fff6f9';
+  const edge = ctx.createLinearGradient(0, 0, w, 0);
+  edge.addColorStop(0, '#ff4d8d');
+  edge.addColorStop(0.5, '#b06bff');
+  edge.addColorStop(1, '#5ce1ff');
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, w, 14);
+  ctx.fillStyle = '#f4f7fb';
   ctx.font = '700 92px system-ui, sans-serif';
   ctx.textBaseline = 'top';
   ctx.fillText(size, 72, h * 0.32);

@@ -31,6 +31,8 @@ export interface LookRecipe {
   adjustments: Record<string, number>;
   relight: number;
   redEye: number;
+  /** Grade. Pozitiv = orizontul urcă spre dreapta. 0 = nu se îndreaptă. */
+  horizonDeg: number;
   faces: LookFace[];
 }
 
@@ -56,6 +58,16 @@ export interface FrameStats {
   skySat: number;
   faceMean: number | null;
   restMean: number | null;
+  /** Interiorul elipsei feței, fără marginea aprinsă. Null fără față. */
+  faceCore: number | null;
+  /** Claritatea în interiorul feței (bokeh-ul din fundal nu intră aici). */
+  faceSharp: number | null;
+  /** Lumina din jurul capului, nu hainele. Null fără față. */
+  haloMean: number | null;
+  /** Cât din halou e aproape alb (fereastră, soare). */
+  haloBright: number;
+  /** Înclinarea orizontului, în grade. 0 dacă nu e un orizont clar, mic. */
+  horizonDeg: number;
   redEye: number;
   /** Câți pixeli s-au măsurat (pentru proporții). */
   pixels: number;
@@ -84,6 +96,10 @@ export function measureFrame(
   let noise = 0, noiseN = 0, sharp = 0, sharpN = 0;
   let faceSum = 0, faceN = 0, restSum = 0, restN = 0, redEye = 0;
   let skinG = 0, skinN = 0;
+  let coreSum = 0, coreN = 0, faceSharp = 0, faceSharpN = 0;
+  let haloSum = 0, haloN = 0, haloBright = 0;
+  const bandSum = [new Float64Array(height), new Float64Array(height), new Float64Array(height)];
+  const bandN = [new Uint16Array(height), new Uint16Array(height), new Uint16Array(height)];
   const stride = Math.max(1, step | 0);
   const boxes = faces.filter(f => f.box[2] > 0.01 && f.box[3] > 0.01);
 
@@ -111,6 +127,24 @@ export function measureFrame(
       const face = inFace(x, y);
       if (face) faceSum += lum; else restSum += lum;
       if (face) faceN++; else restN++;
+      let core = false, halo = false;
+      for (const f of boxes) {
+        const cx = (f.box[0] + f.box[2] / 2) * width;
+        const cy = (f.box[1] + f.box[3] * 0.46) * height;
+        const rx = Math.max(2, f.box[2] * width * 0.46);
+        const ry = Math.max(2, f.box[3] * height * 0.5);
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 0.72) { core = true; halo = false; break; }
+        if (d2 < 2.35 && dy < 0.35) halo = true;
+      }
+      if (core) { coreSum += lum; coreN++; }
+      else if (halo) { haloSum += lum; haloN++; if (lum > 196) haloBright++; }
+      if (y > height * 0.08 && y < height * 0.78) {
+        const b = x < width * 0.33 ? 0 : x < width * 0.66 ? 1 : 2;
+        bandSum[b][y] += lum;
+        bandN[b][y]++;
+      }
       // Ochi roșii = pupilă roșu aprins de la blitz, nu ten rozaliu (detectorul vechi
       // prindea obrajii unui copil și înnegrea zona ochilor — raportat cu captură).
       if (face && r > 150 && g < 90 && b < 100 && r > g * 2.1 && r > b * 1.8 && b < g * 1.6 + 20) {
@@ -139,7 +173,10 @@ export function measureFrame(
         const mag = Math.abs(lap);
         sharp += mag;
         sharpN++;
-        if (sat < 0.12 && lum > 20 && lum < 200) { noise += mag; noiseN++; }
+        if (core) { faceSharp += mag; faceSharpN++; }
+        // Textura feței (ten, sprâncene) nu e zgomot. Altfel un portret clar
+        // primește reducere de zgomot și tenul se șterge.
+        if (!face && sat < 0.12 && lum > 20 && lum < 200) { noise += mag; noiseN++; }
       }
     }
   }
@@ -167,10 +204,46 @@ export function measureFrame(
     skySat: skyN ? skySat / skyN : 1,
     faceMean: faceN > 4 ? faceSum / faceN / 255 : null,
     restMean: restN > 4 ? restSum / restN / 255 : null,
+    faceCore: coreN > 4 ? coreSum / coreN / 255 : (faceN > 4 ? faceSum / faceN / 255 : null),
+    faceSharp: faceSharpN > 4 ? faceSharp / faceSharpN : null,
+    haloMean: haloN > 4 ? haloSum / haloN / 255 : null,
+    haloBright: haloN > 4 ? haloBright / haloN : 0,
+    horizonDeg: horizonDegrees(bandSum, bandN, width, height),
     redEye,
     pixels: n,
     skinCast: skinN > 6 ? skinG / skinN / 255 : 0
   };
+}
+
+/** Orizont clar, înclinat puțin (1,5°–7,5°). Unghiul mare, voit, rămâne. */
+function horizonDegrees(sum: Float64Array[], n: Uint16Array[], width: number, height: number): number {
+  const filled = (band: number, y: number): number | null => {
+    for (let k = 0; k <= 6; k++) {
+      const yy = Math.min(height - 1, y + k);
+      if (n[band][yy]) return sum[band][yy] / n[band][yy];
+    }
+    return null;
+  };
+  const edge = (band: number): { y: number; strength: number } | null => {
+    let best = 0, at = -1;
+    const lo = Math.floor(height * 0.12), hi = Math.floor(height * 0.8);
+    for (let y = lo; y < hi; y += 2) {
+      const a = filled(band, y);
+      const b = filled(band, y + 8);
+      if (a === null || b === null) continue;
+      const d = Math.abs(a - b);
+      if (d > best) { best = d; at = y; }
+    }
+    return at < 0 || best < 14 ? null : { y: at, strength: best };
+  };
+  const left = edge(0), mid = edge(1), right = edge(2);
+  if (!left || !mid || !right) return 0;
+  const ys = [left.y, mid.y, right.y];
+  if (Math.max(...ys) - Math.min(...ys) > height * 0.28) return 0;
+  if (Math.abs(mid.y - (left.y + right.y) / 2) > height * 0.08) return 0;
+  const angle = Math.atan2(right.y - left.y, width * 0.66) * 180 / Math.PI;
+  if (Math.abs(angle) < 1.5 || Math.abs(angle) > 7.5) return 0;
+  return Math.round(angle * 10) / 10;
 }
 
 function add(out: Record<string, number>, key: string, value: number, lo = -36, hi = 36): void {
@@ -188,22 +261,28 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
   const adjustments: Record<string, number> = {};
   let relight = 0;
   let redEye = 0;
-  const backlit = s.faceMean !== null && s.restMean !== null && s.faceMean < 0.5 && s.restMean > s.faceMean * 1.45 && s.restMean - s.faceMean > 0.12;
+  // Contralumina e un cap întunecat cu un halou aprins (fereastră, soare), nu
+  // un ten închis pe haine mai deschise. Fără halou, relight-ul deschidea
+  // portrete deja bune.
+  const core = s.faceCore;
+  const backlit = core !== null && s.haloMean !== null && core < 0.48
+    && s.haloBright > 0.16 && s.haloMean > core + 0.2;
 
   if (backlit) {
     issues.push('backlit');
-    add(adjustments, 'shadows', 22 + (0.42 - (s.faceMean ?? 0.3)) * 36, 0, 36);
-    add(adjustments, 'highlights', -8 - Math.max(0, (s.restMean ?? 0.7) - 0.65) * 24, -22, 0);
+    const dark = core ?? 0.3;
+    add(adjustments, 'shadows', 18 + (0.4 - dark) * 40, 0, 36);
+    add(adjustments, 'highlights', -10 - Math.max(0, (s.haloMean ?? 0.7) - 0.62) * 28, -24, 0);
     // Fără ton local aici: media din jurul feței e fundalul aprins, iar tonul local ar întuneca fața.
-    relight = Math.round(clamp(55 + (0.45 - (s.faceMean ?? 0.3)) * 70, 50, 80));
-    if ((s.faceMean ?? 1) < 0.32) add(adjustments, 'exposure', 8, 0, 14);
-  } else if (s.mean < 0.42 || s.p10 < 0.08 && s.mean < 0.5) {
+    relight = Math.round(clamp(48 + (0.42 - dark) * 80, dark < 0.32 ? 58 : 36, 80));
+    if (dark < 0.3) add(adjustments, 'exposure', 8, 0, 12);
+  } else if (!(core !== null && core > 0.22 && s.mean > 0.36) && (s.mean < 0.42 || s.p10 < 0.08 && s.mean < 0.5)) {
     issues.push('underexposed');
     const gap = 0.52 - s.mean;
     add(adjustments, 'exposure', gap * 90, 0, 34);
     add(adjustments, 'shadows', 10 + s.dark * 40, 0, 32);
     add(adjustments, 'toneMap', 18 + s.dark * 50, 0, 58);
-    if (s.faceMean !== null && s.faceMean < 0.48) relight = Math.round(clamp((0.55 - s.faceMean) * 90, 18, 56));
+    if (core !== null && core < 0.42 && s.haloBright > 0.1) relight = Math.round(clamp((0.5 - core) * 90, 18, 56));
   } else if (s.mean > 0.78 && s.p90 > 0.84 && s.dark < 0.05 && (s.faceMean === null || s.faceMean > 0.78)) {
     issues.push('overexposed');
     add(adjustments, 'exposure', (0.64 - s.mean) * 50, -18, 0);
@@ -215,12 +294,15 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     add(adjustments, 'toneMap', Math.max(adjustments.toneMap ?? 0, Math.round(clamp(s.dark * 80 + s.bright * 40, 22, 64))), 0, 68);
   }
 
-  const cast = Math.abs(s.cast) >= Math.abs(s.globalCast) ? s.cast : s.globalCast;
+  // Culoarea hainelor nu e balans de alb. Dacă există pixeli aproape gri, ei decid.
+  const cast = s.neutral > 0.035 ? s.cast : s.globalCast;
   // Albul se corectează cu măsură: lumina caldă de apus și culorile de noapte sunt
   // atmosfera pozei, nu o greșeală (testat: −40 spăla un portret la apus, +26/+30
   // înverzea un oraș noaptea). Răcirea e mică; noaptea nu se atinge.
+  // Aurul de apus pe o față deja deschisă nu se răcește: ieșea un ten cenușiu.
   const night = s.mean < 0.26;
-  if (!night && ((s.neutral > 0.04 && Math.abs(s.cast) > 0.025) || Math.abs(s.globalCast) > 0.12)) {
+  const golden = cast < 0 && (s.skyLum > 0.62 || (core !== null && core > 0.5 && s.globalCast < -0.08));
+  if (!night && !golden && ((s.neutral > 0.04 && Math.abs(s.cast) > 0.05) || (s.neutral <= 0.035 && Math.abs(s.globalCast) > 0.12))) {
     issues.push('cast');
     // cast > 0 înseamnă albastru în exces (meanB > meanR) → încălzim (temperature > 0).
     // Doar o dominantă albastră clară primește căldură mai multă; una mică doar se atinge.
@@ -231,7 +313,7 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     add(adjustments, 'tint', -s.tint * 140, -8, 8);
   }
 
-  if (!backlit && s.dark < 0.12 && Math.abs(s.globalCast) < 0.15 && s.haze > 0.15 && s.mean > 0.3) {
+  if (!backlit && s.haze > 0.2 && s.dark < 0.16 && s.mean > 0.3 && Math.abs(s.cast) < 0.1) {
     issues.push('haze');
     add(adjustments, 'dehaze', 14 + s.haze * 28, 0, 34);
     add(adjustments, 'contrast', 6, 0, 12);
@@ -244,16 +326,20 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     add(adjustments, 'blacks', -6, -12, 0);
   }
 
-  if (s.noise > 18 && s.mean < 0.45) {
+  // Fața clară și fundalul topit nu înseamnă o poză moale: claritatea globală
+  // e mică din cauza bokeh-ului, iar accentuarea strică tocmai fundalul.
+  const bokeh = s.faceSharp !== null && s.faceSharp > 8 && s.sharp < 16;
+  const texturedFace = s.faceSharp !== null && s.faceSharp > 18;
+  if (s.noise > 18 && s.mean < 0.45 && !texturedFace) {
     issues.push('noise');
     add(adjustments, 'noiseReduction', 22 + Math.min(20, (s.noise - 18) * 1.2), 0, 48);
-    add(adjustments, 'sharpen', 6, 0, 10);
+    if (!bokeh) add(adjustments, 'sharpen', 6, 0, 10);
     add(adjustments, 'clarity', -4, -8, 0);
-  } else if (!issues.includes('backlit') && s.sharp < 8 && s.mean > 0.2) {
+  } else if (!issues.includes('backlit') && !bokeh && s.sharp < 8 && s.mean > 0.2) {
     issues.push('soft');
     add(adjustments, 'sharpen', 16, 0, 24);
     add(adjustments, 'clarity', 10, 0, 16);
-  } else if (!issues.includes('noise') && !issues.includes('backlit')) {
+  } else if (!issues.includes('noise') && !issues.includes('backlit') && !bokeh && !texturedFace) {
     add(adjustments, 'sharpen', 8, 0, 12);
     add(adjustments, 'clarity', 6, 0, 12);
   }
@@ -292,11 +378,33 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
     redEye = 100;
   }
 
-  if (s.faceMean !== null && !backlit && s.faceMean < 0.5 && relight === 0) {
-    relight = Math.round(clamp((0.58 - s.faceMean) * 70, 0, 40));
+  // Doar o față chiar întunecată, cu ceva lumină în jur, mai primește relight.
+  // Un ten închis bine expus stă sub 0,5 și nu trebuie „reparat”.
+  if (core !== null && !backlit && relight === 0 && core < 0.34 && s.haloBright > 0.08 && (s.haloMean ?? 0) > core + 0.16) {
+    relight = Math.round(clamp((0.48 - core) * 80, 0, 36));
+  }
+  // Față în umbră lângă o zonă luminoasă (fereastră), chiar dacă haloul imediat
+  // e tot umbră. Tenul închis nu intră: acolo p90 nu e o fereastră.
+  if (core !== null && !backlit && relight === 0 && core < 0.38 && s.p90 > 0.78 && s.dark > 0.12 && s.mean > 0.38) {
+    issues.push('backlit');
+    relight = Math.round(clamp((0.5 - core) * 90, 32, 58));
+    add(adjustments, 'shadows', 16, 0, 28);
+    add(adjustments, 'highlights', -8, -16, 0);
+  }
+  if (!backlit && s.skyLum > 0.62 && s.skySat < 0.13 && s.mean > 0.32 && s.mean < 0.72 && Math.abs(s.cast) < 0.1 && !issues.includes('haze')) {
+    issues.push('haze');
+    add(adjustments, 'dehaze', 18, 0, 32);
+    add(adjustments, 'contrast', 8, 0, 14);
   }
 
-  return { issues, adjustments, relight, redEye, faces: faces.map(f => ({ box: [...f.box] as [number, number, number, number] })) };
+  if (!backlit && s.p90 > 0.84 && s.bright > 0.045 && s.mean < 0.74 && (adjustments.highlights ?? 0) > -6) {
+    add(adjustments, 'highlights', -8 - Math.max(0, s.p90 - 0.84) * 40, -18, 0);
+  }
+
+  return {
+    issues, adjustments, relight, redEye, horizonDeg: s.horizonDeg,
+    faces: faces.map(f => ({ box: [...f.box] as [number, number, number, number] }))
+  };
 }
 
 function pSpan(s: FrameStats): number {
@@ -366,7 +474,8 @@ export function applySubjectFinish(
       }
     }
     const faceLum = count ? sum / count : 128;
-    const lift = rel * clamp((150 - faceLum) / 150, 0, 1);
+    const lift = rel * clamp((168 - faceLum) / 150, 0, 1);
+    const crushed = faceLum < 105;
 
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
@@ -376,8 +485,9 @@ export function applySubjectFinish(
         const d2 = dx * dx + dy * dy;
         if (rel > 0 && d2 < 1) {
           const fall = 1 - d2;
-          const gain = 1 + lift * 0.55 * fall;
-          r *= gain; g *= gain; b *= gain;
+          const gain = 1 + lift * (crushed ? 0.92 : 0.5) * fall;
+          const open = lift * (crushed ? 28 : 6) * fall;
+          r = r * gain + open; g = g * gain + open; b = b * gain + open;
           // Tenul rămâne cald, nu gri de la câștig.
           r += 6 * lift * fall;
           b -= 4 * lift * fall;
@@ -467,6 +577,37 @@ export function meanLuma(data: Uint8ClampedArray): number {
   const n = data.length / 4;
   for (let i = 0; i < data.length; i += 4) s += lumaOf(data[i], data[i + 1], data[i + 2]);
   return n ? s / n / 255 : 0;
+}
+
+/** Îndreaptă un orizont mic. Colțurile repetă marginea, ca să nu apară benzi negre. */
+export function rotateBuffer(src: Uint8ClampedArray, w: number, h: number, deg: number): Uint8ClampedArray {
+  if (Math.abs(deg) < 0.4) return src;
+  const out = new Uint8ClampedArray(src.length);
+  const rad = deg * Math.PI / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  const cx = (w - 1) / 2, cy = (h - 1) / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx, dy = y - cy;
+      let sx = c * dx + s * dy + cx;
+      let sy = -s * dx + c * dy + cy;
+      sx = sx < 0 ? 0 : sx > w - 1.001 ? w - 1.001 : sx;
+      sy = sy < 0 ? 0 : sy > h - 1.001 ? h - 1.001 : sy;
+      const x0 = Math.floor(sx), y0 = Math.floor(sy);
+      const tx = sx - x0, ty = sy - y0;
+      const i00 = (y0 * w + x0) * 4;
+      const i10 = (y0 * w + x0 + 1) * 4;
+      const i01 = ((y0 + 1) * w + x0) * 4;
+      const i11 = ((y0 + 1) * w + x0 + 1) * 4;
+      const o = (y * w + x) * 4;
+      for (let k = 0; k < 4; k++) {
+        const v = src[i00 + k] * (1 - tx) * (1 - ty) + src[i10 + k] * tx * (1 - ty)
+          + src[i01 + k] * (1 - tx) * ty + src[i11 + k] * tx * ty;
+        out[o + k] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+    }
+  }
+  return out;
 }
 
 export function meanCast(data: Uint8ClampedArray): number {

@@ -1791,6 +1791,9 @@ export function computeAutoBacklight(
   if (!sample) return null;
   const { mean, rest } = sample;
   if (mean <= 0 || mean > BACKLIGHT_SUBJECT_MAX) return null;
+  // Hainele mai deschise decât un ten închis nu sunt o fereastră. Fundalul
+  // trebuie să fie chiar luminos, nu doar mai deschis decât fața.
+  if (rest < 0.62) return null;
   const ratio = rest / mean;
   if (ratio < BACKLIGHT_RATIO) return null;
 

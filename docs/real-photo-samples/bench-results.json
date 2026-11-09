@@ -1,0 +1,529 @@
+[
+  {
+    "id": "01-dark-village",
+    "label": "Întuneric · sat",
+    "file": "docs/real-photo-samples/underexposed-photo.jpg",
+    "width": 900,
+    "height": 769,
+    "ms": 161,
+    "issues": [
+      "underexposed",
+      "soft"
+    ],
+    "adjustments": {
+      "exposure": 27,
+      "shadows": 32,
+      "toneMap": 45,
+      "sharpen": 16,
+      "clarity": 10,
+      "saturation": 6,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.216,
+    "meanLumaAfter": 0.3489,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil"
+  },
+  {
+    "id": "02-golden-portrait",
+    "label": "Portret auriu",
+    "file": "docs/real-photo-samples/backlit-headshot.jpg",
+    "width": 628,
+    "height": 900,
+    "ms": 64,
+    "issues": [],
+    "adjustments": {
+      "highlights": -12,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.5889,
+    "meanLumaAfter": 0.5801,
+    "faceBefore": 0.6395,
+    "faceAfter": 0.6311,
+    "verdict": "not-improved",
+    "note": "Aurul rămâne. Fundalul aprins coboară puțin; nu e un look nou."
+  },
+  {
+    "id": "03-city-backlight",
+    "label": "Oraș în contralumină",
+    "file": "docs/real-photo-samples/city-backlight.jpg",
+    "width": 900,
+    "height": 601,
+    "ms": 170,
+    "issues": [
+      "underexposed",
+      "cast",
+      "noise"
+    ],
+    "adjustments": {
+      "exposure": 20,
+      "shadows": 22,
+      "toneMap": 33,
+      "tint": 8,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "relight": 0,
+      "horizonDeg": -3.3
+    },
+    "meanLumaBefore": 0.2999,
+    "meanLumaAfter": 0.4001,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil; orizont îndreptat -3.3°"
+  },
+  {
+    "id": "04-contrejour",
+    "label": "Portret cu soare în cadru",
+    "file": "docs/real-photo-samples/bench/file-contre-jour-photographs-of-a-handsome-man-with-a-hipste.jpg",
+    "width": 900,
+    "height": 599,
+    "ms": 64,
+    "issues": [],
+    "adjustments": {
+      "highlights": -9,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.5306,
+    "meanLumaAfter": 0.5255,
+    "faceBefore": 0.625,
+    "faceAfter": 0.6184,
+    "verdict": "not-improved",
+    "note": "Fața era deja deschisă. Soarele din cadru e intenționat; luminile coboară puțin."
+  },
+  {
+    "id": "05-skin",
+    "label": "Ten",
+    "file": "docs/real-photo-samples/bench/file-elderly-gambian-woman-face-portrait-jpg.jpg",
+    "width": 811,
+    "height": 900,
+    "ms": 89,
+    "issues": [],
+    "adjustments": {
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4193,
+    "meanLumaAfter": 0.4193,
+    "faceBefore": 0.27,
+    "faceAfter": 0.27,
+    "verdict": "not-improved",
+    "note": "Ten închis, bine expus. Nu se mai luminează ca și cum ar fi o greșeală."
+  },
+  {
+    "id": "06-candle",
+    "label": "Interior cald",
+    "file": "docs/real-photo-samples/bench/file-candlelight-dinner-flickr-robert-couse-baker-jpg.jpg",
+    "width": 900,
+    "height": 689,
+    "ms": 154,
+    "issues": [
+      "underexposed",
+      "soft"
+    ],
+    "adjustments": {
+      "exposure": 25,
+      "shadows": 28,
+      "toneMap": 40,
+      "sharpen": 16,
+      "clarity": 10,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.2474,
+    "meanLumaAfter": 0.3653,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil"
+  },
+  {
+    "id": "07-food",
+    "label": "Mâncare",
+    "file": "docs/real-photo-samples/bench/file-full-english-breakfast-at-the-chalet-cafe-cowfold-west-.jpg",
+    "width": 900,
+    "height": 720,
+    "ms": 157,
+    "issues": [
+      "underexposed",
+      "noise"
+    ],
+    "adjustments": {
+      "exposure": 12,
+      "shadows": 25,
+      "toneMap": 37,
+      "noiseReduction": 32,
+      "sharpen": 6,
+      "clarity": -4,
+      "highlights": -9,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.3917,
+    "meanLumaAfter": 0.4676,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil"
+  },
+  {
+    "id": "08-alps",
+    "label": "Peisaj",
+    "file": "docs/real-photo-samples/bench/file-julian-alps-from-vrsic-pass-3-jpg.jpg",
+    "width": 900,
+    "height": 296,
+    "ms": 44,
+    "issues": [
+      "cast"
+    ],
+    "adjustments": {
+      "temperature": 6,
+      "sharpen": 8,
+      "clarity": 6,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4894,
+    "meanLumaAfter": 0.4909,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "not-improved",
+    "note": "Peisaj deja bun. Căldura în plus e prea mică ca să conteze."
+  },
+  {
+    "id": "09-indoor",
+    "label": "Interior",
+    "file": "docs/real-photo-samples/bench/file-living-room-in-apartment-of-condom-nio-do-edif-cio-zahe.jpg",
+    "width": 900,
+    "height": 489,
+    "ms": 116,
+    "issues": [
+      "underexposed",
+      "cast"
+    ],
+    "adjustments": {
+      "exposure": 13,
+      "shadows": 15,
+      "toneMap": 24,
+      "temperature": -5,
+      "sharpen": 8,
+      "clarity": 6,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.3731,
+    "meanLumaAfter": 0.4372,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil"
+  },
+  {
+    "id": "10-dark-shore",
+    "label": "Întuneric · țărm",
+    "file": "docs/real-photo-samples/bench/file-underexposed-pulau-ubin-4440132168-jpg.jpg",
+    "width": 900,
+    "height": 602,
+    "ms": 101,
+    "issues": [
+      "underexposed",
+      "flat"
+    ],
+    "adjustments": {
+      "exposure": 24,
+      "shadows": 28,
+      "toneMap": 41,
+      "contrast": 12,
+      "clarity": 6,
+      "whites": 8,
+      "blacks": -6,
+      "sharpen": 8,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.2501,
+    "meanLumaAfter": 0.3458,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil; contrastul crește"
+  },
+  {
+    "id": "11-night",
+    "label": "Noapte",
+    "file": "docs/real-photo-samples/bench/file-gadong-night-market-02-jpg.jpg",
+    "width": 900,
+    "height": 599,
+    "ms": 85,
+    "issues": [
+      "cast"
+    ],
+    "adjustments": {
+      "temperature": 12,
+      "tint": -3,
+      "sharpen": 8,
+      "clarity": 6,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.5046,
+    "meanLumaAfter": 0.5062,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "dominanta scade"
+  },
+  {
+    "id": "12-smog",
+    "label": "Ceață / smog",
+    "file": "docs/real-photo-samples/bench/file-view-of-smog-from-universal-city-hotel-nara-542579-jpg.jpg",
+    "width": 614,
+    "height": 900,
+    "ms": 113,
+    "issues": [
+      "underexposed",
+      "cast",
+      "noise"
+    ],
+    "adjustments": {
+      "exposure": 20,
+      "shadows": 32,
+      "toneMap": 46,
+      "temperature": -8,
+      "tint": 8,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.3031,
+    "meanLumaAfter": 0.4211,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "lumina se apropie de un mijloc citibil; dominanta scade"
+  },
+  {
+    "id": "13-mist",
+    "label": "Zori încețoșate",
+    "file": "docs/real-photo-samples/bench/file-a-misty-dawn-dandenong-ranges-jpg.jpg",
+    "width": 900,
+    "height": 423,
+    "ms": 80,
+    "issues": [
+      "soft",
+      "dullSky",
+      "haze"
+    ],
+    "adjustments": {
+      "sharpen": 16,
+      "clarity": 10,
+      "dehaze": 18,
+      "contrast": 8,
+      "highlights": -9,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.5579,
+    "meanLumaAfter": 0.5305,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "not-improved",
+    "note": "Ceața e subiectul. Dehaze-ul nu o schimbă destul."
+  },
+  {
+    "id": "14-dull-sky",
+    "label": "Cer mohorât",
+    "file": "docs/real-photo-samples/bench/file-cloudy-sky-over-the-field-in-russia-img-006-jpg.jpg",
+    "width": 900,
+    "height": 598,
+    "ms": 83,
+    "issues": [
+      "cast",
+      "soft"
+    ],
+    "adjustments": {
+      "temperature": 11,
+      "tint": -4,
+      "sharpen": 16,
+      "clarity": 10,
+      "highlights": -9,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.547,
+    "meanLumaAfter": 0.5424,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "dominanta scade"
+  },
+  {
+    "id": "15-dutch",
+    "label": "Orizont foarte înclinat",
+    "file": "docs/real-photo-samples/bench/file-baltic-sea-horizon-49817814978-jpg.jpg",
+    "width": 900,
+    "height": 599,
+    "ms": 114,
+    "issues": [
+      "underexposed",
+      "noise"
+    ],
+    "adjustments": {
+      "exposure": 11,
+      "shadows": 18,
+      "toneMap": 28,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.3939,
+    "meanLumaAfter": 0.4562,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "not-improved",
+    "note": "Unghi voit, peste 7,5°, lăsat întreg. Lumina urcă puțin, nu îndreptarea."
+  },
+  {
+    "id": "16-highlights",
+    "label": "Lumini arse",
+    "file": "docs/real-photo-samples/bench/file-blown-out-highlights-jpg.jpg",
+    "width": 600,
+    "height": 900,
+    "ms": 97,
+    "issues": [],
+    "adjustments": {
+      "toneMap": 29,
+      "sharpen": 8,
+      "clarity": 6,
+      "highlights": -13,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4666,
+    "meanLumaAfter": 0.4657,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "not-improved",
+    "note": "Lumini coborâte și ton local, dar pe planșa asta diferența nu se citește."
+  },
+  {
+    "id": "17-blue-hour",
+    "label": "Dominantă albastră",
+    "file": "docs/real-photo-samples/bench/file-basilica-sancti-petri-blue-hour-jpg.jpg",
+    "width": 900,
+    "height": 641,
+    "ms": 105,
+    "issues": [
+      "cast",
+      "noise"
+    ],
+    "adjustments": {
+      "temperature": 11,
+      "tint": 3,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4442,
+    "meanLumaAfter": 0.449,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "dominanta scade"
+  },
+  {
+    "id": "18-window",
+    "label": "Portret la fereastră",
+    "file": "docs/real-photo-samples/bench/file-available-light-portrait-jpg.jpg",
+    "width": 600,
+    "height": 900,
+    "ms": 78,
+    "issues": [
+      "skin",
+      "backlit"
+    ],
+    "adjustments": {
+      "tint": 4,
+      "shadows": 16,
+      "highlights": -8,
+      "relight": 32,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4757,
+    "meanLumaAfter": 0.4898,
+    "faceBefore": 0.2802,
+    "faceAfter": 0.3555,
+    "verdict": "improved",
+    "note": "fața se deschide"
+  },
+  {
+    "id": "19-beach",
+    "label": "Plajă · orizont",
+    "file": "docs/real-photo-samples/bench/file-havelock-island-mangrove-tree-on-the-beach-andaman-isla.jpg",
+    "width": 900,
+    "height": 599,
+    "ms": 140,
+    "issues": [
+      "cast",
+      "haze"
+    ],
+    "adjustments": {
+      "temperature": 6,
+      "dehaze": 34,
+      "contrast": 6,
+      "blacks": -6,
+      "sharpen": 8,
+      "clarity": 6,
+      "highlights": -9,
+      "relight": 0,
+      "horizonDeg": -3.3
+    },
+    "meanLumaBefore": 0.6056,
+    "meanLumaAfter": 0.5804,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "improved",
+    "note": "orizont îndreptat -3.3°"
+  },
+  {
+    "id": "20-fog",
+    "label": "Pădure în ceață",
+    "file": "docs/real-photo-samples/bench/file-fog-in-forest-at-kent-washington-1-jpg.jpg",
+    "width": 674,
+    "height": 900,
+    "ms": 154,
+    "issues": [
+      "noise",
+      "haze"
+    ],
+    "adjustments": {
+      "toneMap": 27,
+      "noiseReduction": 42,
+      "sharpen": 6,
+      "clarity": -4,
+      "dehaze": 18,
+      "contrast": 8,
+      "highlights": -11,
+      "relight": 0,
+      "horizonDeg": 0
+    },
+    "meanLumaBefore": 0.4313,
+    "meanLumaAfter": 0.4222,
+    "faceBefore": null,
+    "faceAfter": null,
+    "verdict": "not-improved",
+    "note": "Ceața e subiectul. Contrastul nu crește destul ca să o număr."
+  }
+]

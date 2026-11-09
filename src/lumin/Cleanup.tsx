@@ -19,6 +19,7 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
   const deleteRejectedPhotos = useStore(s => s.deleteRejectedPhotos);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<number | null>(null);
+  const [freedLabel, setFreedLabel] = useState<string | null>(null);
   const locale = useStore(s => s.locale);
   const rejected = photos.filter(p => p.status === 'rejected' && p.mediaUri);
   const bytes = rejected.reduce((sum, p) => sum + (p.sizeBytes ?? 0), 0);
@@ -31,6 +32,7 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
       const r = await deleteRejectedPhotos(rejected.map(p => p.id));
       if (!r.cancelled) {
         setDone(r.deleted);
+        if (r.deleted > 0 && bytes > 0) setFreedLabel(formatBytes(bytes, locale));
         // Oferta vine după rezultat, nu în locul curățeniei. Cel mult una pe zi.
         if (r.deleted > 0 && useStore.getState().premiumLocked && claimPaywall()) {
           setPaywallContext(tr('lx.paywall.afterClean', { size: formatBytes(bytes, locale) }));
@@ -40,7 +42,12 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
     } finally { setBusy(false); }
   };
 
-  if (done !== null) return <p className="lx-hint lx-cleanup-done">{tr('ritual.trashed', { count: done })}</p>;
+  if (done !== null) return (
+    <section className="lx-freed-burst" role="status">
+      {freedLabel && <b>{freedLabel}</b>}
+      <span>{tr('ritual.trashed', { count: done })}</span>
+    </section>
+  );
 
   return (
     <section className={compact ? 'lx-card lx-cleanup compact' : 'lx-card lx-cleanup'}>

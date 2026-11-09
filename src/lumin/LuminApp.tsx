@@ -40,7 +40,9 @@ import { Orb } from './Orb';
 import { UndoBar } from './UndoBar';
 import { TrashPreviewHost } from './TrashPreview';
 import { tourDone } from './tour';
+import { haptic } from '../core/device';
 import './lumin.css';
+import '../design/system.css';
 
 // Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
 const DaysScreen = lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen })));
@@ -122,7 +124,15 @@ async function openDayAction(action: 'share_pod' | 'see_day'): Promise<void> {
 }
 
 function ScreenWait() {
-  return <div className="lx-loading small"><Orb mood="think" size={48} /></div>;
+  return (
+    <div className="lx-loading small" aria-busy="true">
+      <div className="lx-skeleton-stack" aria-hidden="true">
+        <span className="lx-skeleton lg" />
+        <span className="lx-skeleton" />
+        <span className="lx-skeleton sm" />
+      </div>
+    </div>
+  );
 }
 
 function TabIcon({ name }: { name: string }) {
@@ -439,15 +449,15 @@ export function LuminApp() {
         <div className="lx-dock-scrim" aria-hidden="true" />
         <nav className="lx-dock" aria-label={tr('lx.nav.label')} hidden={!booted}>
           {TABS.slice(0, 2).map(x => (
-            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>
+            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
             </button>
           ))}
-          <button className="lx-dock-add" onClick={actions.pick} aria-label={tr('lx.addPhotos')}>
+          <button className="lx-dock-add" onClick={() => { haptic('tick'); actions.pick(); }} aria-label={tr('lx.addPhotos')}>
             <span>+</span>
           </button>
           {TABS.slice(2).map(x => (
-            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>
+            <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
             </button>
           ))}

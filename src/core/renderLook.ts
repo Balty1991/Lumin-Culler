@@ -2,7 +2,7 @@
  * Aceiași pași ca editorul, pe un buffer, ca testele și grila de probe
  * să arate ce vede omul pe telefon.
  */
-import { applySubjectFinish, applySliderGrade, measureFrame, recipeFromStats, recipeToAdjustments, type LookFace, type LookRecipe } from './autoLook';
+import { applySubjectFinish, applySliderGrade, measureFrame, recipeFromStats, recipeToAdjustments, rotateBuffer, type LookFace, type LookRecipe } from './autoLook';
 import { applyDehaze, applyDetailPass, applySky, type EditAdjustments } from './imageAdjust';
 
 export function renderLook(
@@ -22,5 +22,6 @@ export function renderLook(
   if (adj.dehaze) applyDehaze(data, width, height, adj.dehaze);
   if (adj.sky) applySky(data, width, height, adj.sky);
   applySubjectFinish(data, width, height, recipe.relight, recipe.redEye, faces);
-  return { data, recipe };
+  const straightened = Math.abs(recipe.horizonDeg) >= 1.5 ? rotateBuffer(data, width, height, -recipe.horizonDeg) : data;
+  return { data: straightened, recipe };
 }

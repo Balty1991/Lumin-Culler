@@ -27,3 +27,5 @@ Grila `docs/auto-look-samples.png` are 12 scene, fiecare cu înainte (stânga) �
 12. peisaj cu cer spălăcit
 
 Cifrele (lumină înainte/după, dominantă, milisecunde) sunt în `docs/auto-look-samples.json`. Sunt scene desenate, nu poze dintr-o galerie: defectul e controlat, ca diferența să se poată judeca. Pe o poză reală, același cod trece prin `drawAdjusted`.
+
+Pe 20 de fotografii reale (Wikimedia, licențele în `docs/real-photo-samples/LICENSES.md`) grila este `docs/editor-before-after.jpg`. Contralumina se aprinde doar când fața e în umbră și există o zonă luminoasă lângă ea: un ten închis bine expus nu se mai „repară”, iar aurul de apus nu se mai răcește. Un orizont înclinat cu 1,5–7,5° se îndreaptă; un unghi voit, mai mare, rămâne. Din cele 20, 12 sunt marcate mai bune. Celelalte opt sunt marcate pe grilă „nu e mai bună” — deja bune, sau diferența nu se citește.
