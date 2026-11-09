@@ -36,6 +36,7 @@ import { photoTime } from './days';
  */
 import { EnginesIntro } from './EnginesIntro';
 import { FilmCreator } from './FilmCreator';
+import { RephotoSheet, canRephoto } from './Rephoto';
 import { CapsuleCard } from './Capsule';
 import { ForgottenCard, MissingCard } from './Insights';
 import { BeenHereCard } from './Moments';
@@ -252,7 +253,7 @@ export function TodayScreen() {
       <CapsuleCard />
       <ForgottenCard />
       <MissingCard />
-      <OnThisDay />
+      <OnThisDay heroCoversFirst={!busy} />
 
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
       <section className="lx-section">
@@ -330,22 +331,33 @@ function GalleryStatus() {
 }
 
 /** „Acum un an”: cele mai bune poze din aceeași zi, din anii trecuți. */
-function OnThisDay() {
+function OnThisDay({ heroCoversFirst }: { heroCoversFirst: boolean }) {
   const tr = useTr();
   const photos = useLxPhotos();
   const memories = useMemo(() => onThisDay(photos), [photos]);
   // „Acum un an”, ca mini-film: creatorul se deschide cu pozele amintirii (trecere lină, muzică).
   const [filmFor, setFilmFor] = useState<string[] | null>(null);
+  const [redo, setRedo] = useState<{ id: string; at?: number } | null>(null);
   if (!memories.length) return null;
   return (
     <>
       {filmFor && <FilmCreator startId={filmFor[0]} initialIds={filmFor} initialTransition="fade" onClose={() => setFilmFor(null)} />}
-      {memories.map(m => {
+      {redo && <RephotoSheet photoId={redo.id} takenAt={redo.at} onClose={() => setRedo(null)} />}
+      {memories.map((m, i) => {
         const title = tr(m.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', { years: m.years });
+        const best = m.photos[0];
+        const showRedo = canRephoto() && !!best && !(heroCoversFirst && i === 0);
         return (
           <section key={m.years} className="lx-section">
             <div className="lx-section-head"><h2>{title}</h2>
-              {burstFilmAvailable() && m.photos.length >= 2 && <button className="lx-link lx-memory-film" onClick={() => setFilmFor(m.photos.map(p => p.id))}><Icon name="film" size={16} /> {tr('lx.onThisDay.film')}</button>}
+              <span className="lx-memory-actions">
+                {showRedo && (
+                  <button className="lx-link lx-memory-film" onClick={() => setRedo({ id: best.id, at: best.capturedAt })}>
+                    {tr('lx.rephoto.title')}
+                  </button>
+                )}
+                {burstFilmAvailable() && m.photos.length >= 2 && <button className="lx-link lx-memory-film" onClick={() => setFilmFor(m.photos.map(p => p.id))}><Icon name="film" size={16} /> {tr('lx.onThisDay.film')}</button>}
+              </span>
             </div>
             <div className="lx-memory">
               {m.photos.map(p => (
@@ -412,11 +424,14 @@ function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string;
 function DayPhotoHero() {
   const tr = useTr();
   const pick = useHeroPick();
+  const [redo, setRedo] = useState(false);
   if (!pick) return null;
   const hero = pick.photos[0];
   const ids = pick.photos.map(p => p.id);
+  const canRedo = pick.years !== undefined && canRephoto();
   return (
     <section className="lx-day-hero">
+      {redo && <RephotoSheet photoId={hero.id} takenAt={hero.capturedAt} onClose={() => setRedo(false)} />}
       <button className="lx-hero-tile in" onClick={() => useLx.getState().openViewer(ids, 0)} aria-label={pick.title}>
         <span className="lx-hero-media"><Thumb id={hero.id} lqip={hero.lqip} edits={hero.edits} full /></span>
         <span className="lx-hero-shade" />
@@ -435,6 +450,7 @@ function DayPhotoHero() {
       </button>
       <div className="lx-day-hero-actions">
         <button className="lx-btn primary" onClick={() => useLx.getState().openViewer(ids, 0)}>{tr('lx.hero.open')}</button>
+        {canRedo && <button className="lx-btn ghost" onClick={() => setRedo(true)}>{tr('lx.rephoto.title')}</button>}
         <StoryButton className="lx-btn ghost" ids={ids.slice(0, 12)} title={pick.title} subtitle={tr('lx.hero.count', { count: pick.photos.length })} />
       </div>
     </section>

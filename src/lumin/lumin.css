@@ -1272,8 +1272,8 @@ html, body { overflow-x: hidden; }
 /* Redesign · Azi: poza zilei pe tot cardul, apoi cercul AI-ului mic, pe un rând. */
 .lx-day-hero { display: flex; flex-direction: column; gap: 10px; }
 .lx-day-hero .lx-hero-tile { display: block; position: relative; width: 100%; height: min(56vh, 440px); border: 0; padding: 0; overflow: hidden; border-radius: 28px; background: var(--surface-2); }
-.lx-day-hero-actions { display: flex; gap: 10px; }
-.lx-day-hero-actions > * { flex: 1; }
+.lx-day-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.lx-day-hero-actions > * { flex: 1 1 140px; }
 .lx-day-hero-actions .lx-btn { width: 100%; min-height: 48px; }
 .lx-hero.compact { flex-direction: row; align-items: center; text-align: left; gap: 14px; padding: 14px 16px; border-radius: var(--lx-r); border: 1px solid var(--lx-line); background: var(--lx-glass); }
 .lx-hero.compact .lx-hero-text { align-items: flex-start; gap: 4px; }
@@ -1552,6 +1552,7 @@ button.lx-tunnel-now:active { background: rgb(255 255 255 / .06); }
 .lx-fm-opt > span { font-size: 13px; color: var(--text-dim); }
 .lx-fm-opt .lx-enhance-styles { margin: 0; }
 .lx-fm .lx-decide-actions .lx-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.lx-section-head .lx-memory-actions { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; }
 .lx-section-head .lx-memory-film { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 
 /* Tunelul: „Doar o persoană” — oamenii recunoscuți, jos, ca să vezi doar pozele cuiva. */
