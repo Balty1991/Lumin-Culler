@@ -6425,6 +6425,15 @@ button:disabled,
   border: none;
   min-width: 0;
 }
+.premium-buy {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 10px;
+  background: var(--glass-bg);
+}
 /* Grila stă pe un div, nu pe fieldset: WebView-ul Android suprapune copiii
    unui fieldset cu display:grid (cardurile de plan, unul peste altul). */
 .premium-plans-grid {

@@ -66,14 +66,43 @@ export function useGalleryMonths(refresh: number): Map<number, number> | null {
       const range = await readGalleryDateRange();
       if (!range.granted || range.earliestMs === undefined) { if (alive) setCounts(new Map()); return; }
       const out = new Map<number, number>();
-      // „De la începutul lunii încoace”, apoi diferențe: un apel pe lună.
+      // „De la începutul lunii încoace”, apoi diferențe. Ultimii 3 ani, lună cu lună.
+      // Mai vechi: un an gol e un singur apel; un an cu poze se umple lună cu lună,
+      // ca procentul și „Sortează tot” să vadă toată galeria, nu doar 36 de luni.
       let start = monthStart(Date.now());
       const oldest = monthStart(range.earliestMs);
       let after = 0;
-      for (let i = 0; i < 36 && start >= oldest; i++) {
+      let steps = 0;
+      while (start >= oldest && steps < 180) {
+        if (steps >= 36) {
+          const back = new Date(start);
+          const chunkStart = Math.max(oldest, new Date(back.getFullYear(), back.getMonth() - 11, 1).getTime());
+          const probe = await countGalleryPhotosSince(chunkStart);
+          if (!probe.granted) break;
+          if (probe.count - after <= 0) {
+            after = probe.count;
+            if (chunkStart <= oldest) break;
+            start = monthStart(chunkStart - 1);
+            steps += 12;
+            continue;
+          }
+          while (start >= chunkStart && steps < 180) {
+            const since = await countGalleryPhotosSince(start);
+            if (!since.granted) break;
+            out.set(start, Math.max(0, since.count - after));
+            after = since.count;
+            steps++;
+            if (start <= oldest) { start = oldest - 1; break; }
+            start = monthStart(start - 1);
+          }
+          continue;
+        }
         const since = await countGalleryPhotosSince(start);
+        if (!since.granted) break;
         out.set(start, Math.max(0, since.count - after));
         after = since.count;
+        steps++;
+        if (start <= oldest) break;
         start = monthStart(start - 1);
       }
       cache = { key: refresh, at: Date.now(), counts: out };

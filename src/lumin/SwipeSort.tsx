@@ -41,6 +41,8 @@ export function SwipeSort() {
   const [flying, setFlying] = useState<'left' | 'right' | null>(null);
   const [decisions, setDecisions] = useState(0);
   const [lesson, setLesson] = useState<string | null>(null);
+  /** Alt cadru din aceeași rafală, adus în față fără să schimbe rândul pachetului. */
+  const [peek, setPeek] = useState<string | null>(null);
   const drag = useRef<{ x: number; y: number; id: number } | null>(null);
 
   // Ce credea AI-ul la deschidere: decizia ta de acum nu-i schimbă părerea de atunci.
@@ -56,12 +58,14 @@ export function SwipeSort() {
     setDx(0);
     setDecisions(0);
     setLesson(null);
+    setPeek(null);
   }, [ids]);
 
   const byId = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
   const queue = useMemo(() => (ids ?? []).filter(id => byId.has(id)), [ids, byId]);
   const current = index < queue.length ? byId.get(queue[index]) : undefined;
   const next = index + 1 < queue.length ? byId.get(queue[index + 1]) : undefined;
+  const shown = (peek && byId.get(peek)) || current;
 
   useEffect(() => {
     if (!lesson) return;
@@ -72,23 +76,35 @@ export function SwipeSort() {
   if (!ids) return null;
 
   const decide = (keep: boolean) => {
-    if (!current || flying) return;
+    if (!shown || flying) return;
     haptic(keep ? 'confirm' : 'reject');
-    if (index + 1 === queue.length) window.setTimeout(() => haptic('success'), 260);
-    const ai = aiView.get(current.id) ?? 'unsure';
-    setFlying(keep ? 'right' : 'left');
-    void setStatus(current.id, keep ? 'selected' : 'rejected');
-    recordPersonDecision(current.personNames, keep);
-    setDecisions(n => n + 1);
+    if (!peek && index + 1 === queue.length) window.setTimeout(() => haptic('success'), 260);
+    const ai = aiView.get(shown.id) ?? 'unsure';
+    void setStatus(shown.id, keep ? 'selected' : 'rejected');
+    recordPersonDecision(shown.personNames, keep);
     if ((ai === 'keep' && !keep) || (ai === 'drop' && keep)) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
-    // Scorul cinstit din sortarea zilnică: ce credea AI-ul tău și ce ar fi crezut
-    // unul generic (fără ce a învățat de la tine), înainte de decizia ta.
     if (ai !== 'unsure') {
-      const generic = current.aiScore - (current.aiPersonalDelta ?? 0);
+      const generic = shown.aiScore - (shown.aiPersonalDelta ?? 0);
       recordDailyGuess({ personal: ai === 'keep', generic: generic >= MIDPOINT }, keep);
       recordTwinDecision(ai === 'keep', keep);
     }
-    window.setTimeout(() => { setFlying(null); setDx(0); setIndex(i => i + 1); }, FLY_MS);
+    if (peek && peek !== current?.id) { setPeek(null); return; }
+    setDecisions(n => n + 1);
+    setFlying(keep ? 'right' : 'left');
+    window.setTimeout(() => { setFlying(null); setDx(0); setPeek(null); setIndex(i => i + 1); }, FLY_MS);
+  };
+  const later = () => {
+    if (!shown || flying) return;
+    haptic('tick');
+    void setStatus(shown.id, 'candidate');
+    if (peek && peek !== current?.id) { setPeek(null); return; }
+    setPeek(null);
+    setIndex(i => i + 1);
+  };
+  const showFrame = (id: string) => {
+    const at = queue.indexOf(id);
+    if (at >= 0) { setPeek(null); setIndex(at); setDx(0); return; }
+    setPeek(id);
   };
   const back = () => {
     if (index === 0 || flying) return;
@@ -116,8 +132,8 @@ export function SwipeSort() {
     else setDx(0);
   };
 
-  const ai = current ? aiView.get(current.id) ?? 'unsure' : 'unsure';
-  const series = current?.groupId ? photos.filter(p => p.groupId === current.groupId) : [];
+  const ai = shown ? aiView.get(shown.id) ?? 'unsure' : 'unsure';
+  const series = shown?.groupId ? photos.filter(p => p.groupId === shown.groupId && !p.aside) : [];
   const seriesBest = series.length > 1 ? [...series].sort((a, b) => b.aiScore - a.aiScore)[0] : null;
   const offset = flying === 'right' ? 520 : flying === 'left' ? -520 : dx;
   const intent = offset > 30 ? 'keep' : offset < -30 ? 'drop' : null;
@@ -136,7 +152,7 @@ export function SwipeSort() {
         <div className="lx-sort-bar" aria-hidden="true"><i style={{ width: `${(index / queue.length) * 100}%` }} /></div>
       )}
 
-      {current ? (
+      {current && shown ? (
         <>
           <div className="lx-deck">
             {next && (
@@ -149,19 +165,19 @@ export function SwipeSort() {
               style={{ transform: `translateX(${offset}px) rotate(${offset / 22}deg)` }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
             >
-              <Thumb key={current.id} id={current.id} lqip={current.lqip} edits={current.edits} full className="lx-card-img" />
+              <Thumb key={shown.id} id={shown.id} lqip={shown.lqip} edits={shown.edits} full className="lx-card-img" />
               <span className={`lx-stamp keep${intent === 'keep' ? ' on' : ''}`}>{tr('lx.keep')}</span>
               <span className={`lx-stamp drop${intent === 'drop' ? ' on' : ''}`}>{tr('lx.notToday')}</span>
               <div className="lx-card-ai">
                 <span className={`lx-verdict ${ai}`}>
                   <i className="lx-dot" />{tr(`lx.ai.${ai}`)}
-                  <b>{current.aiScore}</b>
+                  <b>{shown.aiScore}</b>
                 </span>
-                <p className="lx-why">{personalWhy(current, why, tr)}</p>
-                <CloudLine id={current.id} />
+                <p className="lx-why">{personalWhy(shown, why, tr)}</p>
+                <CloudLine id={shown.id} />
                 {seriesBest && (
                   <span className="lx-series-note">
-                    {seriesBest.id === current.id
+                    {seriesBest.id === shown.id
                       ? tr('lx.sort.seriesBest', { count: series.length })
                       : tr('lx.sort.seriesOther', { count: series.length })}
                   </span>
@@ -170,11 +186,24 @@ export function SwipeSort() {
             </div>
           </div>
 
+          {series.length > 1 && (
+            <div className="lx-sort-series" onPointerDown={e => e.stopPropagation()}>
+              {series.slice(0, 8).map(p => (
+                <button key={p.id} type="button" className={p.id === shown.id ? 'on' : ''} onClick={() => showFrame(p.id)} aria-label={tr('lx.sort.seriesPick')}>
+                  <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
+                </button>
+              ))}
+            </div>
+          )}
+
           {lesson && <div className="lx-lesson" role="status">{lesson}</div>}
 
           <div className="lx-sort-actions">
             <button className="lx-round drop" onClick={() => decide(false)} aria-label={tr('lx.notToday')}>
               <span>✕</span><small>{tr('lx.notToday')}</small>
+            </button>
+            <button className="lx-round later" onClick={later} aria-label={tr('lx.sort.later')}>
+              <span>→</span><small>{tr('lx.sort.later')}</small>
             </button>
             <button className="lx-round keep" onClick={() => decide(true)} aria-label={tr('lx.keep')}>
               <span>✓</span><small>{tr('lx.keep')}</small>

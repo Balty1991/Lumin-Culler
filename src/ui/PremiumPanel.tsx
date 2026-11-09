@@ -187,6 +187,80 @@ export function PremiumPanel() {
               : tr('premium.price.tag', { price: price! })}
           </p>
         )}
+        {/* Variantele de plată, sus: omul vede lunar / anual și butonul fără să
+            dea scroll prin beneficii. Condițiile rămân lipite de buton. */}
+        {!premium && isBillingAvailable() && (picked ?? price) && (
+          <div className="premium-buy">
+            {plans.length > 1 && (
+              <fieldset className="premium-plans">
+                <legend className="premium-group-head">{tr('premium.plans.title')}</legend>
+                <div className="premium-plans-grid">
+                {plans.map(plan => {
+                  const isPicked = plan.id === picked?.id;
+                  const savings = referencePlan && referencePlan.id !== plan.id
+                    ? annualSavingsPercent(referencePlan, plan) : null;
+                  const monthly = perMonthPrice(plan, locale);
+                  return (
+                    <label key={plan.id} className={isPicked ? 'premium-plan is-picked' : 'premium-plan'}>
+                      <input
+                        type="radio" name="premium-plan" value={plan.id} checked={isPicked}
+                        onChange={() => setPickedPlanId(plan.id)}
+                      />
+                      <span className="premium-plan-body">
+                        <b>
+                          {tr(plan.periodDays === 0 ? 'premium.plan.lifetime' : plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
+                          {savings !== null && (
+                            <i className="premium-plan-save" title={tr('premium.plan.saveTitle', { percent: savings })}>
+                              {tr('premium.plan.save', { percent: savings })}
+                            </i>
+                          )}
+                        </b>
+                        <span className="premium-plan-price">{plan.price}</span>
+                        {monthly && <span className="premium-plan-permonth mono">{tr('premium.plan.perMonth', { price: monthly })}</span>}
+                        {plan.trialDays && (
+                          <span className="premium-plan-trial">
+                            {tr(plural(plan.trialDays, 'premium.plan.trial.one', 'premium.plan.trial.other'), { count: plan.trialDays })}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+                </div>
+              </fieldset>
+            )}
+            <button
+              className="btn-accent big premium-subscribe"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true); setFailed(false);
+                void startSubscription(picked?.id)
+                  .then(async outcome => {
+                    if (outcome === 'purchased') await refreshEntitlement();
+                    else if (outcome === 'unavailable') setFailed(true);
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              {busy
+                ? tr('premium.subscribing')
+                : picked?.trialDays
+                  ? tr('premium.subscribe.trial', { price: picked.price })
+                  : picked?.periodDays === 0
+                    ? tr('premium.subscribe.once', { price: picked.price })
+                    : tr('premium.subscribe', { price: picked?.price ?? price! })}
+            </button>
+            {picked && (
+              <p className="premium-terms">
+                {picked.trialDays
+                  ? tr(plural(picked.trialDays, 'premium.renewal.trial.one', 'premium.renewal.trial.other'),
+                      { count: picked.trialDays, price: picked.price })
+                  : tr(picked.periodDays === 0 ? 'premium.renewal.once' : picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
+                      { price: picked.price })}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Dovada inaintea cererii. Blocul se randeaza singur ca nimic atunci
             cand n-are destule date (sub doua sesiuni) — vezi LifetimeProof.
@@ -314,106 +388,7 @@ export function PremiumPanel() {
             <p className="premium-soon" role="status">{tr('premium.manage')}</p>
           </>
         ) : isBillingAvailable() && (picked ?? price) ? (
-          /* Butonul apare doar cand Play chiar a confirmat ca exista ceva de
-             cumparat: un plan (sau, ca rezerva, un pret) inseamna produs
-             configurat SI build semnat. Un buton care deschide un flux
-             inexistent e mai rau decat un anunt. */
           <>
-            {/* Alegerea planului, chiar deasupra butonului — acolo se ia
-                decizia. Cu un singur plan configurat in Play Console nu se
-                afiseaza nimic aici: doua carduri din care unul e singura optiune
-                nu e o alegere, e un pas in plus. */}
-            {plans.length > 1 && (
-              <fieldset className="premium-plans">
-                <legend className="premium-group-head">{tr('premium.plans.title')}</legend>
-                <div className="premium-plans-grid">
-                {plans.map(plan => {
-                  const isPicked = plan.id === picked?.id;
-                  // Economia se raporteaza mereu la PRIMUL plan (lunarul), si
-                  // niciodata la el insusi — vezi core/premiumPlans.ts.
-                  const savings = referencePlan && referencePlan.id !== plan.id
-                    ? annualSavingsPercent(referencePlan, plan) : null;
-                  const monthly = perMonthPrice(plan, locale);
-                  return (
-                    <label key={plan.id} className={isPicked ? 'premium-plan is-picked' : 'premium-plan'}>
-                      <input
-                        type="radio" name="premium-plan" value={plan.id} checked={isPicked}
-                        onChange={() => setPickedPlanId(plan.id)}
-                      />
-                      <span className="premium-plan-body">
-                        <b>
-                          {tr(plan.periodDays === 0 ? 'premium.plan.lifetime' : plan.periodDays > 31 ? 'premium.plan.yearly' : 'premium.plan.monthly')}
-                          {savings !== null && (
-                            <i className="premium-plan-save" title={tr('premium.plan.saveTitle', { percent: savings })}>
-                              {tr('premium.plan.save', { percent: savings })}
-                            </i>
-                          )}
-                        </b>
-                        <span className="premium-plan-price">{plan.price}</span>
-                        {/* Doar cifrele primite de la Play: pretul pe luna e
-                            derivat din priceMicros si formatat cu Intl in moneda
-                            contului, nu taiat din textul de mai sus. */}
-                        {monthly && <span className="premium-plan-permonth mono">{tr('premium.plan.perMonth', { price: monthly })}</span>}
-                        {plan.trialDays && (
-                          <span className="premium-plan-trial">
-                            {tr(plural(plan.trialDays, 'premium.plan.trial.one', 'premium.plan.trial.other'), { count: plan.trialDays })}
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-                </div>
-              </fieldset>
-            )}
-            <button
-              className="btn-accent big premium-subscribe"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true); setFailed(false);
-                void startSubscription(picked?.id)
-                  .then(async outcome => {
-                    // NU mai inchidem ecranul la cumparare reusita: refreshEntitlement()
-                    // comuta starea, iar utilizatorul ramane exact aici si VEDE
-                    // confirmarea. Inainte ecranul disparea fara niciun cuvant,
-                    // adica singura confirmare a unei plati era absenta ei.
-                    if (outcome === 'purchased') await refreshEntitlement();
-                    else if (outcome === 'unavailable') setFailed(true);
-                    // 'cancelled' = utilizatorul s-a razgandit; nimic de spus
-                  })
-                  .finally(() => setBusy(false));
-              }}
-            >
-              {busy
-                ? tr('premium.subscribing')
-                : picked?.trialDays
-                  ? tr('premium.subscribe.trial', { price: picked.price })
-                  : picked?.periodDays === 0
-                    ? tr('premium.subscribe.once', { price: picked.price })
-                    : tr('premium.subscribe', { price: picked?.price ?? price! })}
-            </button>
-            {/* CONDITIILE, sub buton, inainte de plata.
-
-                Nu e o formalitate juridica pusa ca sa fie: Play cere explicit ca
-                pretul, perioada de facturare si faptul ca abonamentul SE
-                REINNOIESTE SINGUR sa fie vizibile inainte de cumparare, iar cand
-                exista o perioada de proba, sa scrie limpede ca ea se transforma
-                in plata si cu cat. E unul dintre motivele obisnuite de respingere
-                la review pentru aplicatiile cu abonament — si, indiferent de
-                Play, un utilizator care afla abia din extrasul de cont ca s-a
-                reinnoit e un utilizator pierdut, plus o recenzie de o stea.
-
-                Textul urmareste planul BIFAT, deci spune mereu cifra pe care
-                chiar o va incasa butonul de deasupra. */}
-            {picked && (
-              <p className="premium-terms">
-                {picked.trialDays
-                  ? tr(plural(picked.trialDays, 'premium.renewal.trial.one', 'premium.renewal.trial.other'),
-                      { count: picked.trialDays, price: picked.price })
-                  : tr(picked.periodDays === 0 ? 'premium.renewal.once' : picked.periodDays > 31 ? 'premium.renewal.yearly' : 'premium.renewal.monthly',
-                      { price: picked.price })}
-              </p>
-            )}
             {failed && <p className="premium-soon" role="alert">{tr('premium.failed')}</p>}
             {/* Cerinta Google Play pentru orice aplicatie cu abonamente, si o
                 nevoie reala: dupa reinstalare sau pe un telefon nou, contul are

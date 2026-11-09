@@ -43,6 +43,7 @@ export function FamilyPickCard() {
   const tr = useTr();
   const photos = useLxPhotos();
   const [open, setOpen] = useState(false);
+  const names = Object.keys(readVotes());
   if (photos.filter(p => !p.aside).length < 10) return null;
   return (
     <>
@@ -50,7 +51,7 @@ export function FamilyPickCard() {
         <span className="lx-family-icon"><Icon name="similar" size={22} /></span>
         <div>
           <b>{tr('lx.family.title')}</b>
-          <span>{tr('lx.family.sub')}</span>
+          <span>{names.length ? tr('lx.family.pastSub', { names: names.slice(0, 3).join(', ') }) : tr('lx.family.sub')}</span>
         </div>
         <span className="lx-chev" aria-hidden="true">›</span>
       </button>
@@ -68,6 +69,7 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
   const [i, setI] = useState(0);
   const [picks, setPicks] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [past, setPast] = useState(readVotes);
 
   const start = async () => {
     const name = (await askPrompt(tr('lx.family.who'), '', { confirmLabel: tr('lx.family.start') }))?.trim();
@@ -81,6 +83,7 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
       const all = readVotes();
       all[who!] = { ...(all[who!] ?? {}), ...next };
       writeVotes(all);
+      setPast(all);
     }
     setI(i + 1);
   };
@@ -107,6 +110,21 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
           <>
             <h2>{tr('lx.family.title')}</h2>
             <p className="lx-hint">{tr('lx.family.intro', { count: round.length })}</p>
+            {Object.keys(past).length > 0 && (
+              <div className="lx-family-past">
+                <p className="lx-eyebrow">{tr('lx.family.pastTitle')}</p>
+                {Object.entries(past).map(([name, votes]) => {
+                  const mine = Object.keys(votes).map(id => photos.find(p => p.id === id)).filter((p): p is PhotoView => !!p && (p.status === 'selected' || p.status === 'rejected'));
+                  const agree = mine.filter(p => (p.status === 'selected') === !!votes[p.id]).length;
+                  return (
+                    <p key={name} className="lx-family-match">
+                      <b>{name}</b>
+                      {mine.length >= 3 && <span> · {tr('lx.family.pastMatch', { percent: Math.round((agree / mine.length) * 100) })}</span>}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
             <div className="lx-family-strip">{round.slice(0, 5).map(p => <Thumb key={p.id} id={p.id} lqip={p.lqip} sharp={false} />)}</div>
             <div className="lx-decide-actions">
               <button className="lx-btn ghost" onClick={onClose}>{tr('lx.enhance.cancel')}</button>

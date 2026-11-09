@@ -1,5 +1,6 @@
 import { countGalleryPhotosSince, getPhotosAccess, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { startOfDay } from '../core/todayDigest';
+import { t } from '../i18n';
 import { useStore } from '../state/store';
 import { groupDays, photoTime } from './days';
 import { readAutonomy } from './twin';
@@ -28,13 +29,21 @@ export function autoSortEnabled(): boolean {
 /**
  * Cu autonomia „decide tot” (Pro), și pozele nesigure primesc o decizie: cele
  * alese rămân, restul trec la „Nu azi” (nimic nu se șterge fără tine).
+ * `today` = doar ziua asta (la deschidere). `library` = toată galeria deja citită,
+ * cu o confirmare, ca „Sortează tot” să nu lase lunile vechi pe loc.
  */
-export async function decideRestIfAllowed(): Promise<number> {
+export async function decideRestIfAllowed(scope: 'today' | 'library' = 'today'): Promise<number> {
   const store = useStore.getState();
   if (readAutonomy() !== 'all' || store.premiumLocked) return 0;
-  const day = groupDays(store.photos).find(d => d.start === startOfDay());
-  const unsure = day?.waiting.filter(p => p.status === 'review').map(p => p.id) ?? [];
-  return unsure.length ? store.acceptDayPicks(unsure) : 0;
+  const unsure = scope === 'library'
+    ? store.photos.filter(p => !p.aside && p.status === 'review').map(p => p.id)
+    : (groupDays(store.photos).find(d => d.start === startOfDay())?.waiting.filter(p => p.status === 'review').map(p => p.id) ?? []);
+  if (!unsure.length) return 0;
+  if (scope === 'library') {
+    const ok = await store.askConfirm(t(store.locale, 'lx.sortAll.confirm', { count: unsure.length }), { confirmLabel: t(store.locale, 'lx.today.acceptAll') });
+    if (!ok) return 0;
+  }
+  return store.acceptDayPicks(unsure);
 }
 
 /** Rezultatul pentru ziua de azi, după ce s-au adus `added` poze noi. */

@@ -52,7 +52,6 @@ export function TodayScreen() {
   const importing = useStore(s => s.supervisorImporting);
   const locale = useStore(s => s.locale);
   const importToday = useStore(s => s.importToday);
-  const acceptDayPicks = useStore(s => s.acceptDayPicks);
   const premiumLocked = useStore(s => s.premiumLocked);
   const openSort = useLx(s => s.openSort);
   const setTab = useLx(s => s.setTab);
@@ -223,7 +222,14 @@ export function TodayScreen() {
           </div>
           <div className="lx-decide-actions">
             <button className="lx-btn primary" onClick={() => openSort(today.waiting.map(p => p.id), tr('lx.sort.today'))}>{tr('lx.today.check')}</button>
-            <button className="lx-btn ghost" onClick={() => void acceptDayPicks(today.waiting.filter(p => p.status === 'review').map(p => p.id))}>
+            <button className="lx-btn ghost" onClick={() => void (async () => {
+              const ids = today.waiting.filter(p => p.status === 'review').map(p => p.id);
+              const st = useStore.getState();
+              if (st.premiumLocked) { st.gatePremium('acceptAll'); return; }
+              if (!ids.length) { st.setNotice(tr('lx.today.acceptAll.empty')); return; }
+              const ok = await st.askConfirm(tr('lx.today.acceptAll.confirm', { count: ids.length }), { confirmLabel: tr('lx.today.acceptAll') });
+              if (ok) await st.acceptDayPicks(ids);
+            })()}>
               {tr('lx.today.acceptAll')}{premiumLocked && <b className="lx-pro">PRO</b>}
             </button>
           </div>
