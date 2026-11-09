@@ -3,7 +3,7 @@
  * workers/preview.worker.ts
  * JPEG de previzualizare, miniatură, LQIP și dHash, în afara firului principal.
  */
-import { dHashFromRgba, thumbMetrics } from '../core/dhash';
+import { dHashFromRgba, FINE_SIDE, thumbMetrics } from '../core/dhash';
 
 const THUMB_SIZE = 512;
 const LQIP_SIZE = 24;
@@ -56,9 +56,14 @@ self.onmessage = async (event: MessageEvent<{ id: number; bitmap: ImageBitmap }>
     const pixels = hashCtx.getImageData(0, 0, 9, 8).data;
     const dHash = dHashFromRgba(pixels, 9);
     const { sharpness, exposure } = thumbMetrics(pixels, 9);
+    const fineCanvas = new OffscreenCanvas(FINE_SIDE, FINE_SIDE);
+    const fineCtx = fineCanvas.getContext('2d', { willReadFrequently: true });
+    if (!fineCtx) throw new Error('context 2d');
+    fineCtx.drawImage(bitmap, 0, 0, FINE_SIDE, FINE_SIDE);
+    const fineSharpness = thumbMetrics(fineCtx.getImageData(0, 0, FINE_SIDE, FINE_SIDE).data, FINE_SIDE).sharpness;
 
     self.postMessage(
-      { id, ok: true, preview, thumb, lqip, dHash, w: bitmap.width, h: bitmap.height, sharpness, exposure, bitmap },
+      { id, ok: true, preview, thumb, lqip, dHash, w: bitmap.width, h: bitmap.height, sharpness, exposure, fineSharpness, bitmap },
       [bitmap]
     );
   } catch (err) {

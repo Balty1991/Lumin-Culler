@@ -13,6 +13,7 @@ import { isNativeMediaLibraryAvailable, pickNativePhotos } from '../core/nativeM
 import { analysisPool } from '../core/workerPool';
 import { useAutoThemeWatch } from '../ui/useAutoThemeWatch';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { PhotosAccessNotice } from '../ui/PhotosAccessNotice';
 import { FirstRun } from '../ui/FirstRun';
 import { TasteQuiz } from '../ui/TasteQuiz';
 import { noticeTone } from '../ui/noticeTone';
@@ -410,6 +411,7 @@ export function LuminApp() {
           <div className="boot-splash still"><img className="boot-logo" src="./icon-512.png" alt="" aria-hidden="true" width="132" height="132" /></div>
         ) : (
           <main className="lx-main">
+            {booted && <PhotosAccessNotice />}
             {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
                 reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
             {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayScreen /></div>}

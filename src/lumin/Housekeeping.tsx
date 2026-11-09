@@ -5,7 +5,7 @@ import { findExactDuplicates } from '../core/exactDuplicates';
 import { findNearCopies } from '../core/nearCopies';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
-import { useStore, type PhotoView } from '../state/store';
+import { settleFreeCleanup, useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
 import { BulkCleanButton } from './BulkClean';
 import { photoTime } from './days';
@@ -95,7 +95,16 @@ export function Housekeeping() {
             <b>{tr('lx.clean.junk', { count: junk.length })}</b>
             <span>{[oldShots.length ? tr('lx.clean.shots', { count: oldShots.length }) : '', dupes.length ? tr('lx.clean.dupes', { count: dupes.length }) : '', chatCopies.length ? tr('lx.clean.chatCopies', { count: chatCopies.length }) : ''].filter(Boolean).join(' · ')} · {formatBytes(bytes(junkPhotos), locale)}</span>
           </div>
-          <button className="lx-btn ghost small" disabled={busy} onClick={() => { if (!useStore.getState().gatePremium('cleanup')) void run(() => trashPhotos(junk)); }}>{tr('lx.clean.go')}</button>
+          <button className="lx-btn ghost small" disabled={busy} onClick={() => {
+            if (useStore.getState().gatePremium('cleanup')) return;
+            void run(async () => {
+              let used = false;
+              try {
+                const r = await trashPhotos(junk);
+                used = !r.cancelled && r.deleted > 0;
+              } finally { settleFreeCleanup(used); }
+            });
+          }}>{tr('lx.clean.go')}</button>
         </div>
       )}
       <BulkCleanButton />

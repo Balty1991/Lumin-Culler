@@ -64,3 +64,20 @@ export function thumbMetrics(data: ArrayLike<number>, width = 9): { exposure: nu
   const sharpness = Math.max(0, Math.min(100, Math.sqrt(n ? acc / n : 0) / 2));
   return { exposure, sharpness };
 }
+
+/** Latura grilei pe care se vede mișcarea. 9×8 e pentru serii, nu pentru asta. */
+export const FINE_SIDE = 96;
+/**
+ * Sub prag, poza e la fel de plată ca una înmuiată tare: o păstrare ușoară se oprește.
+ * Peste prag, are structura unei poze reale: o respingere ușoară se oprește.
+ * Măsurat pe pozele din docs/real-photo-samples (clare 12–18, mișcate ~2–3).
+ */
+export const FINE_BLUR = 4;
+export const FINE_SHARP = 11;
+
+export function contradictsLightDecision(status: string, fine: number | undefined): boolean {
+  if (fine === undefined || !Number.isFinite(fine)) return false;
+  if (status === 'selected' && fine < FINE_BLUR) return true;
+  if (status === 'rejected' && fine > FINE_SHARP) return true;
+  return false;
+}

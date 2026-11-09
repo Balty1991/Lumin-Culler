@@ -12,6 +12,8 @@ const SharpImage = registerPlugin<SharpImageApi>('SharpImage');
 
 export const TILE_SIZE = 768;
 export const SCREEN_SIZE = 1440;
+/** La mărire, o copie mai mare a aceleiași poze. Nu originalul: pe unele telefoane iese negru. */
+export const ZOOM_SIZE = 2880;
 
 /** Mărimea de cerut pentru o dală de `cssPx` pe ecranul ăsta: trepte fixe, ca să se refolosească din cache. */
 export function sizeFor(cssPx: number): number {

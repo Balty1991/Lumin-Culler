@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dHashFromRgba, hamming64, thumbMetrics } from './dhash';
+import { dHashFromRgba, hamming64, thumbMetrics, contradictsLightDecision } from './dhash';
 
 function solid(width: number, height: number, rgba: [number, number, number, number]): Uint8ClampedArray {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -39,5 +39,13 @@ describe('dHash 9x8', () => {
     expect(dark.exposure).toBe(0);
     expect(mid.exposure).toBeGreaterThan(40);
     expect(mid.exposure).toBeLessThan(60);
+  });
+
+  it('o păstrare pe o poză plată, sau o respingere pe una cu structură, se oprește', () => {
+    expect(contradictsLightDecision('selected', 1.5)).toBe(true);
+    expect(contradictsLightDecision('selected', 8)).toBe(false);
+    expect(contradictsLightDecision('rejected', 14)).toBe(true);
+    expect(contradictsLightDecision('rejected', 6)).toBe(false);
+    expect(contradictsLightDecision('selected', undefined)).toBe(false);
   });
 });

@@ -147,6 +147,7 @@ class StageOnePlugin : Plugin() {
     private fun pack(bitmap: Bitmap, fullW: Int, fullH: Int): JSObject {
         val hash = dHash(bitmap)
         val metrics = thumbMetrics(bitmap)
+        val fine = fineSharpness(bitmap)
         val paper = paperScore(bitmap)
         val preview = jpegBase64(bitmap, PREVIEW_MAX, 75)
         val thumb = jpegBase64(bitmap, THUMB_MAX, 70)
@@ -157,6 +158,7 @@ class StageOnePlugin : Plugin() {
             put("width", fullW)
             put("height", fullH)
             put("sharpness", metrics.sharpness)
+            put("fineSharpness", fine)
             put("exposure", metrics.exposure)
             put("paperScore", paper)
             put("previewBase64", preview)
@@ -237,6 +239,28 @@ class StageOnePlugin : Plugin() {
         val exposure = (sum / gray.size / 255.0 * 100.0).coerceIn(0.0, 100.0)
         val sharpness = (sqrt(if (n > 0) acc / n else 0.0) / 2.0).coerceIn(0.0, 100.0)
         return Metrics(exposure, sharpness)
+    }
+
+    /** Aceeași formulă, pe 96×96. 9×8 nu deosebește o poză mișcată de una clară. */
+    private fun fineSharpness(src: Bitmap): Double {
+        val side = 96
+        val small = Bitmap.createScaledBitmap(src, side, side, true)
+        val gray = DoubleArray(side * side)
+        for (y in 0 until side) {
+            for (x in 0 until side) gray[y * side + x] = luma(small.getPixel(x, y))
+        }
+        small.recycle()
+        var acc = 0.0
+        var n = 0
+        for (y in 1 until side - 1) {
+            for (x in 1 until side - 1) {
+                val c = gray[y * side + x]
+                val lap = gray[y * side + x - 1] + gray[y * side + x + 1] + gray[(y - 1) * side + x] + gray[(y + 1) * side + x] - 4 * c
+                acc += lap * lap
+                n++
+            }
+        }
+        return (sqrt(if (n > 0) acc / n else 0.0) / 2.0).coerceIn(0.0, 100.0)
     }
 
     /** Aceeași formulă ca paperScoreFromRgba: lumină, paloare, muchii, pe 48×48. */

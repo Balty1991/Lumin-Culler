@@ -45,11 +45,12 @@ import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
 import { saveEditedBlob } from './saveEdited';
 import { EnhanceSheet } from './Enhance';
-import { SCREEN_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
+import { SCREEN_SIZE, ZOOM_SIZE, originalUri, sharpUrl, sizeFor } from './sharp';
 import { CleanupCard } from './Cleanup';
 import { intlTag, baseLocale } from '../i18n';
+import { selectBlinks, selectBlurry } from '../state/batchOps';
 
-type Filter = 'all' | 'kept' | 'notToday';
+type Filter = 'all' | 'kept' | 'notToday' | 'blinks' | 'blurry';
 const PAGE = 60;
 
 /**
@@ -251,12 +252,19 @@ export function GalleryWall() {
       const seen = new Set<string>();
       return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
     }
-    return photos
+    const base = photos
       .filter(p => !p.aside)
-      .filter(p => filter === 'all' || (filter === 'kept' ? p.status === 'selected' : p.status === 'rejected'))
+      .filter(p => filter === 'kept' ? p.status === 'selected' : filter === 'notToday' ? p.status === 'rejected' : true)
       .sort((a, b) => photoTime(b) - photoTime(a));
+    if (filter === 'blinks') return selectBlinks(base);
+    if (filter === 'blurry') return selectBlurry(base);
+    return base;
   }, [photos, filter, query, similar, aiTerms, folder, withDocs, visual]);
   const folders = useMemo(() => folderCounts(photos), [photos]);
+  const issues = useMemo(() => {
+    const base = photos.filter(p => !p.aside);
+    return { blinks: selectBlinks(base).length, blurry: selectBlurry(base).length };
+  }, [photos]);
   const reveal = useReveal();
   // Nimic găsit pe telefon: întreabă AI-ul online ce înseamnă căutarea, în etichetele pe care le avem.
   const nothingFound = !!query.trim() && !similar && list.length === 0;
@@ -476,9 +484,23 @@ export function GalleryWall() {
           </button>
         </div>
       )}
+      {plain && (issues.blinks > 0 || issues.blurry > 0) && (
+        <div className="lx-chips">
+          {issues.blinks > 0 && (
+            <button className={filter === 'blinks' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f => f === 'blinks' ? 'all' : 'blinks'))}>
+              {tr('lx.wall.blinks')} <b>{issues.blinks}</b>
+            </button>
+          )}
+          {issues.blurry > 0 && (
+            <button className={filter === 'blurry' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f => f === 'blurry' ? 'all' : 'blurry'))}>
+              {tr('lx.wall.blurry')} <b>{issues.blurry}</b>
+            </button>
+          )}
+        </div>
+      )}
       {filter === 'all' && plain && <BurstTidy photos={photos} />}
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}
-      {list.length === 0 && <p className="lx-empty">{tr('lx.wall.empty')}</p>}
+      {list.length === 0 && <p className="lx-empty">{tr(filter === 'blinks' || filter === 'blurry' ? 'lx.wall.kindEmpty' : 'lx.wall.empty')}</p>}
       {months.map(m => {
         // Coperta lunii: doar dintre pozele păstrate, cu oamenii înaintea obiectelor
         // (raportat: „cea mai bună din lună” era un fierbător, într-o lună cu 0 păstrate).
@@ -849,7 +871,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
             width: baseRef.current.w * zoom.s, height: baseRef.current.h * zoom.s,
             transform: `translate(calc(-50% + ${zoom.x}px), calc(-50% + ${zoom.y}px))`
           } as CSSProperties : undefined}>
-          <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full />
+          <Thumb id={p.id} lqip={p.lqip} edits={p.edits} full sharp={zoom.s >= 2 ? ZOOM_SIZE : true} />
         </div>
         {/* Săgețile: se vede că poți trece la poza următoare (sau glisezi). */}
         {index > 0 && zoom.s === 1 && (

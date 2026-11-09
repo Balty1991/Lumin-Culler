@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useStore, type PhotoView } from '../state/store';
+import { settleFreeCleanup, useStore, type PhotoView } from '../state/store';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { DEFECT_SHARPNESS } from '../core/importPipeline';
@@ -94,7 +94,12 @@ function BulkCleanSheet({ onClose }: { onClose: () => void }) {
     if (!list.length) return;
     if (useStore.getState().gatePremium('cleanup')) return;
     setBusy(true);
-    try { await trashPhotos(list.map(p => p.id)); onClose(); } finally { setBusy(false); }
+    let used = false;
+    try {
+      const r = await trashPhotos(list.map(p => p.id));
+      used = !r.cancelled && r.deleted > 0;
+      onClose();
+    } finally { setBusy(false); settleFreeCleanup(used); }
   };
   return createPortal(
     <div className="lx lx-sheet-wrap" role="dialog" aria-modal="true" onClick={onClose}>

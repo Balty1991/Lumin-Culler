@@ -425,19 +425,24 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
         return [...groups.entries()].sort((a, b) => b[0] - a[0]).map(([start, ps]) => {
           const best = [...ps].sort((a, b) => Number(b.status === 'selected') - Number(a.status === 'selected') || b.aiScore - a.aiScore).slice(0, 5);
           const age = bday ? ageAt(bday, start + 15 * 86400000) : null;
+          const ids = ps.map(x => x.id);
           return (
             <section key={start} className="lx-person-month">
               <h3 className="lx-wall-head">
                 <span>{monthLabel(start, locale)}</span>
+                <small>{tr('lx.person.monthCount', { count: ps.length })}</small>
                 {age && <small>{tr(age.years > 0 ? (age.months > 0 ? 'lx.person.ageYm' : 'lx.person.ageY') : 'lx.person.ageM', { years: age.years, months: age.months, name })}</small>}
               </h3>
               <div className="lx-grid">
                 {best.map(p => (
-                  <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => useLx.getState().openViewer(best.map(x => x.id), best.indexOf(p))}>
+                  <button key={p.id} className={`lx-grid-cell ${p.status}`} onClick={() => useLx.getState().openViewer(ids, ids.indexOf(p.id))}>
                     <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
                   </button>
                 ))}
               </div>
+              {ps.length > best.length && (
+                <button className="lx-link" onClick={() => useLx.getState().openViewer(ids, 0)}>{tr('lx.person.seeMonth', { count: ps.length })}</button>
+              )}
             </section>
           );
         });

@@ -18,6 +18,7 @@ export interface DerivativeSet {
   h: number;
   sharpness: number;
   exposure: number;
+  fineSharpness?: number;
   /** Bitmap-ul primit, transferat înapoi. Poate lipsi dacă worker-ul l-a închis. */
   bitmap?: ImageBitmap;
 }

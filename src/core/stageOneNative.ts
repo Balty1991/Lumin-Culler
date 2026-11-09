@@ -10,6 +10,8 @@ export interface StageOneNativeResult {
   width: number;
   height: number;
   sharpness: number;
+  /** Claritate pe 96 px. Lipsește la un plugin vechi: atunci nu schimbăm decizia. */
+  fineSharpness?: number;
   exposure: number;
   paperScore?: number;
   previewBase64: string;

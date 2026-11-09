@@ -52,6 +52,14 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
     return () => { alive = false; };
   }, [id, full]);
 
+  // La mărire: o copie mai mare, peste cea de ecran. Nu se cere la fiecare cadru.
+  useEffect(() => {
+    if (!full || typeof sharp !== 'number' || !canSharpen()) return;
+    let alive = true;
+    void sharpUrl(id, sharp).then(url => { if (alive && url) setSrc(url, 3); });
+    return () => { alive = false; };
+  }, [id, full, sharp]);
+
   // Varianta clară a dalei: doar când dala ajunge (aproape) pe ecran — altfel
   // zeci de poze mari stau în memoria grafică degeaba.
   const box = useRef<HTMLElement | null>(null);

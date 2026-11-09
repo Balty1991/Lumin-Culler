@@ -3,7 +3,7 @@ import { useLxPhotos } from './useLxPhotos';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { readLastBackupAt } from '../state/backupReminder';
-import { useStore, type PhotoView } from '../state/store';
+import { settleFreeCleanup, useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
 import { autoBackupAvailable, autoBackupOn, setAutoBackup } from './autoBackup';
 import { cloudAvailable, cloudEnabled, ensureCloud } from './cloud';
@@ -254,7 +254,10 @@ export function LumiFeed() {
         text: tr('lx.feed.series', { sets: series.sets, count: series.extras.length }),
         sub: bytes(series.extras) ? tr('lx.feed.frees', { size: formatBytes(bytes(series.extras), locale) }) : undefined,
         action: tr('lx.feed.seriesGo'),
-        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(series.extras.map(p => p.id))),
+        run: () => {
+          if (gatePremium('cleanup')) return;
+          void trashPhotos(series.extras.map(p => p.id)).then(r => settleFreeCleanup(!r.cancelled && r.deleted > 0), () => settleFreeCleanup(false));
+        },
         second: { label: tr('lx.feed.see'), run: () => openViewer(series.extras.map(p => p.id)) }
       });
     }
@@ -278,7 +281,10 @@ export function LumiFeed() {
         text: tr('lx.feed.shots', { count: shots.length }),
         sub: bytes(shots) ? tr('lx.feed.frees', { size: formatBytes(bytes(shots), locale) }) : undefined,
         action: tr('lx.feed.shotsGo'),
-        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(shots.map(p => p.id))),
+        run: () => {
+          if (gatePremium('cleanup')) return;
+          void trashPhotos(shots.map(p => p.id)).then(r => settleFreeCleanup(!r.cancelled && r.deleted > 0), () => settleFreeCleanup(false));
+        },
         second: { label: tr('lx.feed.see'), run: () => openViewer(shots.map(p => p.id)) }
       });
     }
@@ -292,7 +298,10 @@ export function LumiFeed() {
         text: tr('lx.feed.blurry', { count: blurry.length }),
         sub: bytes(blurry) ? tr('lx.feed.frees', { size: formatBytes(bytes(blurry), locale) }) : undefined,
         action: tr('lx.feed.blurryGo'),
-        run: () => (gatePremium('cleanup') ? undefined : trashPhotos(blurry.map(p => p.id))),
+        run: () => {
+          if (gatePremium('cleanup')) return;
+          void trashPhotos(blurry.map(p => p.id)).then(r => settleFreeCleanup(!r.cancelled && r.deleted > 0), () => settleFreeCleanup(false));
+        },
         second: { label: tr('lx.feed.see'), run: () => openViewer(blurry.map(p => p.id)) }
       });
     }

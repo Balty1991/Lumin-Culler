@@ -25,7 +25,7 @@ import { readCullingStrictness } from '../state/cullingStrictness';
 import { quickDuplicateScan, type QuickScanResult } from './quickDuplicateScan';
 import { buildLibraryIndex, partitionAlreadyImported } from './alreadyImported';
 import { writeGroupingMotive } from './groupingDiagnostics';
-import { dHashFromRgba, hamming64, thumbMetrics } from './dhash';
+import { contradictsLightDecision, dHashFromRgba, FINE_SIDE, hamming64, thumbMetrics } from './dhash';
 import { lightAnalysis } from './lightAnalysis';
 import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
@@ -654,7 +654,7 @@ export async function prioritizeFacesFirst<T extends { file: File; mediaUri?: st
 
 function makeDerivatives(bitmap: ImageBitmap): {
   preview: Promise<Blob>; thumb: Promise<Blob>; lqip: string; dHash: string; w: number; h: number;
-  sharpness: number; exposure: number;
+  sharpness: number; exposure: number; fineSharpness: number;
 } {
   // Preview la rezolutia decodata (max 2048) — pe acesta se evalueaza claritatea
   const pc = document.createElement('canvas');
@@ -687,8 +687,15 @@ function makeDerivatives(bitmap: ImageBitmap): {
   const d = hctx.getImageData(0, 0, 9, 8).data;
   const hash = dHashFromRgba(d, 9);
   const { sharpness, exposure } = thumbMetrics(d, 9);
+  const fineCanvas = document.createElement('canvas');
+  fineCanvas.width = FINE_SIDE;
+  fineCanvas.height = FINE_SIDE;
+  const fineCtx = fineCanvas.getContext('2d', { willReadFrequently: true })!;
+  fineCtx.drawImage(bitmap, 0, 0, FINE_SIDE, FINE_SIDE);
+  const fine = fineCtx.getImageData(0, 0, FINE_SIDE, FINE_SIDE).data;
+  const fineSharpness = thumbMetrics(fine, FINE_SIDE).sharpness;
 
-  return { preview, thumb, lqip, dHash: hash, w: bitmap.width, h: bitmap.height, sharpness, exposure };
+  return { preview, thumb, lqip, dHash: hash, w: bitmap.width, h: bitmap.height, sharpness, exposure, fineSharpness };
 }
 
 interface StageOneReady {
@@ -701,6 +708,7 @@ interface StageOneReady {
   thumbBlob: Blob;
   sharpness: number;
   exposure: number;
+  fineSharpness?: number;
   paperScore?: number;
   bitmap?: ImageBitmap;
   rawMeta?: RawExifMeta;
@@ -839,6 +847,7 @@ async function stageOnePrepare(file: File, mediaUri?: string, precomputed?: Stag
       previewBlob,
       thumbBlob,
       sharpness: fp.sharpness,
+      fineSharpness: fp.fineSharpness,
       exposure: fp.exposure,
       paperScore: fp.paperScore
     };
@@ -865,6 +874,7 @@ async function stageOnePrepare(file: File, mediaUri?: string, precomputed?: Stag
   let h: number;
   let sharpness: number;
   let exposure: number;
+  let fineSharpness: number | undefined;
   let kept: ImageBitmap | undefined = bitmap;
   const offThread = typeof Worker !== 'undefined' && import.meta.env.MODE !== 'test';
   if (offThread) {
@@ -878,20 +888,21 @@ async function stageOnePrepare(file: File, mediaUri?: string, precomputed?: Stag
       h = off.h;
       sharpness = off.sharpness;
       exposure = off.exposure;
+      fineSharpness = off.fineSharpness;
       kept = off.bitmap;
     } catch {
       const sync = timedSync('derivatives', () => makeDerivatives(bitmap));
       [previewBlob, thumbBlob] = await Promise.all([sync.preview, sync.thumb]);
-      ({ lqip, dHash, w, h, sharpness, exposure } = sync);
+      ({ lqip, dHash, w, h, sharpness, exposure, fineSharpness } = sync);
     }
   } else {
     const sync = timedSync('derivatives', () => makeDerivatives(bitmap));
     [previewBlob, thumbBlob] = await Promise.all([sync.preview, sync.thumb]);
-    ({ lqip, dHash, w, h, sharpness, exposure } = sync);
+    ({ lqip, dHash, w, h, sharpness, exposure, fineSharpness } = sync);
   }
 
   const paperScore = await paperScoreOffMain(kept ?? bitmap);
-  const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, paperScore, bitmap: kept, rawMeta };
+  const ready: StageOneReady = { id, dHash, w, h, lqip, previewBlob, thumbBlob, sharpness, exposure, fineSharpness, paperScore, bitmap: kept, rawMeta };
   await saveStageOne({
     key, dHash, width: w, height: h, sharpness, exposure, paperScore,
     size: file.size, mtime: file.lastModified, lqip,
@@ -1102,13 +1113,14 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
         width: w,
         height: h
       });
-  const status = isolate?.aside
+  let status = isolate?.aside
     ? isolate.status
     : heavy
       ? decidePhotoStatus(prediction.score, analysis, thresholds)
       : Number.isFinite(sharpness) && Number.isFinite(exposure)
         ? statusFromScore(prediction.score, thresholds)
         : 'review';
+  if (!heavy && !isolate?.aside && contradictsLightDecision(status, prepared.fineSharpness)) status = 'review';
 
   const photo: PhotoRecord = {
     id,
