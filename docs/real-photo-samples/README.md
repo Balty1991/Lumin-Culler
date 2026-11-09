@@ -2,6 +2,8 @@
 
 Fotografiile de aici sunt exemple reale, nu imagini desenate. Sunt folosite ca material de verificare vizuală locală pentru aceeași funcție `renderLook` folosită de testele editorului. Nicio fotografie nu este trimisă la server de aplicație.
 
+Grila cu toate cele 20, cu verdictul pe fiecare („mai bună” sau „nu e mai bună”), este [`docs/editor-before-after.jpg`](../editor-before-after.jpg). Licențele sunt în [`LICENSES.md`](LICENSES.md). Cifrele sunt în [`bench-results.json`](bench-results.json). Se regenerează cu `npx tsx scripts/render-editor-bench.ts`.
+
 Pentru a recrea rezultatele înainte/după:
 
 ```bash
@@ -9,11 +11,11 @@ python3 -m pip install Pillow
 npx --yes tsx scripts/render-real-photo-samples.ts
 ```
 
-Scriptul citește cele trei fișiere JPEG, aplică algoritmul local din `src/core/renderLook.ts` și scrie versiunile „după” în `rendered/` plus valorile măsurate în `results.json`. Fotografia portret are o regiune a feței delimitată manual ca input de test; algoritmul nu a activat relight-ul în această probă (`relight: 0`), deci portretul nu demonstrează corecția feței. Nu este testată detectarea automată a fețelor.
+Scriptul citește cele trei fișiere JPEG, aplică algoritmul local din `src/core/renderLook.ts` și scrie versiunile „după” în `rendered/` plus valorile măsurate în `results.json`. Portretul auriu are fața deja deschisă, deci relight-ul rămâne 0 acolo, intenționat: nu se răcește aurul. Portretul la fereastră, din cele 20, este proba în care fața din umbră se deschide. Fețele din grilă sunt marcate manual; detectarea nativă nu e testată aici.
 
 ![Comparație înainte și după pe cele trei fotografii reale](preview.jpg)
 
-În rularea de referință, algoritmul a ridicat luminanța medie a fotografiei subexpuse de la 0,2158 la 0,3398 și a cadrului urban de la 0,2994 la 0,3969. Pe portret a detectat dominanta de culoare, claritatea redusă și tonul pielii; rezultatul a rămas aproape la aceeași luminanță. Regiunea feței este doar o etichetă manuală, iar relight-ul nu a fost activat de rețetă în această probă (`relight: 0`). Datele complete sunt în [`results.json`](results.json).
+Cifrele curente, inclusiv cele 20, sunt în [`bench-results.json`](bench-results.json). Cele trei de mai jos rămân pentru scriptul vechi.
 
 ## Imagini și licențe
 

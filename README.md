@@ -2,7 +2,7 @@
 
 Asistentul foto cu AI care rulează pe telefon. Alege pozele zilei, grupează seriile, face curățenie în galerie și poate înfrumuseța o poză — fără să urce fotografiile pe un server. Pe Google Play înlocuiește Lumin Culler, cu același pachet `com.luminculler.app`.
 
-Versiunea afișată vine din `package.json` (acum 3.3.0). `versionCode`-ul local din `android/app/build.gradle` crește la fiecare încărcare; pachetul din Play e construit de `.github/workflows/release-android.yml`, care pune `versionCode` din numărul rulării GitHub.
+Versiunea afișată vine din `package.json` (acum 3.4.0). `versionCode`-ul local din `android/app/build.gradle` crește la fiecare încărcare; pachetul din Play e construit de `.github/workflows/release-android.yml`, care pune `versionCode` din numărul rulării GitHub.
 
 ## Ce rămâne neschimbat la publicare
 

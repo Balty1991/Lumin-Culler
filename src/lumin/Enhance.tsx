@@ -320,6 +320,12 @@ export function sceneTune(img: HTMLImageElement, e: EditAdjustments, a?: { scene
       issues = recipe.issues;
       const merged = mergeRecipe(e, recipe);
       Object.assign(e, merged);
+      // Portretul cu fața deja clară nu primește accentuarea oarbă de mai sus:
+      // ea mușca din bokeh (raportat pe portrete în contralumină caldă).
+      if (faces.length && !recipe.issues.includes('soft')) {
+        e.sharpen = Math.min(e.sharpen ?? 0, 8);
+        if ((e.clarity ?? 0) > 8) e.clarity = 8;
+      }
     }
   } catch { /* diagnosticul e un plus; corectura de bază rămâne */ }
   return { scenes, issues };
@@ -350,7 +356,20 @@ function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, 
       count++;
     }
     if (!count) return 0;
-    return liftFor(sum / count, big.length > 0 && count >= 4);
+    let whole = 0;
+    const pixels = n * n;
+    for (let i = 0; i < d.length; i += 4) whole += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+    whole /= pixels;
+    const faceLuma = sum / count;
+    const onFaces = big.length > 0 && count >= 4;
+    // Ten închis într-o poză deja expusă nu e o față prea întunecată. O siluetă
+    // adevărată (fața foarte jos, cadrul luminos) primește doar un plus mic:
+    // relight-ul local deschide fața, expunerea globală ar arde fereastra.
+    if (onFaces && whole > 0.38 && faceLuma < 0.5) {
+      if (faceLuma > 0.2) return 0;
+      return Math.round(Math.min(8, Math.max(0, (0.28 - faceLuma) * 30)));
+    }
+    return liftFor(faceLuma, onFaces);
   } catch { return 0; }
 }
 
@@ -581,6 +600,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   useEffect(() => {
     if (!src || revealed.current) return;
     revealed.current = true;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      splitValue.current = 50;
+      placeSplit(50);
+      setSplit(50);
+      return;
+    }
     const t0 = performance.now();
     let raf = 0;
     const tick = (now: number) => {

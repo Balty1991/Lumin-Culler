@@ -103,4 +103,44 @@ describe('corecția automată pe telefon', () => {
     expect(recipe.issues.some(id => id === 'haze' || id === 'flat')).toBe(true);
     expect(span(data)).toBeGreaterThan(span(src) + 8);
   });
+
+  it('nu tratează tenul închis, bine expus, ca pe o contralumina', () => {
+    const w = 80, h = 60;
+    const src = paint(w, h, (x, y) => {
+      const u = x / w, v = y / h;
+      const skin = u > 0.3 && u < 0.7 && v > 0.22 && v < 0.7;
+      const n = ((x * 5 + y * 3) % 7) - 3;
+      return skin ? [96 + n, 64 + n, 46] : [176, 112, 72];
+    });
+    const { recipe } = renderLook(src, w, h, [face]);
+    expect(recipe.issues).not.toContain('backlit');
+    expect(recipe.relight).toBeLessThan(15);
+  });
+
+  it('nu răcește aurul de apus de pe o față deja deschisă', () => {
+    const w = 80, h = 60;
+    const src = paint(w, h, (x, y) => {
+      const u = x / w, v = y / h;
+      const skin = u > 0.35 && u < 0.65 && v > 0.25 && v < 0.6;
+      return skin ? [210, 160, 120] : (y < 18 ? [230, 170, 90] : [190, 140, 80]);
+    });
+    const { recipe } = renderLook(src, w, h, [face]);
+    expect(recipe.adjustments.temperature ?? 0).toBeGreaterThan(-3);
+  });
+
+  it('îndreaptă un orizont înclinat puțin și lasă unghiul voit', () => {
+    const w = 90, h = 60;
+    const tilted = paint(w, h, (x, y) => {
+      const edge = 22 + (x / w) * 8;
+      return y < edge ? [120, 170, 220] : [90, 120, 60];
+    });
+    const { recipe } = renderLook(tilted, w, h);
+    expect(Math.abs(recipe.horizonDeg)).toBeGreaterThan(1.5);
+    expect(Math.abs(recipe.horizonDeg)).toBeLessThan(8);
+    const steep = paint(w, h, (x, y) => {
+      const edge = 8 + (x / w) * 40;
+      return y < edge ? [120, 170, 220] : [90, 120, 60];
+    });
+    expect(renderLook(steep, w, h).recipe.horizonDeg).toBe(0);
+  });
 });

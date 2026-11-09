@@ -9,14 +9,14 @@
       "soft"
     ],
     "meanLumaBefore": 0.2158,
-    "meanLumaAfter": 0.3398,
+    "meanLumaAfter": 0.3488,
     "adjustments": {
-      "exposure": 21,
+      "exposure": 27,
       "shadows": 32,
       "toneMap": 45,
       "sharpen": 16,
       "clarity": 10,
-      "saturation": 8,
+      "saturation": 6,
       "relight": 0,
       "redEye": 0
     }
@@ -32,11 +32,12 @@
       "skin"
     ],
     "meanLumaBefore": 0.5893,
-    "meanLumaAfter": 0.5824,
+    "meanLumaAfter": 0.5898,
     "adjustments": {
-      "temperature": -22,
+      "temperature": -8,
       "sharpen": 16,
       "clarity": 10,
+      "tint": 4,
       "relight": 0,
       "redEye": 0
     }
@@ -52,13 +53,13 @@
       "noise"
     ],
     "meanLumaBefore": 0.2994,
-    "meanLumaAfter": 0.3969,
+    "meanLumaAfter": 0.402,
     "adjustments": {
-      "exposure": 15,
+      "exposure": 20,
       "shadows": 22,
       "toneMap": 33,
-      "temperature": 26,
-      "tint": 16,
+      "temperature": 12,
+      "tint": 8,
       "noiseReduction": 42,
       "sharpen": 6,
       "clarity": -4,
