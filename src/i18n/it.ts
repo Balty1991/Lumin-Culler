@@ -1004,7 +1004,7 @@ export const dict: Record<string, string> = {
   "lx.models.ready": "Pronti: bellezza, etichette e ricerca per contenuto",
   "lx.models.missing": "Non ancora scaricati",
   "lx.models.sub": "Funzionano solo sul telefono. Si scaricano una volta (≈224 MB), in Wi-Fi o con i dati mobili.",
-  "lx.models.metered": "La rete è segnata come a consumo, quindi non ho scaricato da solo. Tocca il pulsante per iniziare.",
+  "lx.models.metered": "Sei sui dati mobili, non sul Wi-Fi. Il download aspetta il Wi-Fi — oppure tocca il pulsante per scaricare ora.",
   "lx.models.error": "Download non riuscito. Controlla la connessione e riprova.",
   "lx.models.download": "Scarica ora",
   "lx.models.confirm": "Scaricare i motori IA (≈224 MB)? Con i dati mobili può costare. Continuare?",

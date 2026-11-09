@@ -9,7 +9,7 @@ import { useSyncExternalStore } from 'react';
 import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
 import { logError } from '../core/errorLog';
 import { weakDevice } from '../core/deviceClass';
-import { mayDownloadNow } from './dataMode';
+import { syncDownloadGate } from './aiModels';
 
 const HF = 'https://huggingface.co';
 const FL = `${HF}/onnx-community/Florence-2-base-ft/resolve/main`;
@@ -70,7 +70,11 @@ export async function refreshEngines(): Promise<void> {
       if (!state.busy) return;
       const eng = ENGINES.find(e => e.id === state.busy);
       const f = eng?.files.find(x => x.file === ev.what);
-      if (f) set({ progress: Math.min(1, ev.loaded / (ev.total > 0 ? ev.total : f.min)) });
+      if (f) {
+        const den = ev.total > 0 ? ev.total : f.min;
+        const loaded = Number(ev.loaded);
+        if (den > 0 && Number.isFinite(loaded)) set({ progress: Math.min(1, loaded / den) });
+      }
     }).catch(() => undefined);
   }
   try { set({ have: (await Native.files()).files }); } catch { /* rămâne */ }
@@ -98,11 +102,19 @@ export async function downloadEngine(id: string): Promise<boolean> {
   return engineReady(e);
 }
 
-/** Descarcă pe rând tot ce lipsește. */
-export async function downloadAllEngines(): Promise<void> {
-  if (!isClipPlatform() || state.busy) return;
+/** Descarcă pe rând tot ce lipsește. `true` dacă la final sunt toate pe telefon. */
+export async function downloadAllEngines(): Promise<boolean> {
+  if (!isClipPlatform()) return false;
+  while (state.busy) await new Promise(r => setTimeout(r, 400));
   const locale = (await import('../state/store')).useStore.getState().locale;
-  for (const e of enginesFor(locale)) if (!engineReady(e)) await downloadEngine(e.id);
+  const weak = await weakDevice();
+  for (const e of enginesFor(locale)) {
+    if (engineReady(e) || engineSkipped(e.id, weak)) continue;
+    await downloadEngine(e.id);
+  }
+  const ready = await enginesReadyForGallery();
+  if (ready) notifyEnginesReady();
+  return ready;
 }
 
 /**
@@ -119,11 +131,12 @@ export async function autoFetchEngines(): Promise<boolean> {
   const weak = await weakDevice();
   const locale = (await import('../state/store')).useStore.getState().locale;
   for (const e of enginesFor(locale)) {
-    if (engineReady(e) || (weak && (e.id === 'describe' || e.id === 'eraserHd'))) continue;
+    if (engineReady(e) || engineSkipped(e.id, weak)) continue;
     // „Doar pe Wi-Fi”: pe date mobile, descărcarea automată așteaptă (butoanele din Setări merg oricum).
-    if (!mayDownloadNow()) { autoDone = false; return got; }
+    if (!(await syncDownloadGate())) { autoDone = false; return got; }
     if ((await downloadEngine(e.id)) || (await downloadEngine(e.id))) got = true; // o reîncercare
   }
+  if (await enginesReadyForGallery()) notifyEnginesReady();
   return got;
 }
 
@@ -147,4 +160,31 @@ export async function fetchEngine(id: string): Promise<boolean> {
 export function enginesFor(locale: string): Engine[] {
   const base = locale.slice(0, 2);
   return ENGINES.filter(e => !e.lang || e.lang === base);
+}
+
+/** Descrierea și Guma HD nu rulează pe telefoanele slabe: nu le așteptăm. */
+export function engineSkipped(id: string, weak: boolean): boolean {
+  return weak && (id === 'describe' || id === 'eraserHd');
+}
+
+export const ENGINES_READY_EVENT = 'cherrypic-engines-ready';
+
+/**
+ * Analiza galeriei are voie să pornească?
+ * - web sau „Mai târziu”: da, cu motoarele din APK;
+ * - fereastra de după instalare încă pe ecran: nu;
+ * - a ales descărcarea: da, abia când motoarele cerute sunt pe telefon.
+ */
+export async function enginesReadyForGallery(): Promise<boolean> {
+  if (!isClipPlatform()) return true;
+  const { dataMode, enginesPromptPending } = await import('./dataMode');
+  if (dataMode() === null) return !enginesPromptPending();
+  await refreshEngines();
+  const weak = await weakDevice();
+  const locale = (await import('../state/store')).useStore.getState().locale;
+  return enginesFor(locale).every(e => engineReady(e) || engineSkipped(e.id, weak));
+}
+
+function notifyEnginesReady(): void {
+  window.dispatchEvent(new Event(ENGINES_READY_EVENT));
 }

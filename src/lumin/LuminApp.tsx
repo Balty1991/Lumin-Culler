@@ -27,6 +27,7 @@ import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
 import { autoSortToday, decideRestIfAllowed, summarizeToday } from './autoSort';
 import { markReaderStartedIfLegacy, readWholeGallery, readerStarted, readerStopped } from './galleryReader';
+import { ENGINES_READY_EVENT } from './engines';
 import { syncPeopleAlbums } from './phoneAlbums';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { TodayScreen } from './TodayScreen';
@@ -279,7 +280,15 @@ export function LuminApp() {
       // A amânat sau a ales singur pozele la început: nu citim de capul nostru (nici pozele
       // zilei) până nu pornește el citirea o dată.
       if (!readerStarted() || (readerStopped() && useStore.getState().photos.length === 0)) return;
-      autoRun();
+      void (async () => {
+        const { enginesReadyForGallery } = await import('./engines');
+        // După instalare: întâi motoarele, apoi analiza. „Mai târziu” nu blochează.
+        if (!(await enginesReadyForGallery())) {
+          void import('./clipBackfill').then(m => m.startClipBackfill());
+          return;
+        }
+        autoRun();
+      })();
     };
     const autoRun = () => void autoSortToday().then(async r => {
       if (r) useLx.getState().setAutoResult(r);
@@ -293,9 +302,10 @@ export function LuminApp() {
     });
     // Pornirea întâi desenează Azi și răspunde la atingeri; sortarea zilei vine după ~1,2 s.
     const first = window.setTimeout(run, 1200);
-    if (!Capacitor.isNativePlatform()) return () => window.clearTimeout(first);
+    window.addEventListener(ENGINES_READY_EVENT, run);
+    if (!Capacitor.isNativePlatform()) return () => { window.clearTimeout(first); window.removeEventListener(ENGINES_READY_EVENT, run); };
     const sub = CapacitorApp.addListener('resume', run);
-    return () => { window.clearTimeout(first); void sub.then(h => h.remove()); };
+    return () => { window.clearTimeout(first); window.removeEventListener(ENGINES_READY_EVENT, run); void sub.then(h => h.remove()); };
   }, [booted, welcomeSeen]);
 
   // Fețele: după pornire și după fiecare import, amprentele lipsă și numele recunoscute.

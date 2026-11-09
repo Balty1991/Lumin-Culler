@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from 'react';
 import { ClipNative, isClipPlatform } from '../core/clip/clipEngine';
 import { prepareClipSearch } from '../core/clip/clipSearch';
+import { mayDownloadNow, setNativeWifi } from './dataMode';
 
 export type ModelsPhase = 'unsupported' | 'idle' | 'downloading' | 'scanning' | 'ready' | 'metered' | 'error';
 export interface ModelsState {
@@ -34,14 +35,42 @@ export function useModelsState(): ModelsState {
   return useSyncExternalStore(cb => { subs.add(cb); return () => subs.delete(cb); }, () => state);
 }
 
+/** 0..1, niciodată NaN (total lipsă de la server sau eveniment pentru alt fișier). */
+export function downloadFraction(loaded: unknown, total: unknown, fallback: number): number {
+  const n = typeof loaded === 'number' ? loaded : Number(loaded);
+  const t = typeof total === 'number' ? total : Number(total);
+  const den = Number.isFinite(t) && t > 0 ? t : fallback;
+  if (!Number.isFinite(n) || !Number.isFinite(den) || den <= 0) return 0;
+  return Math.min(1, n / den);
+}
+
+/** Întreabă telefonul dacă descărcarea „doar pe Wi-Fi” are voie acum. */
+export async function syncDownloadGate(): Promise<boolean> {
+  if (!isClipPlatform()) return mayDownloadNow();
+  try {
+    const a = await ClipNative.available();
+    setNativeWifi(!!a.wifi);
+  } catch { /* rămâne estimarea din browser */ }
+  return mayDownloadNow();
+}
+
 let listening = false;
 async function listen() {
   if (listening || !isClipPlatform()) return;
   listening = true;
   try {
     const sizes: Record<string, number> = { vision: 89e6, text: 136e6 };
-    await (ClipNative as unknown as { addListener(e: string, f: (ev: { what: 'vision' | 'text'; loaded: number; total: number }) => void): Promise<unknown> })
-      .addListener('progress', ev => setModelsState({ phase: 'downloading', what: ev.what, progress: Math.min(1, ev.loaded / (ev.total > 0 ? ev.total : sizes[ev.what])) }));
+    await (ClipNative as unknown as { addListener(e: string, f: (ev: { what: string; loaded: number; total: number }) => void): Promise<unknown> })
+      .addListener('progress', ev => {
+        // fetchModel anunță numele fișierului; ăsta e progresul celorlalte motoare.
+        // Fără filtrare, „motorul de imagine” ajungea la NaN%.
+        if (ev.what !== 'vision' && ev.what !== 'text') return;
+        setModelsState({
+          phase: 'downloading',
+          what: ev.what,
+          progress: downloadFraction(ev.loaded, ev.total, sizes[ev.what] ?? 1)
+        });
+      });
   } catch { /* fără progres, doar starea finală */ }
 }
 

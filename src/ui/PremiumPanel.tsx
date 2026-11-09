@@ -326,6 +326,7 @@ export function PremiumPanel() {
             {plans.length > 1 && (
               <fieldset className="premium-plans">
                 <legend className="premium-group-head">{tr('premium.plans.title')}</legend>
+                <div className="premium-plans-grid">
                 {plans.map(plan => {
                   const isPicked = plan.id === picked?.id;
                   // Economia se raporteaza mereu la PRIMUL plan (lunarul), si
@@ -362,6 +363,7 @@ export function PremiumPanel() {
                     </label>
                   );
                 })}
+                </div>
               </fieldset>
             )}
             <button

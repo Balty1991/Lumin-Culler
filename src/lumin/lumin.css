@@ -352,7 +352,8 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx .premium-perk { border-radius: 18px; border: 1px solid var(--lx-line); background: var(--lx-glass); padding: 14px 16px; margin: 8px 0; }
 .lx .premium-perk.is-wanted { border-color: rgb(var(--accent-rgb) / 0.7); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.12); }
 .lx .premium-group-head { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; margin: 18px 0 6px; }
-.lx .premium-plans { display: grid; gap: 10px; }
+.lx .premium-plans { display: block; margin: 4px 0 10px; }
+.lx .premium-plans-grid { display: grid; gap: 10px; }
 .lx .premium-plans button, .lx .premium-plans label { border-radius: 18px; }
 .lx .btn-accent { background: var(--lx-grad); color: #06070a; border: none; border-radius: 16px; font-weight: 700; min-height: 52px; box-shadow: 0 12px 30px -12px rgb(var(--accent-rgb) / 0.7); }
 .lx .confirm-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }

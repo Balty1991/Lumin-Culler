@@ -10,7 +10,7 @@
 import { db } from '../core/db';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { clipAnalyze, prepareClip, refineTags, isClipPlatform } from '../core/clip/clipEngine';
-import { downloadModels, getModelsState, refreshModels, setModelsState } from './aiModels';
+import { downloadModels, getModelsState, refreshModels, setModelsState, syncDownloadGate } from './aiModels';
 import { useStore } from '../state/store';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 import { t } from '../i18n';
@@ -35,9 +35,21 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
   if (dataMode() === null) { await refreshModels().catch(() => undefined); if (!getModelsState().visionReady) return; }
   running = true;
   try {
-    // Ambele modele întâi (cu progres în Setări), apoi trecerea prin poze.
-    await downloadModels(anyNetwork);
-    if (!getModelsState().visionReady && !(await prepareClip(anyNetwork))) return;
+    const allow = anyNetwork || await syncDownloadGate();
+    if (!allow) {
+      setModelsState({ phase: 'metered', error: undefined });
+      return;
+    }
+    // Întâi toate motoarele. Analiza galeriei pornește la sfârșitul descărcării,
+    // nu în timpul ei (raportat: „Analizez pozele” cât 2 din 12 motoare erau pe telefon).
+    const engines = await import('./engines');
+    if (!(await engines.enginesReadyForGallery())) {
+      const got = await engines.downloadAllEngines();
+      if (!got) { setModelsState({ phase: 'error' }); return; }
+    }
+    // Rețeaua a fost verificată deja; prepare() nu mai are voie să refuze Wi-Fi-ul real.
+    await downloadModels(true);
+    if (!getModelsState().visionReady && !(await prepareClip(true))) return;
     const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
     setModelsState({ phase: 'scanning', scanned: 0, toScan: todo.length });
     const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.scanning', { done: d, total: todo.length });
@@ -79,9 +91,6 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
     await deepPass();
-    // La final, motoarele care încă lipsesc (selecție, gumă, portret, film…).
-    // Ce s-a descărcat acum (ex. traducerea) se folosește imediat: încă o trecere.
-    void import('./engines').then(m => m.autoFetchEngines()).then(got => { if (got) window.setTimeout(() => { void startClipBackfill(); }, 3000); });
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
   } finally {

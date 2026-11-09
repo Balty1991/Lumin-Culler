@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { isClipPlatform } from '../core/clip/clipEngine';
 import { useStore } from '../state/store';
 import { useTr } from './context';
-import { dataMode, setDataMode, type DataMode } from './dataMode';
-import { ENGINES } from './engines';
+import { dataMode, deferEnginesPrompt, setDataMode, type DataMode } from './dataMode';
+import { ENGINES, ENGINES_READY_EVENT } from './engines';
 
 let laterThisRun = false;
 
@@ -37,7 +37,7 @@ export function EnginesIntro() {
         <div className="lx-perm-actions">
           <button className="lx-btn primary" onClick={() => pick('any')}>{tr('lx.intro.any')}</button>
           <button className="lx-btn ghost" onClick={() => pick('wifi')}>{tr('lx.intro.wifi')}</button>
-          <button className="lx-link" onClick={() => { laterThisRun = true; setLater(true); }}>{tr('lx.intro.later')}</button>
+          <button className="lx-link" onClick={() => { laterThisRun = true; deferEnginesPrompt(); setLater(true); window.dispatchEvent(new Event(ENGINES_READY_EVENT)); }}>{tr('lx.intro.later')}</button>
         </div>
       </div>
     </div>,

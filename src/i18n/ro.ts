@@ -3137,7 +3137,7 @@ export const ro = {
   "lx.models.ready": "Gata: frumusețe, etichete și căutare după ce se vede",
   "lx.models.missing": "Încă nedescărcate",
   "lx.models.sub": "Rulează doar pe telefon. Se descarcă o singură dată (≈224 MB), pe Wi-Fi sau pe date mobile.",
-  "lx.models.metered": "Rețeaua e marcată „contorizată”, așa că n-am descărcat singur. Apasă butonul ca să pornești.",
+  "lx.models.metered": "Ești pe date mobile, nu pe Wi-Fi. Descărcarea așteaptă Wi-Fi — sau apasă butonul ca să descarci acum.",
   "lx.models.error": "Descărcarea n-a mers. Verifică internetul și încearcă din nou.",
   "lx.models.download": "Descarcă acum",
   "lx.models.confirm": "Descarc motoarele AI (≈224 MB). Pe date mobile poate costa. Continui?",

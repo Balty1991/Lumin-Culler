@@ -6419,16 +6419,23 @@ button:disabled,
    grup pe care cititoarele de ecran il anunta ca atare, iar pe desktop se poate
    trece prin el cu sagetile, gratis. */
 .premium-plans {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 10px;
+  display: block;
   margin: 4px 0 10px;
   padding: 0;
   border: none;
+  min-width: 0;
 }
-/* `legend` intr-o grila nu se aseaza ca un copil obisnuit — pe toata latimea,
-   explicit, altfel ocupa prima coloana si impinge planurile. */
-.premium-plans > legend { grid-column: 1 / -1; float: left; width: 100%; margin: 0 0 2px; }
+/* Grila stă pe un div, nu pe fieldset: WebView-ul Android suprapune copiii
+   unui fieldset cu display:grid (cardurile de plan, unul peste altul). */
+.premium-plans-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 520px) {
+  .premium-plans-grid { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
+}
+.premium-plans > legend { display: block; width: 100%; margin: 0 0 8px; float: none; }
 .premium-plan {
   position: relative;
   display: block;

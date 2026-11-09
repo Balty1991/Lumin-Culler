@@ -372,7 +372,7 @@ function AiModelsSection() {
     const mod = await import('./clipBackfill');
     void mod.startClipBackfill(true);
   };
-  const pct = Math.round(m.progress * 100);
+  const pct = Number.isFinite(m.progress) ? Math.round(m.progress * 100) : 0;
   return (
     <section className="lx-group">
       <h2>{tr('lx.models.title')}</h2>
@@ -420,7 +420,7 @@ function EnginesList() {
     <div className="lx-engines">
       {/* Pliat: un rând cu starea (raportat: „ocupă mult spațiu”); se deschide la atingere. */}
       <button className="lx-engines-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
-        <span><b>{tr('lx.engines.heading')}</b><small>{st.busy ? `${tr(`lx.engines.${st.busy}`)} · ${Math.round(st.progress * 100)}%` : tr('lx.engines.summary', { ready, total: list.length })}</small></span>
+        <span><b>{tr('lx.engines.heading')}</b><small>{st.busy ? `${tr(`lx.engines.${st.busy}`)} · ${Number.isFinite(st.progress) ? Math.round(st.progress * 100) : 0}%` : tr('lx.engines.summary', { ready, total: list.length })}</small></span>
         <i aria-hidden="true">{open ? '▴' : '▾'}</i>
       </button>
       {open && list.map(e => {
@@ -433,7 +433,7 @@ function EnginesList() {
               <small>{tr(`lx.engines.${e.id}.sub`)} · {e.mb} MB</small>
             </span>
             {ok || now ? (
-              <span className={ok ? 'lx-pill ok' : 'lx-pill warm'}>{ok ? '✓' : `${Math.round(st.progress * 100)}%`}</span>
+              <span className={ok ? 'lx-pill ok' : 'lx-pill warm'}>{ok ? '✓' : `${Number.isFinite(st.progress) ? Math.round(st.progress * 100) : 0}%`}</span>
             ) : (
               <button className="lx-pill lx-pill-btn" onClick={() => void downloadEngine(e.id)}>
                 {st.error === e.id ? tr('lx.engines.retry') : tr('lx.engines.get')}

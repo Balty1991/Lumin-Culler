@@ -62,9 +62,18 @@ class ClipPlugin : Plugin() {
     private fun modelFile(): File = File(context.filesDir, CLIP_FILE)
     private fun ready(): Boolean = modelFile().length() > CLIP_MIN_BYTES
 
+    /**
+     * Wi-Fi sau cablu, chiar dacă Android le marchează „contorizate”
+     * (Xiaomi și unele rețele de acasă). Raportat: Wi-Fi activ, iar fereastra
+     * de după instalare zice să descarci când ai Wi-Fi. Datele mobile rămân blocate
+     * cât omul a ales „Doar pe Wi-Fi”.
+     */
     private fun unmetered(ctx: Context): Boolean {
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return true
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
@@ -112,7 +121,7 @@ class ClipPlugin : Plugin() {
                         if (done - lastSent > 2_000_000) {
                             lastSent = done
                             val ev = JSObject()
-                            ev.put("what", what); ev.put("loaded", done); ev.put("total", total)
+                            ev.put("what", what); ev.put("loaded", done.toDouble()); ev.put("total", total.toDouble())
                             notifyListeners("progress", ev)
                         }
                     }

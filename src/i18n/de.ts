@@ -1004,7 +1004,7 @@ export const dict: Record<string, string> = {
   "lx.models.ready": "Bereit: Schönheit, Etiketten und Suche nach Bildinhalt",
   "lx.models.missing": "Noch nicht heruntergeladen",
   "lx.models.sub": "Laufen nur auf deinem Telefon. Einmaliger Download (≈224 MB), über WLAN oder mobile Daten.",
-  "lx.models.metered": "Dieses Netz ist als getaktet markiert, daher nichts automatisch geladen. Tippe auf den Button.",
+  "lx.models.metered": "Du bist im Mobilfunk, nicht im WLAN. Der Download wartet auf WLAN — oder tippe auf den Button, um jetzt zu laden.",
   "lx.models.error": "Download fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.",
   "lx.models.download": "Jetzt herunterladen",
   "lx.models.confirm": "KI-Engines herunterladen (≈224 MB)? Mobile Daten können Kosten verursachen. Weiter?",
