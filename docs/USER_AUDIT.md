@@ -1,50 +1,24 @@
-# Audit ca utilizator
+# Audit ca utilizator — 9 noiembrie 2026
 
-Nu am putut instala APK-ul pe un telefon și să apăs prin toate ecranele. Am parcurs fluxurile în cod (pornire, import, Azi, galerie, recenzie, editor, asistent, plată, setări, cele 6 limbi) și am reparat ce ținea de cererea asta. Restul e mai jos, neschimbat.
+Parcurs în build-ul web de producție (ecranele goale și cu poze de probă) și în cod. Nu există telefon ADB în mediul ăsta, deci fluxurile native (coșul Android, Play Billing, camera pentru „Refă poza”) nu au fost apăsate pe un dispozitiv.
 
-## Pornire
+## Ce s-a schimbat
 
-Prima deschidere arată turul și ecranul Azi. Restul ecranelor se încarcă la prima atingere. Textul de prezentare din toate cele șase limbi descrie acum trierea asistată: AI-ul învață din alegeri, grupează duplicatele/rafalele/pozele mișcate pentru revizuire și nu promite ștergere automată. Limba română păstrează diacriticele corecte.
+- Meniul de jos: Azi, Galerie, Studio, Setări. Studio înlocuiește „AI-ul tău” și începe cu „Mai frumoasă”, apoi filme, „Cu cine seamănă”, anul în zâmbete, capsula, coperta. Ce a învățat AI-ul rămâne dedesubt.
+- Galerie: căutarea stă deasupra filtrelor când ești pe Poze. Ordinea filtrelor: Poze, Momente, Oameni, Zile, Deoparte, Luni, Hartă.
+- Azi nu mai îngroapă filmele și duelul. Curățenia și „Acum un an” (cu „Refă poza”, dacă telefonul are cameră) rămân aici.
+- Paywall-ul nu se mai deschide la primul antrenament și nici singur după sortarea automată de dimineață. Apare după cel puțin 7 alegeri Păstrez/Nu azi sau după o curățenie terminată, cel mult o dată pe zi. „Nu acum” și butonul de plată stau deasupra listei lungi de beneficii. Planul implicit rămâne anualul când economia față de lunar e de cel puțin 5%, cu zilele de probă venite de la Play, nu scrise în cod.
+- Evenimentele `paywall_shown`, `paywall_dismissed`, `trial_started`, `purchase_monthly|yearly|lifetime` se scriu doar pe telefon și se citesc din Setări → Diagnostic.
+- Carduri de partajare, desenate pe dispozitiv: spațiul eliberat, înainte/după din editor, „Cu cine seamănă” și „Atunci și acum”. Legătura e fișa Play (`com.luminculler.app`).
+- Autopilotul nu trimite în coș, în bloc, pozele cu oameni înrolați. Documentele și capturile rămân la Deoparte. După ștergere, textul spune câte au plecat în coș, câte fețe au fost protejate și că se pot pune înapoi. „Sortează tot” cu „Decid tot” privește galeria vizibilă, nu doar ziua.
 
-## Import și Azi
+## Ce rămâne pentru proprietar
 
-Pozele noi de azi se citesc din galerie. Înainte, mesajul „Analizat…” aștepta modelele grele (vezi `docs/IMPORT_SPEED.md`). Acum decizia ușoară apare, iar seriile se completează în fundal. Riscul rămas: alegerea „cea mai bună din rafală” se face întâi din claritate și expunere; scorul cu fețe sosește după. Dacă o poză cu ochii închiși e aleasă și apoi coborâtă, omul poate vedea o clipă decizia veche.
-
-## Galerie
-
-Căutarea, momentele, zilele, lunile și oamenii rămân ecranele existente; identitatea roz-violet și dock-ul din captura Android sunt păstrate. Pe „Azi”, starea de analiză, fotografiile alese și decizia asupra celor neclare apar înaintea propunerilor de partajare/memorii. În timpul scanării, cardurile secundare sunt ascunse ca să nu concureze cu progresul. Grila foto nu a fost redesenată structural; am adăugat doar focus vizibil, feedback subtil pe hover și suport pentru `prefers-reduced-motion`. Derularea taburilor rămâne doar pe opacitate, ca să nu strice elementele `position: fixed`.
-
-## Recenzie (Păstrez / Nu azi)
-
-Fluxul de card rămâne. Explicația AI e tot cea de pe telefon. Nu am mutat decizia pe server: cota Cloudflare nu trebuie să stea între om și o poză.
-
-## Editor
-
-„Mai frumoasă” măsoară poza și spune ce a reparat (întuneric, contralumină, culoare, ceață, zgomot, cer, ten, ochi roșii). Linia înainte/după pornește de la „doar după” și alunecă la jumătate. Îndreptarea se activează singură când orizontul e înclinat cu cel puțin 1,5°. Decupajul inteligent nu se aplică singur: ar tăia comparația și, pe un corp întreg, a mai tăiat picioare. Rămâne în fila Cadru.
-
-În browser, compararea înainte/după coalescează mișcările într-un `requestAnimationFrame` și mută separatorul/decuparea direct în DOM; dragul nu mai re-randează toată foaia React la fiecare eveniment. Am păstrat testul final pe telefon ca verificare necesară.
-
-Stilurile Portret, Retuș, Clară, Film, Alb-negru și Dramatică cer Premium la salvare. Natural, Vie și Caldă rămân gratuite, la fel ca toată corecția automată.
-
-## Asistent online
-
-Auto AI nu mai depinde de cotă. Dacă serverul tace, telefonul corectă și spune asta. Cerul și guma fac la fel. Detaliile de plată sunt în `docs/AI_PROVIDERS.md`.
-
-## Plată
-
-`applicationId` rămâne `com.luminculler.app`. Produsele rămân `lumin_premium_monthly`, `lumin_premium_yearly`, `lumin_premium_lifetime`. `versionCode` local e 6 (`versionName` 3.2.0). Pachetul din Play e construit de workflow, care pune `versionCode` din numărul rulării GitHub, nu din cifra asta.
-
-Premium deblochează stilurile, textele online fără plafonul din aplicație, filmul zilei, acceptarea tuturor și curățenia. Triajul și corecția automată rămân gratuite: altfel abonamentul s-ar vinde pe ceva ce telefonul face oricum.
-
-## Setări și limbi
-
-Șase limbi, căderea pe engleză pentru cheile lipsă. Nu am retestat fiecare ecran în fiecare limbă pe un dispozitiv.
-
-## Ce rămâne de făcut pe un telefon
-
-- Confirmat viteza pe aceleași 8 poze (mesajul nou ar trebui să fie mult sub 2 s/poză; seriile se termină în fundal).
-- Sunt adăugate probe locale înainte/după pe fotografii reale în `docs/real-photo-samples/`; ele exercită `renderLook`, nu întregul ecran nativ „Mai frumoasă”. Trebuie confirmat pe telefon că importul, afișarea, atingerea butoanelor și salvarea merg pe fotografii dintr-o galerie reală.
-- Testul fizic pe un Android nu a fost făcut: mediul de dezvoltare nu are dispozitiv ADB sau emulator Android disponibil.
-- Cheie Gemini dacă se vrea rafinarea online după ce cota Cloudflare moare.
-- Semnarea de release: fără `keystore.properties`, `assembleRelease` iese nesemnat, cum era și înainte.
-- Play Console: data safety neschimbată dacă nu se pornește Gemini. Cu Gemini, poza mică pleacă la Google și declarația trebuie să o spună.
+- În Play Console, produsele trebuie să existe cu ID-urile din cod: `lumin_premium_monthly`, `lumin_premium_yearly` (probă 7 zile doar pe anual, pentru utilizatori noi), `cherrypic_pro_forever` (produs unic). Documentația veche mai scria `lumin_premium_lifetime` — ăla e ID-ul istoric al aplicației înlocuite, nu ID-ul din `BillingPlugin.kt`. Nu redenumi ID-urile în cod: creează în Console exact șirurile de mai sus. `cherrypic_pro_lifetime` e ocupat greșit ca abonament și nu se refolosește.
+- Prețurile din fișă (12,99 RON / 69,99 RON / 149,99 RON și echivalentele EUR/USD) se pun în Console. Aplicația arată doar ce răspunde Play.
+- Oferta de recâștigare pe anual, listingurile RO/EN, experimentul de fișă și clipul de 15–30 s sunt în Play Console, nu în cod. Vezi `docs/PLAY_STORE_LISTING_CHERRYPIC.md`.
+- Semnarea: fără `keystore.properties`, AAB-ul de release iese nesemnat. Billing nu răspunde unui APK de debug.
+- `versionCode` local e 7, `versionName` 3.3.0. Workflow-ul de release suprascrie `versionCode` cu `GITHUB_RUN_NUMBER`.
+- Editorul automat are 3 fotografii reale licențiate în `docs/real-photo-samples/`, nu 12. Pe portretul în contralumină, rețeta de probă nu a activat relight-ul. Confirmarea „wow” pe un telefon, cu poze de 12 MP din galerie, rămâne de făcut. Nu promitem super-rezoluție de tip Remini.
+- Viteza de import nu a fost remăsurată pe telefonul proprietarului. Ținta din roadmap (sub 0,5 s/poză pentru prima decizie) rămâne nemăsurată aici.
+- Data safety rămâne „nu colectăm” cât timp Cloud e oprit. Un furnizor Gemini schimbă declarația înainte de publicare.

@@ -1,6 +1,7 @@
 import { countGalleryPhotosSince, getPhotosAccess, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { startOfDay } from '../core/todayDigest';
 import { t } from '../i18n';
+import { autopilotKeeps } from '../state/batchOps';
 import { useStore } from '../state/store';
 import { groupDays, photoTime } from './days';
 import { readAutonomy } from './twin';
@@ -35,9 +36,11 @@ export function autoSortEnabled(): boolean {
 export async function decideRestIfAllowed(scope: 'today' | 'library' = 'today'): Promise<number> {
   const store = useStore.getState();
   if (readAutonomy() !== 'all' || store.premiumLocked) return 0;
-  const unsure = scope === 'library'
-    ? store.photos.filter(p => !p.aside && p.status === 'review').map(p => p.id)
-    : (groupDays(store.photos).find(d => d.start === startOfDay())?.waiting.filter(p => p.status === 'review').map(p => p.id) ?? []);
+  const pool = scope === 'library'
+    ? store.photos.filter(p => !p.aside && p.status === 'review')
+    : (groupDays(store.photos).find(d => d.start === startOfDay())?.waiting.filter(p => p.status === 'review') ?? []);
+  // Familia rămâne de hotărât de om, și la ziua de azi, și la toată galeria.
+  const unsure = pool.filter(p => autopilotKeeps(p) !== 'family').map(p => p.id);
   if (!unsure.length) return 0;
   if (scope === 'library') {
     const ok = await store.askConfirm(t(store.locale, 'lx.sortAll.confirm', { count: unsure.length }), { confirmLabel: t(store.locale, 'lx.today.acceptAll') });

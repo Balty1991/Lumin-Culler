@@ -11,6 +11,7 @@ import { resumeFor } from './premiumResume';
 import { FREE_DAILY, cloudAvailable } from '../lumin/cloud';
 import { seriesExtras } from '../lumin/LumiFeed';
 import { formatBytes } from '../core/freedSpace';
+import { logPaywall, purchaseEvent, readPaywallContext } from '../lumin/paywallMoment';
 
 const FREE_CLOUD_WRITES = FREE_DAILY.write;
 
@@ -107,10 +108,11 @@ export function PremiumPanel() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    logPaywall('paywall_shown', premiumReason ?? 'menu');
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { logPaywall('paywall_dismissed', premiumReason ?? 'menu'); setOpen(false); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, setOpen]);
+  }, [open, setOpen, premiumReason]);
 
   /**
    * Planul pe care apasa butonul. `resolvePlan` cade pe implicit daca id-ul
@@ -236,8 +238,12 @@ export function PremiumPanel() {
                 setBusy(true); setFailed(false);
                 void startSubscription(picked?.id)
                   .then(async outcome => {
-                    if (outcome === 'purchased') await refreshEntitlement();
-                    else if (outcome === 'unavailable') setFailed(true);
+                    if (outcome === 'purchased') {
+                      if (picked?.trialDays) logPaywall('trial_started', picked.id);
+                      const ev = purchaseEvent(picked?.id);
+                      if (ev) logPaywall(ev, picked?.id ?? '');
+                      await refreshEntitlement();
+                    } else if (outcome === 'unavailable') setFailed(true);
                   })
                   .finally(() => setBusy(false));
               }}
@@ -259,6 +265,7 @@ export function PremiumPanel() {
                       { price: picked.price })}
               </p>
             )}
+            <button className="ghost premium-restore" onClick={() => { logPaywall('paywall_dismissed', 'not_now'); setOpen(false); }}>{tr('premium.notNow')}</button>
           </div>
         )}
 
@@ -269,6 +276,10 @@ export function PremiumPanel() {
             asta, si tocmai de-aia cantareste mai mult decat cele sapte
             beneficii de sub ea. */}
         <LifetimeProof locale={locale} premium={premium} />
+        {readPaywallContext() && !premium && <p className="premium-personal">{readPaywallContext()}</p>}
+        {!premium && !(isBillingAvailable() && (picked ?? price)) && (
+          <button className="ghost premium-restore" onClick={() => { logPaywall('paywall_dismissed', 'not_now'); setOpen(false); }}>{tr('premium.notNow')}</button>
+        )}
 
         {/* Doi piloni, nu o listă de funcții. „AI decide tot” singur nu se vinde
             (gratuit decide deja pozele sigure); se vinde acțiunea în masă și
@@ -390,10 +401,6 @@ export function PremiumPanel() {
         ) : isBillingAvailable() && (picked ?? price) ? (
           <>
             {failed && <p className="premium-soon" role="alert">{tr('premium.failed')}</p>}
-            {/* Cerinta Google Play pentru orice aplicatie cu abonamente, si o
-                nevoie reala: dupa reinstalare sau pe un telefon nou, contul are
-                abonamentul, dar cache-ul local (vezi entitlement.ts) e gol. Fara
-                butonul asta, singura solutie era sa astepte o pornire cu retea. */}
             <button
               className="ghost premium-restore"
               disabled={busy}
@@ -407,8 +414,6 @@ export function PremiumPanel() {
               {tr('premium.restore')}
             </button>
             {restored === 'none' && <p className="premium-soon" role="status">{tr('premium.restore.none')}</p>}
-            {/* Ieșirea vizibilă, cu cuvinte: paywall-ul se închide fără vinovăție. */}
-            <button className="ghost premium-restore" onClick={() => setOpen(false)}>{tr('premium.notNow')}</button>
             <p className="premium-soon">{tr('premium.cp.indie')}</p>
           </>
         ) : (

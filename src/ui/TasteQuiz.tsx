@@ -14,14 +14,6 @@ import { t, baseLocale } from '../i18n';
 
 /** Cât stă pe ecran dezvăluirea „AI-ul a ghicit / ar fi ales-o pe asta”. */
 const REVEAL_MS = 650;
-const PAYWALL_SHOWN_KEY = 'lumin-onboarding-paywall';
-
-function paywallShown(): boolean {
-  try { return localStorage.getItem(PAYWALL_SHOWN_KEY) === '1'; } catch { return true; }
-}
-function markPaywallShown(): void {
-  try { localStorage.setItem(PAYWALL_SHOWN_KEY, '1'); } catch { /* fără stocare */ }
-}
 
 /**
  * ui/TasteQuiz.tsx
@@ -42,11 +34,9 @@ export function TasteQuiz() {
   const progress = useStore(s => s.progress);
   const welcomeSeen = useStore(s => s.welcomeSeen);
   const locale = useStore(s => s.locale);
-  const premiumLocked = useStore(s => s.premiumLocked);
   const learnTastePair = useStore(s => s.learnTastePair);
   const guessTastePair = useStore(s => s.guessTastePair);
   const rescorePhotos = useStore(s => s.rescorePhotos);
-  const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
 
   const [open, setOpen] = useState(false);
@@ -186,11 +176,6 @@ export function TasteQuiz() {
 
   const leave = () => {
     setOpen(false);
-    // O singură dată, după primul antrenament: abonamentul, cu buton de închidere.
-    if (firstRun && premiumLocked && !paywallShown()) {
-      markPaywallShown();
-      setPremiumOpen(true);
-    }
   };
 
   if (!open || (!pair && summary === null)) return null;

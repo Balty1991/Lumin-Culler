@@ -17,14 +17,12 @@ import { openBatterySettings, readBatteryRestriction } from '../core/backgroundA
 import { continueOnLowBattery, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
-import { DayStory } from './DayStory';
 import { readTwin } from './twin';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
 import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
-import { Recaps } from './Recaps';
 import { StoryButton } from './Story';
 import { photoTime } from './days';
 
@@ -65,17 +63,6 @@ export function TodayScreen() {
   const readerResult = useLx(s => s.readerResult);
   const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
-  // Proba Pro, o singură dată: chiar după primul „am sortat singură” — atunci
-  // omul a văzut ce face Lumi și înțelege ce cumpără („Lumi decide tot”).
-  useEffect(() => {
-    if (!autoResult || !premiumLocked) return;
-    try { if (localStorage.getItem('lumin-trial-offered')) return; } catch { return; }
-    const t = window.setTimeout(() => {
-      try { localStorage.setItem('lumin-trial-offered', '1'); } catch { /* fără stocare */ }
-      gatePremium('acceptAll');
-    }, 2500);
-    return () => window.clearTimeout(t);
-  }, [autoResult, premiumLocked, gatePremium]);
   const setAutoResult = useLx(s => s.setAutoResult);
 
   const days = useMemo(() => groupDays(photos), [photos]);
@@ -250,7 +237,6 @@ export function TodayScreen() {
         </section>
       )}
 
-      {today && <DayStory photos={today.photos} />}
       {!sortingActive && (
         <>
           <WhoIsThis />

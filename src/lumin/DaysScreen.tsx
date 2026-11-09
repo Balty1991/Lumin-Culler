@@ -35,7 +35,7 @@ import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
 import { intlTag, plural } from '../i18n';
 
-const VIEWS: GalleryView[] = ['wall', 'moments', 'days', 'months', 'people', 'map', 'aside'];
+const VIEWS: GalleryView[] = ['wall', 'moments', 'people', 'days', 'aside', 'months', 'map'];
 // Harta (MapLibre) e mare: se încarcă doar când o deschizi.
 const PhotoMap = lazy(() => import('./PhotoMap').then(m => ({ default: m.PhotoMap })));
 
@@ -52,7 +52,6 @@ export function DaysScreen() {
   const openDay = useLx(s => s.openDay);
   const setOpenDay = useLx(s => s.setOpenDay);
   const view = useLx(s => s.galleryView);
-  const setView = useLx(s => s.setGalleryView);
   // Tabul ales se aduce în vedere doar când se schimbă tabul (raportat: la fiecare
   // actualizare din import, pagina sărea înapoi sus).
   useEffect(() => {
@@ -88,16 +87,8 @@ export function DaysScreen() {
         </div>
       </header>
 
-      <div className="lx-seg scroll" role="tablist">
-        {VIEWS.map(v => (
-          <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
-            onClick={() => setView(v)}>
-            {tr(`lx.days.view.${v}`)}
-          </button>
-        ))}
-      </div>
-
-      {view === 'wall' && <GalleryWall />}
+      {view === 'wall' && <GalleryWall toolbar={<GalleryFilters />} />}
+      {view !== 'wall' && <GalleryFilters />}
       {view === 'moments' && <MomentsView />}
 
       {view === 'days' && (days.length === 0 ? (
@@ -126,6 +117,22 @@ export function DaysScreen() {
 }
 
 /** Luni: cât din galeria telefonului a văzut și a sortat AI-ul, cu „Sortează luna” unde lipsește. */
+function GalleryFilters() {
+  const tr = useTr();
+  const view = useLx(s => s.galleryView);
+  const setView = useLx(s => s.setGalleryView);
+  return (
+    <div className="lx-seg scroll" role="tablist">
+      {VIEWS.map(v => (
+        <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
+          onClick={() => setView(v)}>
+          {tr(`lx.days.view.${v}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function MonthsView({ days }: { days: Day<PhotoView>[] }) {
   const [open, setOpen] = useState<number | null>(null);
   const photos = useLxPhotos();

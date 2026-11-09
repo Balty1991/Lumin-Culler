@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { useTr } from './context';
 import { Orb } from './Orb';
 import { formatBytes, freedSummary, readAutonomy, readTwin, writeAutonomy, type Autonomy } from './twin';
+import { renderFreedCard, shareCard } from './shareCards';
 
 /**
  * lumin/Twin.tsx
@@ -65,6 +66,13 @@ export function FreedCard() {
       <div>
         <b>{tr('lx.freed.month', { size: formatBytes(month, locale) })}</b>
         <span>{tr('lx.freed.total', { size: formatBytes(total, locale) })}</span>
+        <button className="lx-link" onClick={() => {
+          const size = formatBytes(total, locale);
+          const detail = tr('lx.freed.total', { size });
+          void renderFreedCard(size, detail, tr('lx.share.cta')).then(blob => {
+            if (blob) void shareCard(blob, `cherrypic-eliberat-${Date.now()}.jpg`, detail, tr('lx.share.cta'));
+          });
+        }}>{tr('lx.freed.share')}</button>
       </div>
     </section>
   );

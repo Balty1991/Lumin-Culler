@@ -1,6 +1,6 @@
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
 import { useLx } from './lxStore';
 import { closeWithTransition, openWithTransition } from './viewTransition';
@@ -183,7 +183,7 @@ function withTransition(change: () => void) {
   else change();
 }
 
-export function GalleryWall() {
+export function GalleryWall({ toolbar }: { toolbar?: ReactNode }) {
   const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const tr = useTr();
@@ -425,6 +425,7 @@ export function GalleryWall() {
           </button>
         )}
       </label>
+      {toolbar}
       {!query.trim() && !similar && (folder ? (
         <div className="lx-chips">
           <button className="lx-chip-btn on" onClick={() => setFolder(null)}>✕ {folder.emoji} {tr(`lx.folder.${folder.id}`)} <b>{list.length}</b></button>
