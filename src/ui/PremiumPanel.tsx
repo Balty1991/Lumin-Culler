@@ -326,6 +326,10 @@ export function PremiumPanel() {
             {plans.length > 1 && (
               <fieldset className="premium-plans">
                 <legend className="premium-group-head">{tr('premium.plans.title')}</legend>
+                {/* Planurile stau într-un div, nu direct în fieldset: WebView-ul
+                    telefoanelor mai vechi nu știe grid/flex pe <fieldset>, iar cu
+                    trei planuri cardurile ieșeau suprapuse (raportat pe Honor 8X). */}
+                <div className="premium-plans-list">
                 {plans.map(plan => {
                   const isPicked = plan.id === picked?.id;
                   // Economia se raporteaza mereu la PRIMUL plan (lunarul), si
@@ -362,6 +366,7 @@ export function PremiumPanel() {
                     </label>
                   );
                 })}
+                </div>
               </fieldset>
             )}
             <button

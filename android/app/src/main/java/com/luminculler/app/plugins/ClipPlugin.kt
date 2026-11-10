@@ -65,7 +65,12 @@ class ClipPlugin : Plugin() {
     private fun unmetered(ctx: Context): Boolean {
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) ||
+            // Raportat: „aveam Wi-Fi și îmi zicea să descarc când am Wi-Fi”. Unele
+            // routere/telefoane marchează Wi-Fi-ul ca „contorizat”; omul a ales
+            // „doar pe Wi-Fi”, deci orice Wi-Fi sau cablu contează.
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
     }
 
     private fun session(): OrtSession {

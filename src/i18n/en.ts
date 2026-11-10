@@ -463,7 +463,7 @@ export const en: Record<TranslationKey, string> = {
   'premium.perk.composite.title': 'Combining two frames',
   'premium.perk.composite.sub': 'when no single frame works for everyone, it tells you which two to combine',
   'premium.perk.engine.title': '"{name}" learns for free',
-  'premium.perk.engine.sub': 'the engine that adapts to your taste is never paid for. What is paid: "Accept all", the second person profile, and the Lightroom handoff',
+  'premium.perk.engine.sub': 'the engine that adapts to your taste is never paid for. Pro only adds Autopilot, unlimited cleanup and films without the signature',
   'premium.perk.local.title': 'Culling stays free',
   'premium.perk.local.sub': 'import, AI score, sorting, grouping, comparing bursts — any number of photos, no cap',
   'premium.usage.title': 'You have exported {count} of {limit} photos in the last 30 days',

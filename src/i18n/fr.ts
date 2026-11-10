@@ -27,7 +27,7 @@ export const dict: Record<string, string> = {
   "premium.perk.composite.title": "Combiner deux prises",
   "premium.perk.composite.sub": "quand aucune prise ne convient à tout le monde, il te dit lesquelles combiner",
   "premium.perk.engine.title": "« {name} » apprend gratuitement",
-  "premium.perk.engine.sub": "le moteur qui s'adapte à ton goût n'est jamais payant. Ce qui est payant : « Tout accepter », le deuxième profil de personne et l'envoi vers Lightroom",
+  "premium.perk.engine.sub": "le moteur qui s'adapte à ton goût n'est jamais payant. Pro ajoute seulement le Pilote automatique, le nettoyage illimité et les films sans signature",
   "premium.perk.local.title": "Le tri reste gratuit",
   "premium.perk.local.sub": "import, score IA, tri, regroupement, comparaison des rafales — photos illimitées",
   "premium.usage.title": "Tu as exporté {count} photos sur {limit} ces 30 derniers jours",

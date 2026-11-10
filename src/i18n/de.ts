@@ -27,7 +27,7 @@ export const dict: Record<string, string> = {
   "premium.perk.composite.title": "Zwei Aufnahmen kombinieren",
   "premium.perk.composite.sub": "wenn keine einzelne Aufnahme für alle passt, sagt es dir, welche zwei du kombinieren sollst",
   "premium.perk.engine.title": "„{name}“ lernt kostenlos",
-  "premium.perk.engine.sub": "die Engine, die sich deinem Geschmack anpasst, kostet nie etwas. Bezahlt wird: „Alle annehmen“, das zweite Personenprofil und die Lightroom-Übergabe",
+  "premium.perk.engine.sub": "die Engine, die sich deinem Geschmack anpasst, kostet nie etwas. Pro fügt nur Autopilot, unbegrenzte Bereinigung und Filme ohne Signatur hinzu",
   "premium.perk.local.title": "Aussortieren bleibt kostenlos",
   "premium.perk.local.sub": "Import, KI-Bewertung, Sortieren, Gruppieren, Serien vergleichen — beliebig viele Fotos, ohne Limit",
   "premium.usage.title": "Du hast in den letzten 30 Tagen {count} von {limit} Fotos exportiert",

@@ -372,7 +372,7 @@ function AiModelsSection() {
     const mod = await import('./clipBackfill');
     void mod.startClipBackfill(true);
   };
-  const pct = Math.round(m.progress * 100);
+  const pct = Number.isFinite(m.progress) ? Math.round(m.progress * 100) : 0;
   return (
     <section className="lx-group">
       <h2>{tr('lx.models.title')}</h2>

@@ -479,7 +479,7 @@ export const ro = {
   'premium.perk.composite.title': 'Combinarea a două cadre',
   'premium.perk.composite.sub': 'când niciun cadru nu e bun pentru toți, îți spune care două să le combini',
   'premium.perk.engine.title': '„{name}" învață gratuit',
-  'premium.perk.engine.sub': 'motorul care se adaptează la gustul tău nu e plătit niciodată. Se plătesc „Acceptă tot”, al doilea profil de persoană și predarea către Lightroom',
+  'premium.perk.engine.sub': 'motorul care se adaptează la gustul tău nu e plătit niciodată. Pro adaugă doar Pilotul automat, curățenia nelimitată și filmele fără semnătură',
   'premium.perk.local.title': 'Triajul rămâne gratuit',
   'premium.perk.local.sub': 'import, scor AI, sortare, grupare, comparare serii — oricâte poze, fără plafon',
   'premium.usage.title': 'Ai scos {count} din {limit} de poze în ultimele 30 de zile',

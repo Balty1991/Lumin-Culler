@@ -27,7 +27,7 @@ export const dict: Record<string, string> = {
   "premium.perk.composite.title": "Unire due scatti",
   "premium.perk.composite.sub": "quando nessuno scatto va bene per tutti, ti dice quali due unire",
   "premium.perk.engine.title": "«{name}» impara gratis",
-  "premium.perk.engine.sub": "il motore che si adatta al tuo gusto non si paga mai. Si paga: «Accetta tutto», il secondo profilo persona e il passaggio a Lightroom",
+  "premium.perk.engine.sub": "il motore che si adatta al tuo gusto non si paga mai. Pro aggiunge solo Pilota automatico, pulizia illimitata e film senza firma",
   "premium.perk.local.title": "La selezione resta gratuita",
   "premium.perk.local.sub": "importazione, punteggio IA, ordinamento, raggruppamento, confronto delle raffiche — foto illimitate",
   "premium.usage.title": "Hai esportato {count} di {limit} foto negli ultimi 30 giorni",

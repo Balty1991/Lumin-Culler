@@ -41,7 +41,16 @@ async function listen() {
   try {
     const sizes: Record<string, number> = { vision: 89e6, text: 136e6 };
     await (ClipNative as unknown as { addListener(e: string, f: (ev: { what: 'vision' | 'text'; loaded: number; total: number }) => void): Promise<unknown> })
-      .addListener('progress', ev => setModelsState({ phase: 'downloading', what: ev.what, progress: Math.min(1, ev.loaded / (ev.total > 0 ? ev.total : sizes[ev.what])) }));
+      .addListener('progress', ev => {
+        // Evenimentele native pot sosi DUPĂ ce descărcarea s-a terminat; nu
+        // readucem starea în „downloading” (rămânea blocat cu ✓ și 12/12).
+        if (state.phase !== 'downloading') return;
+        const loaded = Number(ev.loaded), total = Number(ev.total);
+        const size = total > 0 ? total : sizes[ev.what] ?? 0;
+        // Raportat: „Descarc motorul de imagine… NaN%”. Fără mărime cunoscută, 0.
+        const p = size > 0 && Number.isFinite(loaded) ? Math.min(1, loaded / size) : 0;
+        setModelsState({ what: ev.what === 'text' ? 'text' : 'vision', progress: p });
+      });
   } catch { /* fără progres, doar starea finală */ }
 }
 

@@ -63,7 +63,12 @@ class EditModelsPlugin : Plugin() {
     private fun unmetered(): Boolean {
         val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return false
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED) ||
+            // Raportat: „aveam Wi-Fi și îmi zicea să descarc când am Wi-Fi”. Unele
+            // routere/telefoane marchează Wi-Fi-ul ca „contorizat”; omul a ales
+            // „doar pe Wi-Fi”, deci orice Wi-Fi sau cablu contează.
+            caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
     }
 
     /** Pornește în fundal descărcarea LaMa (doar pe Wi-Fi, o singură dată). */

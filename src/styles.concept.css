@@ -6420,12 +6420,15 @@ button:disabled,
    trece prin el cu sagetile, gratis. */
 .premium-plans {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 10px;
   margin: 4px 0 10px;
   padding: 0;
   border: none;
+  min-width: 0;
 }
+/* Câte un plan pe rând, pe toată lățimea: cu trei planuri (lunar, anual, pe
+   viață) coloanele ieșeau prea înguste și textele se suprapuneau. */
+.premium-plans-list { display: flex; flex-direction: column; gap: 10px; }
 /* `legend` intr-o grila nu se aseaza ca un copil obisnuit — pe toata latimea,
    explicit, altfel ocupa prima coloana si impinge planurile. */
 .premium-plans > legend { grid-column: 1 / -1; float: left; width: 100%; margin: 0 0 2px; }
@@ -6457,7 +6460,9 @@ button:disabled,
 /* Conturul de focalizare sta pe CARD, nu pe input-ul invizibil — altfel
    navigarea cu tastatura nu arata nimic. */
 .premium-plan:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-.premium-plan-body { display: grid; gap: 2px; }
+.premium-plan-body { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 2px; align-items: center; }
+.premium-plan-body > b { grid-column: 1; }
+.premium-plan-price { grid-column: 2; grid-row: 1; text-align: right; }
 .premium-plan-body > b {
   display: flex;
   align-items: center;
