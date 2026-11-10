@@ -4,7 +4,7 @@
  * Ce lipsește aici cade pe engleză (vezi t() în index.ts).
  */
 export const dict: Record<string, string> = {
-  "premium.title": "Premium",
+  "premium.title": "Cherrypic Pro",
   "premium.reason.locations": "Tu voulais regrouper tes photos par lieu.",
   "premium.reason.vault": "Tu voulais un coffre privé avec code PIN.",
   "premium.reason.contactSheet": "Tu voulais une planche contact.",
@@ -12,7 +12,7 @@ export const dict: Record<string, string> = {
   "premium.reason.xmp": "Tu voulais envoyer ta sélection vers Lightroom.",
   "premium.reason.persons": "Tu voulais ajouter une personne de plus.",
   "premium.reason.cap": "Tu as atteint la limite mensuelle de photos exportées.",
-  "premium.chip": "Premium",
+  "premium.chip": "Pro",
   "premium.lead": "Le tri reste gratuit, quel que soit le nombre de photos. Premium, c'est pour ce que tu fais du résultat.",
   "premium.perk.export.title": "« Tout accepter » : ta journée triée en un geste",
   "premium.perk.export.sub": "gratuit : tu confirmes photo par photo. Avec Pro, tu fais confiance à ton IA et tu boucles la journée en une seconde",
@@ -38,7 +38,7 @@ export const dict: Record<string, string> = {
   "premium.usage.label": "UTILISÉ CES 30 DERNIERS JOURS",
   "premium.price.tag": "{price} par mois · résiliable à tout moment dans Google Play",
   "premium.soon": "Bientôt disponible. Le paiement n'est pas (encore) possible sur cet appareil, donc on ne te demande rien — d'ici là, les limites informent seulement, elles ne bloquent rien.",
-  "premium.chip.active": "Premium actif",
+  "premium.chip.active": "Pro actif",
   "premium.lead.active": "Tu es abonné. Pas de limite pour exporter ou supprimer, autant de personnes reconnues que tu veux, tout le flux professionnel débloqué.",
   "premium.usage.titlePremium": "Tu as exporté {count} photos ces 30 derniers jours — sans limite.",
   "premium.manage": "Gère l'abonnement dans Google Play → Menu → Abonnements. Tu peux le résilier ou le modifier à tout moment ; l'appli ne peut pas le faire à ta place.",
@@ -277,7 +277,7 @@ export const dict: Record<string, string> = {
   "lx.settings.title": "Réglages",
   "lx.settings.pro": "Cherrypic Pro",
   "lx.settings.proActive": "Pro est actif",
-  "lx.settings.proSub": "« Tout accepter » en un geste et les outils avancés",
+  "lx.settings.proSub": "Pilote automatique pour toute la galerie et films sans signature",
   "lx.settings.ai": "Exigence de l'IA",
   "lx.settings.look": "Apparence",
   "lx.settings.language": "Langue",

@@ -4,7 +4,7 @@
  * Ce lipsește aici cade pe engleză (vezi t() în index.ts).
  */
 export const dict: Record<string, string> = {
-  "premium.title": "Premium",
+  "premium.title": "Cherrypic Pro",
   "premium.reason.locations": "Querías agrupar tus fotos por lugar.",
   "premium.reason.vault": "Querías una caja fuerte privada con PIN.",
   "premium.reason.contactSheet": "Querías una hoja de contactos.",
@@ -12,7 +12,7 @@ export const dict: Record<string, string> = {
   "premium.reason.xmp": "Querías pasar tu selección a Lightroom.",
   "premium.reason.persons": "Querías añadir otra persona.",
   "premium.reason.cap": "Has llegado al límite mensual de fotos exportadas.",
-  "premium.chip": "Premium",
+  "premium.chip": "Pro",
   "premium.lead": "Elegir fotos sigue siendo gratis, tengas las que tengas. Premium es para lo que haces con el resultado.",
   "premium.perk.export.title": "«Aceptar todo»: tu día ordenado con un toque",
   "premium.perk.export.sub": "gratis: confirmas foto a foto. Con Pro confías en tu IA y cierras el día en un segundo",
@@ -38,7 +38,7 @@ export const dict: Record<string, string> = {
   "premium.usage.label": "USADO EN LOS ÚLTIMOS 30 DÍAS",
   "premium.price.tag": "{price} al mes · cancela cuando quieras en Google Play",
   "premium.soon": "Próximamente. En este dispositivo (aún) no se puede pagar, así que no te pedimos nada — hasta entonces los límites solo informan, no bloquean nada.",
-  "premium.chip.active": "Premium activo",
+  "premium.chip.active": "Pro activo",
   "premium.lead.active": "Estás suscrito. Sin límite al exportar o borrar, todas las personas reconocidas que quieras, todo el flujo profesional desbloqueado.",
   "premium.usage.titlePremium": "Has exportado {count} fotos en los últimos 30 días — sin límite.",
   "premium.manage": "Gestiona la suscripción en Google Play → Menú → Suscripciones. Allí puedes cancelarla o cambiarla cuando quieras; la app no puede hacerlo por ti.",
@@ -277,7 +277,7 @@ export const dict: Record<string, string> = {
   "lx.settings.title": "Ajustes",
   "lx.settings.pro": "Cherrypic Pro",
   "lx.settings.proActive": "Pro está activo",
-  "lx.settings.proSub": "«Aceptar todo» con un toque y las herramientas avanzadas",
+  "lx.settings.proSub": "Piloto automático para toda la galería y películas sin firma",
   "lx.settings.ai": "Qué tan exigente es la IA",
   "lx.settings.look": "Aspecto",
   "lx.settings.language": "Idioma",

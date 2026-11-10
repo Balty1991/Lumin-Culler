@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { countLessons } from './trainingGate';
 import { useLxPhotos } from './useLxPhotos';
 import { formatBytes } from '../core/freedSpace';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -80,6 +81,9 @@ export function seriesExtras(photos: readonly PhotoView[]): { sets: number; extr
 }
 
 export function LumiFeed() {
+  const [lessons, setLessons] = useState(0);
+  const photoCount = useStore(st => st.photos.length);
+  useEffect(() => { void countLessons().then(setLessons); }, [photoCount]);
   const tr = useTr();
   const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
@@ -330,7 +334,9 @@ export function LumiFeed() {
 
     // 7. Salvarea a ce a învățat AI-ul: pe telefon, copia automată săptămânală
     // (în copia Google a telefonului); altfel, o dată, din foaia de trimitere.
-    const decided = photos.filter(p => p.status === 'selected' || p.status === 'rejected').length;
+    // Alegerile OMULUI (lecțiile), nu pozele hotărâte de AI: raportat „Am învățat din 52
+    // de alegeri ale tale” imediat după import, cu zero alegeri făcute.
+    const decided = lessons;
     const last = readLastBackupAt();
     if (autoBackupAvailable() && !autoBackupOn() && decided >= 30) {
       out.push({
@@ -352,7 +358,7 @@ export function LumiFeed() {
     const now = Date.now();
     const snoozed = readSnooze();
     return out.filter(i => !(snoozed[i.id] > now));
-  }, [photos, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, askConfirm, openSort, openViewer, setTab, setView]);
+  }, [photos, lessons, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, askConfirm, openSort, openViewer, setTab, setView]);
 
   const shown = ideas.slice(0, 3);
   if (!shown.length || reader) return null;
