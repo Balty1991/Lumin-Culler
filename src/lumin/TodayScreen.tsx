@@ -104,7 +104,10 @@ export function TodayScreen() {
   return (
     <div className="lx-screen lx-today">
       <header className="lx-head">
-        <span className="lx-eyebrow">{dateLabel}</span>
+        <div className="lx-greet">
+          <b>{tr(greetKey())}</b>
+          <span className="lx-eyebrow">{dateLabel}</span>
+        </div>
         {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
       </header>
 
@@ -137,7 +140,8 @@ export function TodayScreen() {
           <div className="lx-hero-text">
             <h1 className="lx-h1">{tr('lx.today.empty')}</h1>
             <p className="lx-sub">{tr('lx.today.emptySub')}</p>
-            <button className="lx-btn primary" onClick={() => void (isNativeMediaLibraryAvailable() ? sortToday() : pick())}>
+            {/* Cu poza zilei deasupra, butonul ei e cel principal: aici unul discret. */}
+            <button className={heroShown ? 'lx-btn ghost' : 'lx-btn primary'} onClick={() => void (isNativeMediaLibraryAvailable() ? sortToday() : pick())}>
               {tr(isNativeMediaLibraryAvailable() ? 'lx.today.checkGallery' : 'lx.addPhotos')}
             </button>
           </div>
@@ -459,10 +463,20 @@ function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string;
     if (mem && mem.photos.length) return { photos: mem.photos, title: dayLabel(photoTime(mem.photos[0]), locale), badgeKey: mem.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', years: mem.years };
     const weekAgo = Date.now() - 7 * 86_400_000;
     const kept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= weekAgo);
-    if (kept.length < 2) return null;
-    const score = (p: (typeof kept)[number]) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
-    const best = [...kept].sort((a, b) => score(b) - score(a));
-    return { photos: best.slice(0, 12), title: dayLabel(photoTime(best[0]), locale), badgeKey: 'lx.hero.weekBest' };
+    const score = (p: (typeof photos)[number]) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
+    if (kept.length >= 2) {
+      const best = [...kept].sort((a, b) => score(b) - score(a));
+      return { photos: best.slice(0, 12), title: dayLabel(photoTime(best[0]), locale), badgeKey: 'lx.hero.weekBest' };
+    }
+    // Nicio amintire și nimic nou săptămâna asta: ecranul tot începe cu o poză, nu cu un
+    // cerc gol. Una dintre cele mai frumoase 30 păstrate, alta în fiecare zi, cu ziua ei.
+    const all = photos.filter(p => p.status === 'selected' && !p.aside);
+    if (all.length < 3) return null;
+    const top = [...all].sort((a, b) => score(b) - score(a)).slice(0, 30);
+    const star = top[Math.floor(Date.now() / 86_400_000) % top.length];
+    const day = startOfDay(photoTime(star));
+    const sameDay = all.filter(p => p.id !== star.id && startOfDay(photoTime(p)) === day).sort((a, b) => score(b) - score(a));
+    return { photos: [star, ...sameDay].slice(0, 12), title: dayLabel(photoTime(star), locale), badgeKey: 'lx.hero.fromGallery' };
   }, [photos, locale]);
 }
 
@@ -541,4 +555,10 @@ function EnginesWaitCard() {
       )}
     </section>
   );
+}
+
+/** Salutul după oră: Azi vorbește ca un om, nu ca un tabel. */
+function greetKey(now = new Date()): string {
+  const h = now.getHours();
+  return h < 5 ? 'lx.greet.night' : h < 12 ? 'lx.greet.morning' : h < 18 ? 'lx.greet.day' : 'lx.greet.evening';
 }

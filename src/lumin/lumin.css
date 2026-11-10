@@ -1935,3 +1935,11 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 /* Pauza de antrenament și așteptarea motoarelor, pe Azi. */
 .lx .lx-train-pause { border-color: rgb(var(--accent-rgb) / .45); }
 .lx .lx-train-pause-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+
+/* Azi: salut + dată, în loc de un singur rând tehnic. */
+.lx .lx-greet { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lx .lx-greet b { font-family: var(--font-display); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.lx .lx-greet .lx-eyebrow { font-size: 11px; }
+.lx-today > .lx-head { min-height: 56px; }
+/* Cercul din cardul compact: inelele lui ies din cutie, deci primește loc pe margini. */
+.lx-hero.compact > :first-child { flex: 0 0 auto; margin: 0 16px 0 14px; }
