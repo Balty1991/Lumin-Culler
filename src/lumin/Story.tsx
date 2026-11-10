@@ -6,6 +6,7 @@ import { shareCollage } from './collage';
 import { useTr } from './context';
 import { MIN_STORY_PHOTOS, renderStory } from './storyVideo';
 import { saveEditedBlob } from './saveEdited';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * Filmul se înregistrează direct ca mp4 (H.264) unde WebView-ul știe — toate
@@ -35,6 +36,7 @@ export function StoryButton({ ids, title, subtitle, className = 'lx-link' }: { i
  * Cerut: „filmele să le poți vedea pe telefon înainte de salvare sau trimitere”.
  */
 function StoryPreview({ ids, title, subtitle, onClose }: { ids: string[]; title: string; subtitle: string; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const setNotice = useStore(s => s.setNotice);
   const canvas = useRef<HTMLCanvasElement>(null);

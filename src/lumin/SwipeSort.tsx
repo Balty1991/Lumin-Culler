@@ -13,6 +13,7 @@ import { Thumb } from './Thumb';
 import { haptic } from '../core/device';
 import { claimPaywall, setPaywallContext } from './paywallMoment';
 import { t } from '../i18n';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -29,6 +30,7 @@ const MIDPOINT = (SELECT_THRESHOLD + REJECT_THRESHOLD) / 2;
  * Swipe-ul doar marchează: la final, un singur buton mută „Nu azi” în coș.
  */
 export function SwipeSort() {
+  useHoldAnalysis();
   const ids = useLx(s => s.sortIds);
   const title = useLx(s => s.sortTitle);
   const close = useLx(s => s.closeSort);

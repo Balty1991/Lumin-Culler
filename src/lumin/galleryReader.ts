@@ -4,7 +4,8 @@ import { useLx } from './lxStore';
 import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
-import { holdRejectsUntilTrained } from './trainingGate';
+import { holdRejectsUntilTrained, trainedEnough } from './trainingGate';
+import { readTasteQuizDone } from '../state/tasteQuiz';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 
 /**
@@ -28,6 +29,25 @@ const MEMORY_GB = (navigator as unknown as { deviceMemory?: number }).deviceMemo
 const CHUNK = MEMORY_GB >= 6 ? 64 : MEMORY_GB >= 4 ? 40 : 24;
 /** Primul pachet e mic: primele poze apar pe Azi în câteva secunde, nu după un minut. */
 const FIRST_CHUNK = 8;
+/**
+ * Câte poze are pachetul care începe la `i`. Al doilea pachet e cel mult 32, ca
+ * primele ~40 de poze să fie gata repede: acolo citirea face pauza de antrenament.
+ */
+export function chunkSizeAt(i: number, chunk = CHUNK): number {
+  return i === 0 ? FIRST_CHUNK : i === FIRST_CHUNK ? Math.min(chunk, 32) : chunk;
+}
+
+/**
+ * Pauza de antrenament (cerut: „după ce încarcă 30–40 de poze să facă o pauză și
+ * să te pună să îl antrenezi”). O singură dată; omul poate continua și fără.
+ */
+const TRAIN_PAUSE_AT = 30;
+const TRAIN_OFFERED_KEY = 'cherrypic.reader.trainOffered';
+let skipTraining = false;
+export function continueWithoutTraining(): void { skipTraining = true; }
+function trainingOffered(): boolean {
+  try { return localStorage.getItem(TRAIN_OFFERED_KEY) === '1'; } catch { return true; }
+}
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
 let running = false;
 /** „Continuă acum”: omul a ales să nu aștepte încărcătorul (până la următoarea pornire). */
@@ -117,6 +137,16 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   // Cerut de om: se reîncearcă și pozele sărite data trecută.
   if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); localStorage.setItem(STARTED_KEY, '1'); } catch { /* fără stocare */ } }
   else if (readerStopped() || !readerStarted()) return;
+  // Întâi motoarele AI, apoi galeria (cerut: „încărcarea galeriei să nu pornească până
+  // nu descarci toate modelele”). Și pornirea cerută de om așteaptă: când motoarele sunt
+  // pe telefon, ENGINES_READY_EVENT repornește citirea (vezi LuminApp).
+  const { enginesReadyForGallery } = await import('./engines');
+  if (!(await enginesReadyForGallery())) {
+    const { enginesPromptPending } = await import('./dataMode');
+    if (!enginesPromptPending()) void import('./clipBackfill').then(m => m.startClipBackfill());
+    return;
+  }
+  if (running) return;
   running = true;
   stopRequested = false;
   let holding = false;
@@ -142,8 +172,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     let done = 0;
     let recentAnnounced = false;
     lx.setReader({ done, total: missing.length });
-    for (let i = 0; i < missing.length; i += i === 0 ? FIRST_CHUNK : CHUNK) {
-      const size = i === 0 ? FIRST_CHUNK : CHUNK;
+    for (let i = 0; i < missing.length; i += chunkSizeAt(i)) {
+      const size = chunkSizeAt(i);
       // Așteaptă: alt import, aplicația în spate, bateria slabă.
       if (stopRequested) break;
       // Nu mai așteaptă cât aplicația e în spate: serviciul din fundal (cu notificarea
@@ -196,6 +226,19 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       }
       useLx.getState().setReader({ done, total: missing.length });
       if (holding) void updateHeldBackground(done, missing.length, bgText(done));
+      // Primele ~40 de poze sunt gata: pauză, ca omul să-l antreneze pe ele înainte de
+      // restul galeriei. Continuă singur după test (sau când omul alege să continue fără).
+      if (!trainingOffered() && done >= TRAIN_PAUSE_AT && done < missing.length && !readTasteQuizDone() && !(await trainedEnough())) {
+        try { localStorage.setItem(TRAIN_OFFERED_KEY, '1'); } catch { /* fără stocare */ }
+        skipTraining = false;
+        analysisPool.setGentle(false);
+        while (!stopRequested && !skipTraining && !readTasteQuizDone() && !(await trainedEnough())) {
+          useLx.getState().setReader({ done, total: missing.length, paused: 'training' });
+          await sleep(1200);
+        }
+        analysisPool.setGentle(true);
+        useLx.getState().setReader({ done, total: missing.length });
+      }
       // Cu ecranul la vedere, telefonul respiră între pachete (aplicația rămâne fluidă);
       // în spate nu are pentru cine.
       await sleep(document.visibilityState === 'visible' ? 800 : 50);

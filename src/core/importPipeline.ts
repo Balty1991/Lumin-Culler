@@ -980,6 +980,7 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
 }
 
 async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation, ready?: StageOneReady, heavy = true): Promise<{ item: ImportedPhoto; persisted: Promise<void> }> {
+  await analysisPool.waitWhileUiHeld();
   const prepared = ready ?? await stageOnePrepare(file, mediaUri);
   const id = prepared.id;
   const isRaw = isRawFile(file);
@@ -1562,6 +1563,7 @@ export async function importFiles(
         const i = start + k;
         if (stopKind || cancelToken?.cancelled) return null;
         try {
+          await analysisPool.waitWhileUiHeld();
           return await stageOnePrepare(images[i].file, images[i].mediaUri, precomputed.get(i));
         } catch (err) {
           await noteFailure(images[i].file, err);

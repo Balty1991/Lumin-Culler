@@ -22,6 +22,7 @@ import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
 import { analyzeNative } from './nativeAnalysis';
 import { watchThermalStatus, thermalConcurrencyCap } from './thermalStatus';
+import { setUiHeldProbe } from './userIdle';
 
 interface Slot {
   worker: Worker;
@@ -528,6 +529,17 @@ export class AnalysisPool {
   /** Ecranele grele (editorul) opresc analiza din fundal cât sunt deschise; vezi effectiveNativeLimit. */
   private uiHolds = 0;
   uiHeld(): boolean { return this.uiHolds > 0; }
+  /**
+   * Așteaptă cât un ecran greu e deschis peste citirea din fundal. Pentru pașii care
+   * NU trec prin permisul nativ (pregătirea pozei, miniaturi, CLIP, fețe): altfel
+   * doar analiza se oprea, iar restul lotului de 24–64 de poze curgea mai departe
+   * peste editor. Importul cerut de om (fără `gentle`) nu așteaptă.
+   */
+  async waitWhileUiHeld(): Promise<void> {
+    while (this.gentle && this.uiHolds > 0 && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
   holdForUi(): () => void {
     this.uiHolds++;
     let released = false;
@@ -819,3 +831,4 @@ export class AnalysisPool {
 }
 
 export const analysisPool = new AnalysisPool();
+setUiHeldProbe(() => analysisPool.uiHeld());

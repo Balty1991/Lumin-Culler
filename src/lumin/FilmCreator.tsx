@@ -8,6 +8,7 @@ import { photoTime } from './days';
 import { FILM_MAX_PHOTOS, makeBurstFilm, type BurstFilm, type FilmOptions } from './burstFilm';
 import { FilmSheet } from './FilmSheet';
 import { logError } from '../core/errorLog';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * Creatorul de mini-film: omul alege pozele (pornind de la seria pozei deschise),
@@ -18,6 +19,7 @@ import { logError } from '../core/errorLog';
 type Choice<T extends string> = { value: T; label: string };
 
 export function FilmCreator({ startId, initialIds, initialTransition, onClose }: { startId: string; initialIds: string[]; initialTransition?: 'ai' | 'fade'; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const photos = useStore(s => s.photos);
   const byId = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);

@@ -10,6 +10,7 @@ import { shareCaption } from './shareCards';
 import { filmFromKeyframes, type BurstFilm } from './burstFilm';
 import { FilmSheet } from './FilmSheet';
 import { intlTag } from '../i18n';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/Rephoto.tsx
@@ -32,6 +33,7 @@ function cover(src: CanvasImageSource, sw: number, sh: number, w: number, h: num
 }
 
 export function RephotoSheet({ photoId, takenAt, onClose }: { photoId: string; takenAt?: number; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const video = useRef<HTMLVideoElement>(null);

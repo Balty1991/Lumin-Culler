@@ -177,7 +177,8 @@ export const ENGINES_READY_EVENT = 'cherrypic-engines-ready';
  */
 export async function enginesReadyForGallery(): Promise<boolean> {
   if (!isClipPlatform()) return true;
-  const { dataMode, enginesPromptPending } = await import('./dataMode');
+  const { dataMode, enginesPromptPending, enginesWaitWaived } = await import('./dataMode');
+  if (enginesWaitWaived()) return true;
   if (dataMode() === null) return !enginesPromptPending();
   await refreshEngines();
   const weak = await weakDevice();

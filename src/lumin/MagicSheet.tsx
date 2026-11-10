@@ -13,6 +13,7 @@ import { aiSize, fillMasked, maskBounds, maskComponents, type Rect } from './mag
 import { fetchEngine } from './engines';
 import { loadEditableBitmap } from './sharp';
 import { t } from '../i18n';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/MagicSheet.tsx
@@ -68,6 +69,7 @@ function sampledMask(mask: HTMLCanvasElement, step: number): { data: Uint8Array;
 }
 
 export function MagicSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const askConfirm = useStore(s => s.askConfirm);
   const setNotice = useStore(s => s.setNotice);

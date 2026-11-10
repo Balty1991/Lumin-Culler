@@ -70,6 +70,7 @@ vi.mock('./workerPool', async () => {
   return {
     ...actual,
     analysisPool: {
+      waitWhileUiHeld: async () => undefined,
       size: 1,
       init: vi.fn(async () => {}),
       setKnownPersons: vi.fn(async () => {}),

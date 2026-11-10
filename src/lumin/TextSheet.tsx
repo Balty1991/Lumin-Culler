@@ -6,6 +6,7 @@ import { useTr } from './context';
 import { saveEditedBlob } from './saveEdited';
 import { loadEditableBitmap } from './sharp';
 import { intlTag } from '../i18n';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/TextSheet.tsx
@@ -108,6 +109,7 @@ export function drawTextOnPhoto(ctx: CanvasRenderingContext2D, img: CanvasImageS
 }
 
 export function TextSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const locale = useStore(s => s.locale);
   const setNotice = useStore(s => s.setNotice);

@@ -4,6 +4,7 @@ import type { PhotoView } from '../state/store';
 import { makeLayoutCollage, shareCollage, type CollageLayout } from './collage';
 import { useTr } from './context';
 import { learnFromShare } from './signals';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/CollageSheet.tsx
@@ -18,6 +19,7 @@ const MODELS: { id: string; layout: CollageLayout; count: number }[] = [
 ];
 
 export function CollageSheet({ photos, title, subtitle, onClose }: { photos: PhotoView[]; title: string; subtitle: string; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const best = [...photos].sort((a, b) => (b.status === 'selected' ? 1 : 0) - (a.status === 'selected' ? 1 : 0) || b.aiScore - a.aiScore);
   const [previews, setPreviews] = useState<Record<string, string>>({});

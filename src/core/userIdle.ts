@@ -5,6 +5,9 @@
  * continuă; cel mult `maxWaitMs`, ca să nu stea la nesfârșit.
  */
 let last = 0;
+/** Pus de workerPool (fără import direct, ca modulul să rămână fără dependențe). */
+let heldByUi: (() => boolean) | null = null;
+export function setUiHeldProbe(f: () => boolean): void { heldByUi = f; }
 let installed = false;
 
 function install() {
@@ -27,5 +30,9 @@ export async function waitForUserIdle(maxWaitMs = 8000): Promise<void> {
   const start = performance.now();
   while (userActive() && performance.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 250));
+  }
+  // Editorul sau alt ecran greu e deschis: lucrul din fundal stă până se închide.
+  while (heldByUi?.() && document.visibilityState === 'visible') {
+    await new Promise(r => setTimeout(r, 400));
   }
 }

@@ -1931,3 +1931,7 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-fold-head[aria-expanded="true"] i { transform: rotate(90deg); }
 .lx-fold-hint { margin: 6px 0 0; font-size: 13px; color: var(--text-dim); }
 .lx .photos-access-notice { margin: 12px 16px 0; width: auto; }
+
+/* Pauza de antrenament și așteptarea motoarelor, pe Azi. */
+.lx .lx-train-pause { border-color: rgb(var(--accent-rgb) / .45); }
+.lx .lx-train-pause-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }

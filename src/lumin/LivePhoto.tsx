@@ -8,9 +8,11 @@ import type { BurstFilm } from './burstFilm';
 import { prepareLivePhoto, recordLivePhoto, type LiveMotion, type LiveRenderer } from './livePhoto';
 import type { MusicMood } from './storyMusic';
 import { logError } from '../core/errorLog';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /** „Poza vie”: alegi mișcarea și o vezi pe loc, apoi o faci film (salvat sau trimis). */
 export function LivePhotoSheet({ photoId, onClose }: { photoId: string; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const stage = useRef<HTMLDivElement>(null);
   const [motion, setMotion] = useState<LiveMotion>('orbit');

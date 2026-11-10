@@ -6,12 +6,14 @@ import { useTr } from './context';
 import { shareCollage } from './collage';
 import { saveEditedBlob } from './saveEdited';
 import { startStoryMusic } from './storyMusic';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * Mini-filmul din serie, văzut întâi în aplicație (în buclă), apoi salvat în
  * galerie sau trimis. Înainte se deschidea direct fereastra de partajare.
  */
 export function FilmSheet({ film, onClose }: { film: BurstFilm; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const setNotice = useStore(s => s.setNotice);
   const [busy, setBusy] = useState(false);

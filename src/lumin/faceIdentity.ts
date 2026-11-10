@@ -1,5 +1,6 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { db } from '../core/db';
+import { waitForUserIdle } from '../core/userIdle';
 import { useStore } from '../state/store';
 
 /**
@@ -127,6 +128,7 @@ export function embedMissingFaces(onProgress?: (done: number, total: number) => 
       .some(f => f.embeddingModel !== MODEL && f.box[2] * f.box[3] >= MIN_FACE_AREA)).toArray();
     let made = 0;
     for (let i = 0; i < todo.length; i++) {
+      await waitForUserIdle(4000);
       const a = todo[i];
       const faces = a.faces as Face[];
       const idx = faces.map((f, k) => (f.embeddingModel !== MODEL && f.box[2] * f.box[3] >= MIN_FACE_AREA ? k : -1)).filter(k => k >= 0);

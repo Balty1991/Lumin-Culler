@@ -10,6 +10,7 @@ import { getCachedPreviewUrl } from '../core/previewUrlCache';
 import { clarityOnDevice, cutoutOnDevice } from '../core/onDeviceEdit';
 import { db } from '../core/db';
 import { portraitOnDevice } from '../core/portraitEdit';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/AiRetouch.tsx
@@ -33,6 +34,7 @@ async function mainFaceCenter(id: string): Promise<{ x: number; y: number } | nu
 export type ToolKind = 'retouch' | 'clarity' | 'cutout' | 'portrait';
 
 export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoView; onClose: () => void; kind?: ToolKind }) {
+  useHoldAnalysis();
   const tr = useTr();
   const [state, setState] = useState<'work' | 'done' | 'error'>('work');
   const [url, setUrl] = useState<string | null>(null);

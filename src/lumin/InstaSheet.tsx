@@ -8,6 +8,7 @@ import { useTr } from './context';
 import { INSTA_FORMATS, INSTA_WIDTH, instaCrop, type InstaFormat } from './instaCrop';
 import { canSharpen, sharpUrl } from './sharp';
 import { learnFromShare } from './signals';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/InstaSheet.tsx
@@ -36,6 +37,7 @@ function render(img: ImageBitmap, format: InstaFormat, faces: Parameters<typeof 
 }
 
 export function InstaSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const [img, setImg] = useState<ImageBitmap | null>(null);
   const [faces, setFaces] = useState<Parameters<typeof instaCrop>[3]>();

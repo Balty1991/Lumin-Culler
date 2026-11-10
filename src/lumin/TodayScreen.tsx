@@ -14,7 +14,7 @@ import { Orb } from './Orb';
 import { LumiFeed } from './LumiFeed';
 import { IsItThem, WhoIsThis } from './WhoIsThis';
 import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
-import { continueOnLowBattery, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
+import { continueOnLowBattery, continueWithoutTraining, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { FreedCard } from './TwinParts';
 import { readTwin } from './twin';
@@ -45,6 +45,11 @@ import { LivePhotoSheet } from './LivePhoto';
 import { livePhotoAvailable } from './livePhoto';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
+import { ENGINES_READY_EVENT, engineReady, enginesFor, refreshEngines, useEngines } from './engines';
+import { useModelsState } from './aiModels';
+import { dataMode, enginesWaitWaived, setDataMode, waiveEnginesWait } from './dataMode';
+import { isClipPlatform } from '../core/clip/clipEngine';
+import { openTasteQuiz } from '../state/tasteQuiz';
 
 export function TodayScreen() {
   const tr = useTr();
@@ -71,7 +76,7 @@ export function TodayScreen() {
   const past = days.filter(d => d.start < todayStart).slice(0, 4);
   // Cititorul galeriei lucrează în fundal: Azi rămâne Azi, cu o bară mică dedesubt.
   const busy = (!reader || reader.paused === 'import') && (importing || (!!progress && progress.phase !== 'finalizat'));
-  const sortingActive = busy || !!(reader && reader.paused !== 'import');
+  const sortingActive = busy || !!(reader && reader.paused !== 'import' && reader.paused !== 'training');
 
   const [inGallery, setInGallery] = useState<number | null>(null);
   useEffect(() => {
@@ -139,7 +144,19 @@ export function TodayScreen() {
         )}
       </section>
 
-      {reader && reader.paused !== 'import' && (
+      <EnginesWaitCard />
+      {reader && reader.paused === 'training' && (
+        <section className="lx-card lx-reader lx-train-pause" role="status">
+          <span className="lx-eyebrow">{tr('lx.trainPause.eyebrow')}</span>
+          <b>{tr('lx.trainPause.title', { count: reader.done })}</b>
+          <span>{tr('lx.trainPause.sub', { left: reader.total - reader.done })}</span>
+          <div className="lx-train-pause-actions">
+            <button className="lx-btn primary" onClick={openTasteQuiz}>{tr('lx.brain.train')}</button>
+            <button className="lx-btn ghost small" onClick={continueWithoutTraining}>{tr('lx.trainPause.skip')}</button>
+          </div>
+        </section>
+      )}
+      {reader && reader.paused !== 'import' && reader.paused !== 'training' && (
         <section className="lx-card lx-reader compact" role="status">
           {/* Compact (raportat: „aici se mai poate economisi spațiu”): titlul și „Oprește” pe un rând. */}
           <div className="lx-reader-head">
@@ -485,6 +502,43 @@ function DayPhotoHero() {
         {canRedo && <button className="lx-btn ghost" onClick={() => setRedo(true)}>{tr('lx.rephoto.title')}</button>}
         <StoryButton className="lx-btn ghost" ids={ids.slice(0, 12)} title={pick.title} subtitle={tr('lx.hero.count', { count: pick.photos.length })} />
       </div>
+    </section>
+  );
+}
+
+/**
+ * Între alegerea din fereastra de după instalare și pornirea citirii: motoarele AI se
+ * descarcă, iar Azi spune asta (altfel ecranul părea că nu face nimic câteva minute).
+ * Dacă descărcarea nu reușește, omul poate reîncerca sau porni fără ele.
+ */
+function EnginesWaitCard() {
+  const tr = useTr();
+  const locale = useStore(s => s.locale);
+  const reader = useLx(s => s.reader);
+  const engines = useEngines();
+  const models = useModelsState();
+  const [, bump] = useState(0);
+  useEffect(() => { void refreshEngines(); }, []);
+  if (!isClipPlatform() || reader || dataMode() === null || enginesWaitWaived() || !readerStarted() || readerStopped()) return null;
+  const list = enginesFor(locale);
+  const ready = list.filter(e => engineReady(e, engines.have)).length;
+  if (!Object.keys(engines.have).length || ready >= list.length) return null;
+  const stuck = !engines.busy && (models.phase === 'error' || models.phase === 'metered');
+  const pct = Math.round(((ready + (engines.busy ? Math.min(1, Math.max(0, engines.progress || 0)) : 0)) / list.length) * 100);
+  const retry = (any: boolean) => { if (any) setDataMode('any'); void import('./clipBackfill').then(m => m.startClipBackfill(any || undefined)); bump(n => n + 1); };
+  const go = () => { waiveEnginesWait(); window.dispatchEvent(new Event(ENGINES_READY_EVENT)); bump(n => n + 1); };
+  return (
+    <section className="lx-card lx-reader compact" role="status">
+      <span className="lx-eyebrow">{tr('lx.enginesWait.eyebrow')}</span>
+      <b>{tr(stuck ? (models.phase === 'metered' ? 'lx.enginesWait.metered' : 'lx.enginesWait.error') : 'lx.enginesWait.title', { done: ready, total: list.length })}</b>
+      <div className="lx-progress small"><i style={{ width: `${pct}%` }} /></div>
+      <span>{tr('lx.enginesWait.sub')}</span>
+      {stuck && (
+        <div className="lx-train-pause-actions">
+          <button className="lx-btn primary small" onClick={() => retry(models.phase === 'metered')}>{tr(models.phase === 'metered' ? 'lx.enginesWait.useData' : 'lx.enginesWait.retry')}</button>
+          <button className="lx-btn ghost small" onClick={go}>{tr('lx.enginesWait.skip')}</button>
+        </div>
+      )}
     </section>
   );
 }

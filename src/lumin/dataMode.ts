@@ -17,6 +17,10 @@ export function setDataMode(m: DataMode): void {
 let deferred = false;
 export function deferEnginesPrompt(): void { deferred = true; }
 /** Încă n-a ales (fereastra e pe ecran). Analiza așteaptă alegerea. */
+/** „Pornește fără ele”: descărcarea n-a reușit, iar omul nu vrea să mai aștepte (doar pornirea asta). */
+let waived = false;
+export function waiveEnginesWait(): void { waived = true; }
+export function enginesWaitWaived(): boolean { return waived; }
 export function enginesPromptPending(): boolean {
   return dataMode() === null && !deferred;
 }

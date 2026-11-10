@@ -7,6 +7,7 @@ import { photoTime } from './days';
 import { SCREEN_SIZE, sharpUrl } from './sharp';
 import { getCachedThumbUrl } from '../core/thumbUrlCache';
 import { weakDevice } from '../core/deviceClass';
+import { useHoldAnalysis } from './useHoldAnalysis';
 
 /**
  * lumin/Tunnel3D.tsx
@@ -27,6 +28,7 @@ const PERSP = 900;        // distanța camerei (ca perspective: 900px)
 const CARD_W = 256, CARD_H = 320; // pozele, pregătite o dată, cu colțuri rotunjite
 
 export function Tunnel3D({ list, onOpen, onClose }: { list: PhotoView[]; onOpen: (index: number) => void; onClose: () => void }) {
+  useHoldAnalysis();
   const tr = useTr();
   const locale = useStore(s => s.locale);
 
