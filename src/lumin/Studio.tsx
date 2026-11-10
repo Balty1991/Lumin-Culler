@@ -35,19 +35,19 @@ type Cat = 'films' | 'family' | 'memories' | 'games';
 interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
 
 const TOOLS: Tool[] = [
-  { id: 'yearMin', cat: 'films', glyph: <b>60″</b>, films: true },
-  { id: 'growth', cat: 'films', glyph: <Icon name="sparkle" size={26} />, person: true, films: true },
+  { id: 'yearMin', cat: 'films', glyph: <Icon name="clock" size={26} />, films: true },
+  { id: 'growth', cat: 'films', glyph: <Icon name="sprout" size={26} />, person: true, films: true },
   { id: 'film', cat: 'films', glyph: <Icon name="film" size={26} />, films: true },
-  { id: 'look', cat: 'family', glyph: <b>≈</b>, person: true },
-  { id: 'firsts', cat: 'family', glyph: <b>1ª</b>, person: true },
+  { id: 'look', cat: 'family', glyph: <Icon name="faces" size={26} />, person: true },
+  { id: 'firsts', cat: 'family', glyph: <Icon name="flag" size={26} />, person: true },
   { id: 'links', cat: 'family', glyph: <Icon name="similar" size={26} /> },
-  { id: 'together', cat: 'family', glyph: <Icon name="check" size={26} /> },
+  { id: 'together', cat: 'family', glyph: <Icon name="heart" size={26} /> },
   { id: 'recaps', cat: 'memories', glyph: <Icon name="square" size={24} /> },
   { id: 'capsule', cat: 'memories', glyph: <Icon name="lock" size={24} /> },
-  { id: 'joy', cat: 'memories', glyph: <span className="lx-studio-dots" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ opacity: [0.9, 0.3, 0.6, 1, 0.5, 0.8, 0.2, 0.7, 0.4][i] }} />)}</span> },
-  { id: 'profile', cat: 'memories', glyph: <Icon name="sparkle" size={24} /> },
-  { id: 'cover', cat: 'memories', glyph: <b className="serif">C</b> },
-  { id: 'duel', cat: 'games', glyph: <b>VS</b> }
+  { id: 'joy', cat: 'memories', glyph: <Icon name="smile" size={26} /> },
+  { id: 'profile', cat: 'memories', glyph: <Icon name="user" size={26} /> },
+  { id: 'cover', cat: 'memories', glyph: <Icon name="book" size={26} /> },
+  { id: 'duel', cat: 'games', glyph: <Icon name="duel" size={26} /> }
 ];
 const CATS: Cat[] = ['films', 'family', 'memories', 'games'];
 
