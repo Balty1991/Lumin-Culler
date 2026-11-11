@@ -2622,6 +2622,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.search.people": "Search",
   "fr.photos.readAll": "Analyse my gallery",
   "lx.reader.continue": "Continue anyway",
+  "lx.enhance.pickedNote": "I picked “{style}” for this photo: {scene}.",
   "lx.year.badge": "Year in review",
   "lx.year.story": "Your {year} in photos",
   "lx.year.sub": "Your best shots and your numbers, in one card ready to share.",

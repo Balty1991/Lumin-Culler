@@ -175,8 +175,11 @@ function meanLumOf(img: HTMLImageElement): number {
  */
 async function editorSource(photoId: string, load: (u: string) => Promise<HTMLImageElement>): Promise<{ url: string; img: HTMLImageElement } | null> {
   const big = (img: HTMLImageElement) => Math.max(img.naturalWidth, img.naturalHeight) >= 900;
+  // Poza de ecran deja făcută pentru vizualizator (1440 px) e destul de clară pentru editor:
+  // dacă există, editorul se deschide pe loc, fără să mai ceară telefonului alta.
   const tries: Array<() => Promise<string | null>> = canSharpen()
     ? [
+        () => Promise.resolve(peekSharpUrl(photoId, SCREEN_SIZE)),
         () => sharpUrl(photoId, 1600),
         () => sharpUrl(photoId, 1600),
         () => Promise.resolve(peekSharpUrl(photoId, SCREEN_SIZE)),
@@ -255,6 +258,12 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
 }
 
 export type Scene = 'overcast' | 'food' | 'landscape' | 'night' | 'portrait' | 'backlit' | 'indoor';
+/** Scenele la care „Vie” arată mai bine decât „Natural”; cu oameni în cadru rămâne „Natural”. */
+const VIVID_SCENES: ReadonlySet<Scene> = new Set(['landscape', 'food', 'overcast']);
+export function recommendStyle(scenes: readonly Scene[]): EnhanceStyle {
+  if (scenes.includes('portrait') || scenes.includes('night')) return 'natural';
+  return scenes.some(sc => VIVID_SCENES.has(sc)) ? 'vivid' : 'natural';
+}
 const FOOD = /pizza|cake|donut|sandwich|food|dish|meal|dessert|fruit|banana|apple|orange|broccoli|hot dog|cuisine|bread|coffee|wine|cup/i;
 const NATURE = /mountain|sea|ocean|beach|lake|river|forest|tree|sky|cloud|field|grass|flower|landscape|sunset|snow|waterfall|plant/i;
 const INDOOR = /couch|bed|dining table|tv|chair|room|kitchen|lamp|ceiling|wall|furniture|toilet|sink|oven|refrigerator/i;
@@ -520,7 +529,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [style, setStyle] = useState<EnhanceStyle>(() => (mine?.style as EnhanceStyle | undefined) ?? 'natural');
   /** „De la zero”: fără nicio reparație automată, doar reglajele puse de mână. */
   const [pure, setPure] = useState(false);
-  const [amount, setAmount] = useState(() => mine?.amount ?? 0.5); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
+  const [amount, setAmount] = useState(() => mine?.amount ?? 0.5);
+  const [picked, setPicked] = useState<{ style: EnhanceStyle; scene: Scene | null } | null>(null); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
   const [tilt, setTilt] = useState(0);
   const [straight, setStraight] = useState(false);
   // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).
@@ -643,6 +653,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       // schimbare aproape invizibilă (raportat cu capturi). Fără un stil învățat,
       // urcăm până se vede — cel mult 90%.
       if (!mine) {
+        // Stilul de pornire, după ce fel de poză e (fără un stil învățat): peisajele, mâncarea
+        // și cerul înnorat câștigă din culoare și contrast local; oamenii rămân naturali.
+        const pick = recommendStyle(found);
+        if (alive && pick !== 'natural') { setStyle(pick); setPicked({ style: pick, scene: found.find(sc => VIVID_SCENES.has(sc)) ?? null }); }
         const fit = await fitAmount(url, lightOnly).catch(() => null);
         if (alive && fit !== null) setAmount(fit);
       }
@@ -814,6 +828,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
                 {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
+            {picked && !pure && style === picked.style && picked.scene && <p className="lx-enhance-mine">✦ {tr('lx.enhance.pickedNote', { style: tr(`lx.enhance.style.${picked.style}`), scene: tr(`lx.enhance.scene.${picked.scene}`) })}</p>}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
                   {(Object.keys(ASPECTS) as Aspect[]).map(a => (
                     <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>

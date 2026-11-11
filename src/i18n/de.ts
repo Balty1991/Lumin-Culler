@@ -587,6 +587,7 @@ export const dict: Record<string, string> = {
   "lx.search.people": "Suche",
   "fr.photos.readAll": "Meine Galerie analysieren",
   "lx.reader.continue": "Trotzdem weiter",
+  "lx.enhance.pickedNote": "Ich habe „{style}“ für dieses Foto gewählt: {scene}.",
   "lx.year.badge": "Jahresrückblick",
   "lx.year.story": "Dein {year} in Fotos",
   "lx.year.sub": "Deine besten Fotos und Zahlen, in einer Karte zum Teilen.",

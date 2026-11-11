@@ -2708,6 +2708,7 @@ export const ro = {
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Analizează galeria",
   "lx.reader.continue": "Continuă oricum",
+  "lx.enhance.pickedNote": "Am ales „{style}” pentru poza asta: {scene}.",
   "lx.year.badge": "Rezumatul anului",
   "lx.year.story": "Anul tău {year} în poze",
   "lx.year.sub": "Cele mai reușite cadre și cifrele tale, într-un card gata de trimis.",

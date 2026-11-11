@@ -15,3 +15,16 @@ describe('intensitatea de pornire a editorului', () => {
     expect(visibleChange(a, b)).toBe(2);
   });
 });
+
+import { recommendStyle } from './Enhance';
+describe('stilul de pornire, după tipul pozei', () => {
+  it('peisajele, mâncarea și cerul înnorat pornesc pe „Vie”', () => {
+    expect(recommendStyle(['landscape'])).toBe('vivid');
+    expect(recommendStyle(['food', 'indoor'])).toBe('vivid');
+  });
+  it('cu oameni sau noaptea rămâne „Natural”', () => {
+    expect(recommendStyle(['landscape', 'portrait'])).toBe('natural');
+    expect(recommendStyle(['night', 'overcast'])).toBe('natural');
+    expect(recommendStyle([])).toBe('natural');
+  });
+});
