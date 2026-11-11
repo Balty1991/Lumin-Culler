@@ -1,3 +1,4 @@
+import { buildMorningReport, markMorningSeen, morningSeen } from './morningReport';
 import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
 import { formatBytes } from '../core/freedSpace';
 import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
@@ -183,6 +184,7 @@ export function TodayScreen() {
       </section>}
 
       <TrialEndCard />
+      {!sortingActive && <MorningReportCard />}
       <EnginesWaitCard />
       {reader && reader.paused === 'training' && (
         <section className="lx-card lx-reader lx-train-pause" role="status">
@@ -627,6 +629,46 @@ function GalleryGlimpse() {
       {info.urls.length > 0 && <div className="lx-glimpse-strip">{info.urls.map(u => <img key={u} src={u} alt="" loading="lazy" decoding="async" />)}</div>}
       <span>{tr('lx.glimpse.next')}</span>
     </div>
+  );
+}
+
+/**
+ * Raportul de dimineață: ce s-a ales din pozele de ieri. Cu Pilotul pornit (Pro), e gata
+ * făcut; fără, spune câte au rămas și că Pilotul le poate termina. O dată pe zi.
+ */
+function MorningReportCard() {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const premiumLocked = useStore(s => s.premiumLocked);
+  const [, bump] = useState(0);
+  const report = useMemo(() => buildMorningReport(photos), [photos]);
+  if (!report || morningSeen(report.day) || (!report.kept.length && !report.waiting.length)) return null;
+  const close = () => { markMorningSeen(report.day); bump(n => n + 1); };
+  const lx = useLx.getState();
+  return (
+    <section className="lx-card lx-auto-result lx-morning" role="status">
+      <button className="lx-auto-close" onClick={close} aria-label={tr('lx.close')}>✕</button>
+      <span className="lx-eyebrow">{tr('lx.morning.eyebrow')}</span>
+      <b>{tr('lx.morning.title', { kept: report.kept.length, total: report.total })}</b>
+      <span>{[
+        report.dropped > 0 ? tr('lx.morning.dropped', { count: report.dropped }) : '',
+        report.waiting.length > 0 ? tr('lx.morning.waiting', { count: report.waiting.length }) : tr('lx.morning.allDone')
+      ].filter(Boolean).join(' ')}</span>
+      {report.kept.length > 0 && (
+        <div className="lx-weekly-strip">
+          {report.kept.slice(0, 6).map((p, i) => (
+            <button key={p.id} className="lx-morning-thumb" onClick={() => lx.openViewer(report.kept.map(x => x.id), i)}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></button>
+          ))}
+        </div>
+      )}
+      <div className="lx-decide-actions">
+        {report.waiting.length > 0 && <button className="lx-btn primary" onClick={() => { close(); lx.openSort(report.waiting.map(p => p.id), tr('lx.morning.eyebrow')); }}>{tr('lx.morning.check', { count: report.waiting.length })}</button>}
+        {report.kept.length > 0 && <button className="lx-btn ghost" onClick={() => lx.openViewer(report.kept.map(p => p.id), 0)}>{tr('lx.morning.see')}</button>}
+      </div>
+      {premiumLocked && report.waiting.length >= 5 && (
+        <button className="lx-link lx-trial-link" onClick={() => { setPaywallContext(tr('lx.morning.offer', { count: report.waiting.length })); useStore.getState().gatePremium('acceptAll'); }}>{tr('lx.morning.pro')}</button>
+      )}
+    </section>
   );
 }
 

@@ -2121,3 +2121,5 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-folder-text span { font-size: 12.5px; color: var(--text-dim); }
 .lx-folder-actions { display: flex; gap: 6px; align-items: center; }
 .lx-folder-actions .lx-pro { margin-left: 6px; }
+.lx-morning-thumb { position: relative; padding: 0 0 100%; border: 0; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.lx-morning-thumb img, .lx-morning-thumb .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
