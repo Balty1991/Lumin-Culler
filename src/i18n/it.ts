@@ -587,6 +587,8 @@ export const dict: Record<string, string> = {
   "lx.search.people": "Cerca",
   "fr.photos.readAll": "Analizza la mia galleria",
   "lx.reader.continue": "Continua comunque",
+  "lx.reader.fast": "In carica: lettura alla massima velocità.",
+  "lx.reader.fastTip": "Metti il telefono in carica e finisco prima, mentre non lo usi.",
   "lx.enhance.mine": "Il tuo stile",
   "lx.enhance.mineNote": "Il tuo stile: {style} al {percent}%, imparato da {count} foto salvate.",
   "lx.enhance.allMine": "Nel tuo stile ({count})",

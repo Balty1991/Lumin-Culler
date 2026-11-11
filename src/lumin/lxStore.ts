@@ -39,8 +39,8 @@ interface LxState {
   autoResult: AutoSortResult | null;
   setAutoResult: (r: AutoSortResult | null) => void;
   /** Cititorul galeriei în fundal (lumin/galleryReader.ts); null = nu rulează. */
-  reader: { done: number; total: number; paused?: 'battery' | 'import' | 'training' } | null;
-  setReader: (r: { done: number; total: number; paused?: 'battery' | 'import' | 'training' } | null) => void;
+  reader: { done: number; total: number; paused?: 'battery' | 'import' | 'training'; fast?: boolean } | null;
+  setReader: (r: { done: number; total: number; paused?: 'battery' | 'import' | 'training'; fast?: boolean } | null) => void;
   /** „Am citit toată galeria”, arătat o dată pe Azi. */
   readerResult: { total: number; kept: number; waiting: number } | null;
   setReaderResult: (r: { total: number; kept: number; waiting: number } | null) => void;
@@ -73,7 +73,8 @@ export const useLx = create<LxState>((set, get) => ({
   autoResult: null,
   setAutoResult: r => set({ autoResult: r }),
   reader: null,
-  setReader: r => set({ reader: r }),
+  // „fast” se păstrează între actualizările de progres; se schimbă doar când e dat explicit.
+  setReader: r => set(s => ({ reader: r && r.fast === undefined && s.reader?.fast && !r.paused ? { ...r, fast: true } : r })),
   readerResult: null,
   setReaderResult: r => set({ readerResult: r }),
   faceVersion: 0,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chunkSizeAt } from './galleryReader';
+import { chunkSizeAt, readerPace } from './galleryReader';
 
 describe('pachetele cititorului de galerie', () => {
   it('primele două pachete dau cel mult 40 de poze, pentru pauza de antrenament', () => {
@@ -14,5 +14,14 @@ describe('pachetele cititorului de galerie', () => {
   it('după pauză, pachetele au mărimea telefonului', () => {
     expect(chunkSizeAt(40, 64)).toBe(64);
     expect(chunkSizeAt(32, 24)).toBe(24);
+  });
+});
+
+describe('ritmul citirii', () => {
+  it('viteză maximă doar la încărcat și cu ecranul nefolosit', () => {
+    expect(readerPace({ charging: true, visible: false, active: false })).toBe('full');
+    expect(readerPace({ charging: true, visible: true, active: false })).toBe('full');
+    expect(readerPace({ charging: true, visible: true, active: true })).toBe('gentle');
+    expect(readerPace({ charging: false, visible: false, active: false })).toBe('gentle');
   });
 });

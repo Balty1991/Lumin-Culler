@@ -183,6 +183,7 @@ export function TodayScreen() {
           </div>
           <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
           <span>{tr('lx.reader.sub')}</span>
+          {!reader.paused && reader.total - reader.done > 200 && <span className="lx-reader-fast">{reader.fast ? `⚡ ${tr('lx.reader.fast')}` : tr('lx.reader.fastTip')}</span>}
           <BatteryHint />
         </section>
       )}

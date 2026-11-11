@@ -2708,6 +2708,8 @@ export const ro = {
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Analizează galeria",
   "lx.reader.continue": "Continuă oricum",
+  "lx.reader.fast": "La încărcat: citesc la viteză maximă.",
+  "lx.reader.fastTip": "Pune telefonul la încărcat și termin mai repede, cât nu-l folosești.",
   "lx.enhance.mine": "Stilul tău",
   "lx.enhance.mineNote": "Stilul tău: {style} la {percent}%, învățat din {countDe} poze salvate.",
   "lx.enhance.allMine": "În stilul tău ({count})",

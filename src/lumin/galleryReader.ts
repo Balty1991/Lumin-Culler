@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { useLx } from './lxStore';
 import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
+import { userActive } from '../core/userIdle';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
 import { holdRejectsUntilTrained, trainedEnough } from './trainingGate';
 import { readTasteQuizDone } from '../state/tasteQuiz';
@@ -122,6 +123,21 @@ async function lowBattery(): Promise<boolean> {
   } catch { return false; }
 }
 
+/**
+ * Ritmul citirii. La încărcat, cu ecranul nefolosit (aplicația în spate sau nicio
+ * atingere de 20 s), analiza merge la viteză maximă; altfel lasă loc ecranului.
+ * Așa galeria mare se termină peste noapte, iar ziua telefonul rămâne fluid.
+ */
+export function readerPace(s: { charging: boolean; visible: boolean; active: boolean }): 'full' | 'gentle' {
+  return s.charging && (!s.visible || !s.active) ? 'full' : 'gentle';
+}
+async function isCharging(): Promise<boolean> {
+  try {
+    const b = await (navigator as unknown as { getBattery?: () => Promise<BatteryLike> }).getBattery?.();
+    return !!b && b.charging;
+  } catch { return false; }
+}
+
 function importBusy(): boolean {
   const s = useStore.getState();
   return s.supervisorImporting || (!!s.progress && s.progress.phase !== 'finalizat');
@@ -187,7 +203,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         await sleep(4000);
       }
       if (stopRequested) break;
-      useLx.getState().setReader({ done, total: missing.length });
+      const fast = readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
+      analysisPool.setGentle(!fast);
+      useLx.getState().setReader({ done, total: missing.length, fast });
       const files = await readPhotoFiles(missing.slice(i, i + size));
       if (files.length) {
         const notice = useStore.getState().notice;

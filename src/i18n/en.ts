@@ -2622,6 +2622,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.search.people": "Search",
   "fr.photos.readAll": "Analyse my gallery",
   "lx.reader.continue": "Continue anyway",
+  "lx.reader.fast": "Charging: reading at full speed.",
+  "lx.reader.fastTip": "Plug in your phone and I’ll finish faster while you’re not using it.",
   "lx.enhance.mine": "Your style",
   "lx.enhance.mineNote": "Your style: {style} at {percent}%, learned from {count} saved photos.",
   "lx.enhance.allMine": "In your style ({count})",
