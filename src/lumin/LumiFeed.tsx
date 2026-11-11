@@ -23,6 +23,7 @@ import { personalWhy, useWhyContext } from './why';
 import { baseLocale } from '../i18n';
 import { canPinFrameWidget, pinFrameWidget } from './frameWidget';
 import { readRitualDays } from '../core/ritualStreak';
+import { buildWeeklyReport, weeklyDone } from './weeklyReport';
 
 /**
  * lumin/LumiFeed.tsx
@@ -356,6 +357,18 @@ export function LumiFeed() {
         text: tr('lx.feed.backup', { count: decided }),
         action: tr('lx.feed.backupGo'),
         run: () => exportBackup()
+      });
+    }
+
+    // Curățenia săptămânii: raportul e gata, se confirmă din fila Curățenie.
+    const weekly = buildWeeklyReport(photos);
+    if (native && weekly.photos.length >= 5 && !weeklyDone(weekly.week)) {
+      out.unshift({
+        id: `weekly-${weekly.week}`, photoId: weekly.photos[0].id,
+        text: tr('lx.weekly.title', { count: weekly.photos.length }),
+        sub: weekly.bytes ? tr('lx.feed.frees', { size: formatBytes(weekly.bytes, locale) }) : undefined,
+        action: tr('lx.weekly.open'),
+        run: () => { setTab('clean'); }
       });
     }
 

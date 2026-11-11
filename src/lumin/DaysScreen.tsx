@@ -417,6 +417,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {!editing && <GroupRow name={name} />}
       {!editing && <PersonTimeButtons name={name} list={list} />}
       {!editing && <FindPersonButton name={name} count={list.length} />}
+      {!editing && <EnhanceAllButton ids={list.filter(p => p.status === 'selected' && !p.edits).map(p => p.id)} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}

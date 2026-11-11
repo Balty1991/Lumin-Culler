@@ -12,6 +12,7 @@ import { FREE_DAILY, cloudAvailable } from '../lumin/cloud';
 import { seriesExtras } from '../lumin/LumiFeed';
 import { formatBytes } from '../core/freedSpace';
 import { logPaywall, purchaseEvent, readPaywallContext } from '../lumin/paywallMoment';
+import { Icon } from '../lumin/icons';
 
 const FREE_CLOUD_WRITES = FREE_DAILY.write;
 
@@ -287,16 +288,20 @@ export function PremiumPanel() {
         <section className="premium-group">
           <h4 className="premium-group-head">{tr('premium.cp.pillar.pilot')}</h4>
           <div className={highlightedPerk === 'auto' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">✦</i>
+            <i aria-hidden="true"><Icon name="sparkle" size={18} /></i>
             <span><b>{tr('premium.cp.auto.title')}</b><span>{tr('premium.cp.auto.sub')}</span></span>
           </div>
           <div className={highlightedPerk === 'accept' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">✓</i>
+            <i aria-hidden="true"><Icon name="check" size={18} /></i>
             <span><b>{tr('premium.cp.accept.title')}</b><span>{tr('premium.cp.accept.sub')}</span></span>
           </div>
           <div className={highlightedPerk === 'cleanup' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">🧹</i>
+            <i aria-hidden="true"><Icon name="trash" size={18} /></i>
             <span><b>{tr('premium.cp.cleanup.title')}</b><span>{tr('premium.cp.cleanup.sub')}</span></span>
+          </div>
+          <div className="premium-perk">
+            <i aria-hidden="true"><Icon name="clock" size={18} /></i>
+            <span><b>{tr('premium.cp.weekly.title')}</b><span>{tr('premium.cp.weekly.sub')}</span></span>
           </div>
           {/* AI-ul online apare doar când serverul chiar e pornit în build: un
               abonament nu are voie să promită o funcție care nu există. */}
@@ -310,12 +315,16 @@ export function PremiumPanel() {
         <section className="premium-group">
           <h4 className="premium-group-head">{tr('premium.cp.pillar.studio')}</h4>
           <div className={highlightedPerk === 'film' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">🎬</i>
+            <i aria-hidden="true"><Icon name="film" size={18} /></i>
             <span><b>{tr('premium.cp.film.title')}</b><span>{tr('premium.cp.film.sub')}</span></span>
           </div>
           <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
-            <i aria-hidden="true">🎨</i>
+            <i aria-hidden="true"><Icon name="pen" size={18} /></i>
             <span><b>{tr('premium.cp.styles.title')}</b><span>{tr('premium.cp.styles.sub')}</span></span>
+          </div>
+          <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
+            <i aria-hidden="true"><Icon name="heart" size={18} /></i>
+            <span><b>{tr('premium.cp.mine.title')}</b><span>{tr('premium.cp.mine.sub')}</span></span>
           </div>
         </section>
         {!premium && <p className="premium-personal">{tr('premium.cp.trust')}</p>}

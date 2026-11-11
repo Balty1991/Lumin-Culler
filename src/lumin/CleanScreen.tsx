@@ -10,6 +10,7 @@ import { Housekeeping } from './Housekeeping';
 import { VideoCleanup } from './VideoCleanup';
 import { FreedCard } from './TwinParts';
 import { Icon } from './icons';
+import { WeeklyClean } from './WeeklyClean';
 
 /**
  * lumin/CleanScreen.tsx
@@ -49,6 +50,7 @@ export function CleanScreen() {
         )}
       </section>
 
+      <WeeklyClean />
       {sum.series.extras.length > 0 && (
         <button className="lx-burst-tidy" onClick={() => openSort(sum.series.extras.map(p => p.id), tr('lx.story.series.badge'))}>
           <span className="lx-burst-tidy-icon"><Icon name="faces" size={18} /></span>
