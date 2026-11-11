@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
@@ -45,10 +45,12 @@ import './lumin.css';
 import '../design/system.css';
 
 // Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
-const DaysScreen = lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen })));
-const StudioTab = lazy(() => import('./Studio').then(m => ({ default: m.StudioTab })));
-const SettingsScreen = lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+const DaysScreen = memo(lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen }))));
+const StudioTab = memo(lazy(() => import('./Studio').then(m => ({ default: m.StudioTab }))));
+const SettingsScreen = memo(lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen }))));
 import { Icon } from './icons';
+/** Ecranele nu primesc nimic de la părinte: schimbarea filei nu are de ce să le redeseneze. */
+const TodayPane = memo(TodayScreen);
 const SwipeSort = lazy(() => import('./SwipeSort').then(m => ({ default: m.SwipeSort })));
 const Assistant = lazy(() => import('./Assistant').then(m => ({ default: m.Assistant })));
 const AppTour = lazy(() => import('./AppTour').then(m => ({ default: m.AppTour })));
@@ -172,6 +174,16 @@ export function LuminApp() {
   // Taburile deja deschise și locul din pagină al fiecăruia (fiecare tab își păstrează derularea).
   const [askOpen, setAskOpen] = useState(false);
   const [visited, setVisited] = useState<ReadonlySet<LxTab>>(() => new Set([tab]));
+  // Codul filelor și al ecranelor deschise des se aduce din timp, într-un moment liber,
+  // ca prima atingere să nu mai aștepte descărcarea și citirea lui.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const load = () => { void import('./DaysScreen'); void import('./Studio'); void import('./SettingsScreen'); void import('./SwipeSort'); void import('./Assistant'); };
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (ric) ric(load, { timeout: 2000 }); else load();
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, []);
   const scrolls = useRef<Partial<Record<LxTab, number>>>({});
   const shownTab = useRef(tab);
   useLayoutEffect(() => {
@@ -427,7 +439,7 @@ export function LuminApp() {
             {booted && <PhotosAccessNotice />}
             {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
                 reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
-            {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayScreen /></div>}
+            {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayPane /></div>}
             {visited.has('days') && <div className="lx-tabpane" hidden={tab !== 'days'}><Suspense fallback={<ScreenWait />}><DaysScreen /></Suspense></div>}
             {visited.has('brain') && <div className="lx-tabpane" hidden={tab !== 'brain'}><Suspense fallback={<ScreenWait />}><StudioTab /></Suspense></div>}
             {visited.has('settings') && <div className="lx-tabpane" hidden={tab !== 'settings'}><Suspense fallback={<ScreenWait />}><SettingsScreen /></Suspense></div>}
