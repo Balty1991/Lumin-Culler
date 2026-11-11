@@ -2708,6 +2708,8 @@ export const ro = {
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Analizează galeria",
   "lx.reader.continue": "Continuă oricum",
+  "lx.enhance.proPreview": "Probă · se salvează cu Pro",
+  "lx.enhance.savePro": "Salvează cu Pro",
   "lx.studio.hero.badge": "Editorul tău",
   "lx.studio.hero.title": "Fă-o mai frumoasă",
   "lx.studio.hero.sub": "Lumină, culoare și stil dintr-o atingere. Vezi înainte și după.",

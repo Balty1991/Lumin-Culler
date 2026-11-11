@@ -2049,3 +2049,8 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-studio-hero-text small { font-weight: 400; font-size: 14px; color: rgb(255 255 255 / .82); }
 .lx-studio-hero-text em { font-style: normal; margin-top: 6px; padding: 11px 18px; border-radius: 999px; background: #fff; color: #12070d; font-weight: 700; font-size: 14px; }
 .lx-studio-hero:active { transform: scale(.985); }
+
+/* Proba unui stil Pro: marcaj peste poză, ca să fie clar că nu e încă al tău. */
+.lx-pro-preview { position: absolute; z-index: 6; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg); display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; background: rgb(10 8 14 / .55); backdrop-filter: blur(6px); color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; pointer-events: none; border: 1px solid rgb(255 255 255 / .35); }
+.lx-pro-preview b { padding: 2px 8px; border-radius: 999px; background: var(--lx-grad); color: #12070d; font-size: 12px; }
+.lx-enhance-stage { position: relative; }

@@ -587,6 +587,8 @@ export const dict: Record<string, string> = {
   "lx.search.people": "Rechercher",
   "fr.photos.readAll": "Analyser ma galerie",
   "lx.reader.continue": "Continuer quand même",
+  "lx.enhance.proPreview": "Aperçu · enregistrer avec Pro",
+  "lx.enhance.savePro": "Enregistrer avec Pro",
   "lx.studio.hero.badge": "Ton éditeur",
   "lx.studio.hero.title": "Rends-la plus belle",
   "lx.studio.hero.sub": "Lumière, couleur et style en un geste. Avant et après.",

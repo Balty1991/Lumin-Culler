@@ -558,6 +558,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   }, [base, style, amount, rotation, crop, manual, personMask, pure]);
   // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
   const view = pure ? (orig ?? src) : src;
+  /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
+  const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
   const [failed, setFailed] = useState(false);
   const [split, setSplit] = useState(100);
@@ -721,6 +723,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       <div className="lx-enhance-stage" ref={stage}
         onPointerDown={e => { dragging.current = true; dragBounds.current = stage.current?.getBoundingClientRect() ?? null; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
         onPointerMove={move} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+        {proPreview && <span className="lx-pro-preview" aria-hidden="true"><b>PRO</b> {tr('lx.enhance.proPreview')}</span>}
         {!src && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         {src && edits && (edits.crop || panel === 'frame') ? (
@@ -839,6 +842,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           <button className="lx-btn ghost" onClick={onClose}>{tr(nothing ? 'lx.close' : 'lx.enhance.cancel')}</button>
           {!nothing && orig && view && (
             <button className="lx-btn ghost" onClick={() => {
+              // Un stil Pro nu iese din aplicație nici ca imagine „înainte/după”.
+              if (proPreview && useStore.getState().gatePremium('styles')) return;
               const fixes = issues.length
                 ? issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ')
                 : tr('lx.enhance.title');
@@ -847,7 +852,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               });
             }}>{tr('lx.freed.share')}</button>
           )}
-          {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr('lx.enhance.save')}</button>}
+          {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr(proPreview ? 'lx.enhance.savePro' : 'lx.enhance.save')}</button>}
         </div>
       </div>
       {erasing && <MagicSheet photo={photo} onClose={() => setErasing(false)} />}
