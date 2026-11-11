@@ -79,15 +79,21 @@ export function DaysScreen() {
 
   return (
     <div className="lx-screen">
-      <header className="lx-head">
-        <h1 className="lx-title">{tr('lx.days.title')}</h1>
-        <div className="lx-head-actions">
-          <button className="lx-btn ghost small" onClick={pick}>{tr('lx.addPhotos')}</button>
-          {Capacitor.isNativePlatform() && <SortAllButton small />}
-        </div>
-      </header>
+      {/* Pe perete, antetul e un singur rând (căutarea + „+”): pozele încep mai sus. */}
+      {view !== 'wall' && (
+        <header className="lx-head">
+          <h1 className="lx-title">{tr('lx.days.title')}</h1>
+          <div className="lx-head-actions">
+            <button className="lx-btn ghost small" onClick={pick}>{tr('lx.addPhotos')}</button>
+            {Capacitor.isNativePlatform() && <SortAllButton small />}
+          </div>
+        </header>
+      )}
 
-      {view === 'wall' && <GalleryWall toolbar={<GalleryFilters />} />}
+      {view === 'wall' && <GalleryWall toolbar={<GalleryFilters />} actions={<>
+        <button className="lx-icon-btn lx-search-add" onClick={pick} aria-label={tr('lx.addPhotos')}>+</button>
+        {Capacitor.isNativePlatform() && <SortAllButton small />}
+      </>} />}
       {view !== 'wall' && <GalleryFilters />}
       {view === 'moments' && <MomentsView />}
 

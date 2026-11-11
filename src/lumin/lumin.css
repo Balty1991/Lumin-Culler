@@ -2069,3 +2069,11 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-undo-pair .lx-icon-btn { width: 40px; height: 40px; font-size: 20px; }
 .lx-undo-pair .lx-icon-btn:disabled { opacity: .3; }
 .lx-recap-share { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; }
+
+/* Galeria: antet pe un rând și spații mai strânse, ca pozele să înceapă mai sus */
+.lx-search-row { display: flex; align-items: center; gap: 8px; }
+.lx-search-row .lx-search { flex: 1; min-width: 0; height: 46px; }
+.lx-search-add { flex: none; width: 46px; height: 46px; font-size: 24px; line-height: 1; }
+.lx-wall-wrap { gap: 8px; }
+.lx-burst-tidy { padding: 8px 12px; }
+.lx-burst-tidy .lx-burst-tidy-icon { width: 30px; height: 30px; }

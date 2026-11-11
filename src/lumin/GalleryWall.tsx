@@ -183,7 +183,7 @@ function withTransition(change: () => void) {
   else change();
 }
 
-export function GalleryWall({ toolbar }: { toolbar?: ReactNode }) {
+export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** Butoanele din dreapta căutării (ex. „+”): antetul galeriei stă pe un singur rând. */ actions?: ReactNode }) {
   const photos = useLxPhotos();
   const locale = useStore(s => s.locale);
   const tr = useTr();
@@ -415,6 +415,7 @@ export function GalleryWall({ toolbar }: { toolbar?: ReactNode }) {
   return (
     <div className="lx-wall-wrap" ref={wrap} onTouchStart={e => onTouchStart(e.nativeEvent)} onTouchMove={e => onTouchMove(e.nativeEvent)} onTouchEnd={onTouchEnd}
       style={{ ['--cols' as string]: density, ['--cell' as string]: `${cell}px`, ['--gap' as string]: `${GAP}px` }}>
+      <div className="lx-search-row">
       <label className="lx-search">
         <span aria-hidden="true">⌕</span>
         <input ref={searchInput} type="search" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 150)} onChange={e => { setSimilar(null); setQuery(e.target.value); }} placeholder={tr('lx.search.placeholder')} aria-label={tr('lx.search.placeholder')} />
@@ -425,6 +426,8 @@ export function GalleryWall({ toolbar }: { toolbar?: ReactNode }) {
           </button>
         )}
       </label>
+      {actions}
+      </div>
       {toolbar}
       {!query.trim() && !similar && (folder ? (
         <div className="lx-chips">
