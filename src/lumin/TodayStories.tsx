@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
-import { useLxPhotos } from './useLxPhotos';
+import { useLxPhotos, visiblePhotos } from './useLxPhotos';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
@@ -46,6 +46,7 @@ export function TodayStories({ stories, greeting, date, streak }: { stories: Sto
   const count = story.photos.length;
   const day = dayLabel(photoTime(story.cover), locale);
   const text = {
+    year: { badge: tr('lx.year.badge'), title: tr('lx.year.story', { year: story.year ?? '' }), sub: tr('lx.year.sub'), cta: tr('lx.year.cta') },
     today: { badge: tr('lx.ritual60.badge'), title: tr('lx.ritual60.title'), sub: tr('lx.ritual60.sub', { count }), cta: tr('lx.ritual60.cta') },
     memory: { badge: tr(story.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', { years: story.years ?? 1 }), title: day, sub: tr('lx.story.count', { count }), cta: tr('lx.story.see') },
     best: { badge: tr(story.recent ? 'lx.hero.weekBest' : 'lx.hero.fromGallery'), title: day, sub: tr('lx.story.count', { count }), cta: tr('lx.story.see') },
@@ -55,6 +56,7 @@ export function TodayStories({ stories, greeting, date, streak }: { stories: Sto
     forgotten: { badge: tr('lx.story.forgotten.badge'), title: day, sub: tr('lx.story.forgotten.sub'), cta: tr('lx.story.see') }
   }[story.kind];
   const act = () => {
+    if (story.kind === 'year') { void import('./yearShare').then(m => m.shareYear(visiblePhotos(), story.year ?? new Date().getFullYear())); return; }
     if (story.kind === 'today') useLx.getState().openSort(ids, tr('lx.ritual60.title'), true);
     else if (story.kind === 'waiting') useLx.getState().openSort(ids, text.title);
     else if (story.kind === 'series') useLx.getState().openSort(ids, tr('lx.story.series.badge'));

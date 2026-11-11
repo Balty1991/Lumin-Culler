@@ -168,3 +168,42 @@ export async function renderDayCard(srcs: readonly string[], title: string, date
   paintBrand(ctx, STORY_W, STORY_H, cta);
   return blobOf(c);
 }
+
+/**
+ * „Anul meu în poze”: cardul vertical de sfârșit de an. Anul mare, trei cadre din
+ * luni diferite și cifrele omului, câte una pe rând.
+ */
+export async function renderYearCard(srcs: readonly string[], year: number, title: string, lines: readonly string[], cta: string): Promise<Blob | null> {
+  const imgs = (await Promise.all(srcs.slice(0, 3).map(loadImg))).filter((i): i is HTMLImageElement => !!i);
+  if (!imgs.length) return null;
+  const box = canvas(STORY_W, STORY_H);
+  if (!box) return null;
+  const { c, ctx } = box;
+  const bg = ctx.createLinearGradient(0, 0, STORY_W, STORY_H);
+  bg.addColorStop(0, '#1b0b1d'); bg.addColorStop(0.55, '#07060a'); bg.addColorStop(1, '#0a1220');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, STORY_W, STORY_H);
+  const pad = 56, gap = 14;
+  ctx.textBaseline = 'top';
+  const grad = ctx.createLinearGradient(pad, 0, pad + 520, 0);
+  grad.addColorStop(0, '#ff5482'); grad.addColorStop(0.6, '#b56bff'); grad.addColorStop(1, '#6fd3ff');
+  ctx.fillStyle = grad;
+  ctx.font = '800 220px system-ui, sans-serif';
+  ctx.fillText(String(year), pad - 8, 70);
+  ctx.fillStyle = '#fff6f9';
+  ctx.font = '700 54px system-ui, sans-serif';
+  ctx.fillText(title, pad, 310);
+  const top = 420, w = STORY_W - pad * 2, big = 620, small = 330, half = (w - gap) / 2;
+  const tile = (img: HTMLImageElement, x: number, y: number, tw: number, th: number) => {
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, tw, th, 40); ctx.clip(); cover(ctx, img, x, y, tw, th); ctx.restore();
+  };
+  tile(imgs[0], pad, top, w, imgs.length === 1 ? big + gap + small : big);
+  if (imgs.length === 2) tile(imgs[1], pad, top + big + gap, w, small);
+  if (imgs.length >= 3) { tile(imgs[1], pad, top + big + gap, half, small); tile(imgs[2], pad + half + gap, top + big + gap, half, small); }
+  let y = top + big + gap + small + 48;
+  ctx.fillStyle = 'rgba(255, 246, 249, 0.9)';
+  ctx.font = '500 38px system-ui, sans-serif';
+  for (const line of lines.slice(0, 4)) { ctx.fillText(line, pad, y); y += 58; }
+  paintBrand(ctx, STORY_W, STORY_H, cta);
+  return blobOf(c);
+}

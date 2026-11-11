@@ -1,3 +1,4 @@
+import { useHoldAnalysis } from './useHoldAnalysis';
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
@@ -632,6 +633,9 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   /** „Asemănătoare” — doar unde există o listă în care să le arătăm. */
   onSimilar?: (id: string) => void;
 }) {
+  // Cât te uiți la o poză, citirea galeriei așteaptă: poza clară vine imediat, nu după rând
+  // (văzut într-o înregistrare: ecran gol câteva secunde la deschidere, în timpul citirii).
+  useHoldAnalysis();
   const [enhancing, setEnhancing] = useState(false);
   const [writing, setWriting] = useState(false);
   const [insta, setInsta] = useState(false);

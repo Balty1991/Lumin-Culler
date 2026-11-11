@@ -1,3 +1,4 @@
+import { useStore } from '../state/store';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLxPhotos } from './useLxPhotos';
@@ -97,6 +98,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
       ) : <p>{tr('lx.ask.waitingNone')}</p>;
       case 'train': return (<><p>{tr('lx.ask.train')}</p><button className="lx-btn primary small" onClick={() => { onClose(); openTasteQuiz(); }}>{tr('lx.brain.train')}</button></>);
       case 'studio': return (<><p>{tr('lx.ask.studio')}</p><button className="lx-btn primary small" onClick={() => { onClose(); lx().setTab('brain'); }}>{tr('lx.ask.openStudio')}</button></>);
+      case 'year': return (<><p>{tr('lx.ask.year')}</p><button className="lx-btn primary small" onClick={() => { void import('./yearShare').then(m => m.shareYear(photos, r.year)).then(ok => { if (!ok) useStore.getState().setNotice(tr('lx.ask.yearNone')); }); }}>{tr('lx.year.cta')}</button></>);
       case 'add': return (<><p>{tr('lx.ask.add')}</p><button className="lx-btn primary small" onClick={() => { onClose(); actions.pick(); }}>{tr('lx.addPhotos')}</button></>);
     }
   };

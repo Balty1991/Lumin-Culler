@@ -16,7 +16,8 @@ export type AssistantReply =
   | { kind: 'waiting'; photos: PhotoView[] }
   | { kind: 'train' }
   | { kind: 'studio' }
-  | { kind: 'add' };
+  | { kind: 'add' }
+  | { kind: 'year'; year: number };
 
 /** Cuvinte de umplutură din întrebări: nu se caută. */
 const FILLER = new Set(('arata arati mi imi vreau sa vad vezi gaseste cauta da poze pozele poza fotografii fotografiile cu de la din pe in si unde e este sunt toate ale lui ei cele mai ' +
@@ -47,6 +48,7 @@ const isWaiting = (p: PhotoView) => !p.aside && (p.status === 'review' || p.stat
 export function answer(input: string, photos: readonly PhotoView[], now = Date.now()): AssistantReply {
   const q = fold(input).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
+  if (has(q, /\b(anul meu|anul asta|anul acesta|rezumatul anului|my year|year in review|wrapped)\b/)) return { kind: 'year', year: new Date(now).getFullYear() };
   if (has(q, /\b(adauga|importa|incarca|add|import|upload)\b/)) return { kind: 'add' };
   if (has(q, /\b(antrene|invata|train|teach|gustul)\w*/)) return { kind: 'train' };
   if (has(q, /\b(cate|cati|statistic|how many|stats|numar)\w*/)) {

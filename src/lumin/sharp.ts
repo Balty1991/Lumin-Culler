@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { db } from '../core/db';
+import { RenderQueue } from './renderQueue';
 
 /**
  * lumin/sharp.ts
@@ -22,6 +23,7 @@ export function sizeFor(cssPx: number): number {
 }
 
 const urls = new Map<string, Promise<string | null>>();
+const queue = new RenderQueue<string | null>(1, 24);
 /** Ce s-a terminat deja, citibil pe loc (fără așteptare): poza clară apare din primul cadru. */
 const ready = new Map<string, string>();
 export function peekSharpUrl(photoId: string, size: number): string | null {
@@ -66,7 +68,9 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
   const k = `${photoId}@${size}`;
   let p = urls.get(k);
   if (!p) {
-    p = (async () => {
+    // Prin rândul din aplicație (renderQueue.ts): poza de ecran și editorul trec înaintea
+    // dalelor din galerie, iar dalele vechi nu mai țin telefonul ocupat.
+    p = queue.add(async () => {
       const uri = await originalUri(photoId);
       if (!uri) return null;
       const rec = { mediaUri: uri };
@@ -78,7 +82,7 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
       if (!data) return null;
       const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
       return preload(URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' })));
-    })().catch(() => null);
+    }, size >= SCREEN_SIZE).catch(() => null);
     p.then(u => { if (!u) urls.delete(k); else ready.set(k, u); });
     urls.set(k, p);
   }

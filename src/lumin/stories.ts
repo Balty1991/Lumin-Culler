@@ -8,8 +8,9 @@ import type { PhotoView } from '../state/store';
 import { startOfDay } from '../core/todayDigest';
 import { photoTime } from './days';
 import { onThisDay } from './momentAlbums';
+import { yearSeason, yearStats } from './yearStats';
 
-export type StoryKind = 'today' | 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
+export type StoryKind = 'year' | 'today' | 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
 export interface Story {
   id: string;
   kind: StoryKind;
@@ -17,6 +18,8 @@ export interface Story {
   photos: PhotoView[];
   /** memory: câți ani au trecut. */
   years?: number;
+  /** year: anul rezumat. */
+  year?: number;
   /** series: câte serii. */
   sets?: number;
   /** person: numele. */
@@ -34,6 +37,11 @@ export function buildStories(photos: readonly PhotoView[], now = Date.now(), rit
   const used = new Set<string>();
   const push = (s: Story) => { if (!used.has(s.cover.id)) { used.add(s.cover.id); out.push(s); } };
   const kept = photos.filter(p => p.status === 'selected' && !p.aside);
+
+  // Sfârșit de an: „Anul tău în poze”, înaintea tuturor (25 nov. – 15 ian.).
+  const season = yearSeason(now);
+  const ys = season ? yearStats(photos, season) : null;
+  if (ys && ys.best.length) push({ id: `year-${ys.year}`, kind: 'year', cover: ys.best[0], photos: ys.best, year: ys.year });
 
   // 0. Ritualul zilei: pozele de azi, alese într-un minut (o dată pe zi).
   const today = startOfDay(now);
@@ -103,5 +111,5 @@ export function buildStories(photos: readonly PhotoView[], now = Date.now(), rit
     push({ id: `forgotten-${star.id}`, kind: 'forgotten', cover: star, photos: [star, ...old.filter(p => p !== star)] });
   }
 
-  return out.slice(0, 7);
+  return out.slice(0, 8);
 }
