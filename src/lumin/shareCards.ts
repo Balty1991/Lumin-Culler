@@ -5,6 +5,7 @@
  *
  * Pătrat 1080 și poveste 9:16. Semnătura e discretă; linkul e fișa Play.
  */
+import { isPremium } from '../core/entitlement';
 import { shareCollage } from './collage';
 
 export const CARD = 1080;
@@ -29,6 +30,8 @@ function blobOf(c: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 function paintBrand(ctx: CanvasRenderingContext2D, w: number, h: number, cta: string): void {
+  // Pro: fără semnătura Cherrypic pe ce trimiți (promis în ofertă).
+  if (isPremium()) return;
   const bar = ctx.createLinearGradient(0, h - 132, 0, h);
   bar.addColorStop(0, 'rgba(7,9,16,0)');
   bar.addColorStop(1, 'rgba(7,9,16,0.82)');

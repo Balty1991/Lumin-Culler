@@ -1,3 +1,4 @@
+import { isPremium } from '../core/entitlement';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -228,7 +229,7 @@ function ProfileSheet({ profile, initialMode = 'profile', onClose }: { profile: 
         [weekday, tr('lx.profile.stat.day')]
       ],
       people: profile.people.length ? tr('lx.profile.with', { names: profile.people.map(p => p.name).join(' · ') }) : '',
-      footer: 'Cherrypic'
+      footer: isPremium() ? '' : 'Cherrypic'
     }).then(done);
     return () => { alive = false; };
   // Fără `tr` aici: e o funcție nouă la fiecare afișare, iar desenul pornea din nou

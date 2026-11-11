@@ -1,3 +1,4 @@
+import { isPremium } from '../core/entitlement';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -87,7 +88,7 @@ export async function makeCollage(ids: string[], title: string, subtitle: string
   brand.addColorStop(1, '#a98bff');
   ctx.fillStyle = brand;
   ctx.font = '600 30px "Sora Variable", sans-serif';
-  ctx.fillText('Cherrypic', pad, H - 50);
+  if (!isPremium()) ctx.fillText('Cherrypic', pad, H - 50); // Pro: fără semnătură
   ctx.fillStyle = '#8a93a3';
   ctx.font = '400 26px "Inter Variable", sans-serif';
   const tag = 'ales de AI-ul meu';
@@ -201,6 +202,6 @@ export async function makeLayoutCollage(
 
   ctx.fillStyle = light ? '#b0243e' : '#ff7fa6';
   ctx.font = '600 30px "Sora Variable", sans-serif';
-  ctx.fillText('Cherrypic', pad, H - 50);
+  if (!isPremium()) ctx.fillText('Cherrypic', pad, H - 50); // Pro: fără semnătură
   return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
 }

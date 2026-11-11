@@ -189,7 +189,7 @@ export function SettingsScreen() {
         )}
       </section>
 
-      <PaywallDiag />
+      {devUnlimitedAvailable && <PaywallDiag />}
 
       <button className="lx-row button" onClick={() => void sendReport()}>
         <span><b>🛠 {tr('lx.report.title')}</b><small>{tr('lx.report.sub', { count: readErrorLog().length })}</small></span>

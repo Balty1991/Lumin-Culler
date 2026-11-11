@@ -1,3 +1,5 @@
+import { claimPaywall, setPaywallContext } from './paywallMoment';
+import { formatBytes } from '../core/freedSpace';
 import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useEffect, useMemo, useState } from 'react';
 import { TrainingCard } from './TrainingCard';
@@ -12,7 +14,7 @@ import { reasonsFor } from './reasons';
 import { useLx } from './lxStore';
 import { useLxActions, useTr } from './context';
 import { Orb } from './Orb';
-import { LumiFeed } from './LumiFeed';
+import { LumiFeed, seriesExtras } from './LumiFeed';
 import { IsItThem, WhoIsThis } from './WhoIsThis';
 import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
 import { continueOnLowBattery, continueWithoutTraining, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
@@ -71,6 +73,30 @@ export function TodayScreen() {
   const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
   const setAutoResult = useLx(s => s.setAutoResult);
+
+  // Finalul primei citiri: oferta Pro pe cifrele omului (câte poze în plus, cât spațiu).
+  const readOffer = useMemo(() => {
+    if (!readerResult || !premiumLocked) return null;
+    const { sets, extras } = seriesExtras(photos);
+    if (extras.length < 5 && readerResult.waiting < 20) return null;
+    const size = extras.reduce((s, p) => s + (p.sizeBytes ?? 0), 0);
+    const text = extras.length >= 5
+      ? tr('lx.reader.offer', { extras: extras.length, sets, size: formatBytes(size, useStore.getState().locale), waiting: readerResult.waiting })
+      : tr('lx.reader.offerWaiting', { waiting: readerResult.waiting });
+    return { text };
+  }, [readerResult, premiumLocked, photos, tr]);
+  // O singură dată, după prima citire mare: oferta se deschide singură, cu „Nu acum” la vedere.
+  useEffect(() => {
+    if (!readOffer || !readerResult || reader || readerResult.total < 100) return;
+    try { if (localStorage.getItem('cherrypic.readOffer.shown') === '1') return; } catch { return; }
+    const timer = window.setTimeout(() => {
+      if (!useStore.getState().premiumLocked || !claimPaywall()) return;
+      try { localStorage.setItem('cherrypic.readOffer.shown', '1'); } catch { /* fără stocare */ }
+      setPaywallContext(readOffer.text);
+      useStore.getState().gatePremium('acceptAll');
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [readOffer, readerResult, reader]);
 
   const days = useMemo(() => groupDays(photos), [photos]);
   const todayStart = startOfDay();
@@ -195,8 +221,10 @@ export function TodayScreen() {
           <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
           <b>{tr('lx.reader.doneTitle', { total: readerResult.total })}</b>
           <span>{tr('lx.reader.doneSub', { kept: readerResult.kept, waiting: readerResult.waiting })}</span>
+          {readOffer && <span className="lx-read-offer">{readOffer.text}</span>}
           <div className="lx-decide-actions">
             <button className="lx-btn primary" onClick={() => { setReaderResult(null); setTab('days'); }}>{tr('lx.reader.see')}</button>
+            {readOffer && <button className="lx-btn ghost" onClick={() => { setPaywallContext(readOffer.text); gatePremium('acceptAll'); }}>{tr('lx.feed.proGo')}</button>}
           </div>
         </section>
       )}
