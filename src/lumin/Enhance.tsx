@@ -13,6 +13,7 @@ import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
 import { portraitAvailable } from '../core/portraitEdit';
 import { Icon } from './icons';
+import { learnLook, readMyLook } from './myLook';
 import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
@@ -402,12 +403,24 @@ function markEnhanced(ids: readonly string[]): void {
   } catch { /* fără stocare: butonul doar nu se ascunde */ }
 }
 
+/**
+ * Stilul pentru o zi întreagă: al tău, dacă ai unul (și nu cere fețe ori Pro
+ * fără abonament); altfel „Natural”, ca până acum.
+ */
+export function batchLook(): { style: EnhanceStyle; amount: number; mine: boolean } {
+  const mine = readMyLook();
+  const style = mine && (ENHANCE_STYLES as string[]).includes(mine.style) ? mine.style as EnhanceStyle : null;
+  if (!mine || !style || NEEDS_FACE.has(style) || (ADVANCED.has(style) && useStore.getState().premiumLocked)) return { style: 'natural', amount: 1, mine: false };
+  return { style, amount: mine.amount, mine: true };
+}
+
 export async function enhanceAll(photoIds: readonly string[], onProgress?: (done: number, total: number) => void): Promise<number> {
   const plans: { sourceId: string; adjustments: EditAdjustments }[] = [];
+  const look = batchLook();
   for (let i = 0; i < photoIds.length; i++) {
     try {
       const { edits } = await autoEnhance(photoIds[i]);
-      plans.push({ sourceId: photoIds[i], adjustments: styledEdits(edits, 'natural', 1) });
+      plans.push({ sourceId: photoIds[i], adjustments: styledEdits(edits, look.style, look.amount) });
     } catch { /* o poză care nu se citește nu oprește restul */ }
     onProgress?.(i + 1, photoIds.length);
   }
@@ -501,10 +514,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   /** Sursa e deja luminată pe telefon (Zero-DCE): copia se salvează gata făcută. */
   const [lit, setLit] = useState(false);
   const [base, setBase] = useState<EditAdjustments | null>(null);
-  const [style, setStyle] = useState<EnhanceStyle>('natural');
+  // „Stilul tău”: editorul pornește pe stilul și intensitatea pe care le salvezi de obicei.
+  const mine = useMemo(() => { const m = readMyLook(); return m && (ENHANCE_STYLES as string[]).includes(m.style) && !NEEDS_FACE.has(m.style as EnhanceStyle) ? m : null; }, []);
+  const [style, setStyle] = useState<EnhanceStyle>(() => (mine?.style as EnhanceStyle | undefined) ?? 'natural');
   /** „De la zero”: fără nicio reparație automată, doar reglajele puse de mână. */
   const [pure, setPure] = useState(false);
-  const [amount, setAmount] = useState(0.5); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
+  const [amount, setAmount] = useState(() => mine?.amount ?? 0.5); // cerut: slider-ul pornește de la 50%, omul urcă dacă vrea mai mult
   const [tilt, setTilt] = useState(0);
   const [straight, setStraight] = useState(false);
   // „Lumină” și „Culoare”: reglajele omului, adăugate peste stil (0 = cum a ales AI-ul).
@@ -657,6 +672,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     if (!edits) return;
     learnEditorTaste(manual);
     if (ADVANCED.has(style) && useStore.getState().gatePremium('styles')) return;
+    if (!pure) learnLook(style, amount);
     setSaving(true);
     try {
       // Portretul cu omul decupat: masca nu se păstrează în copie (se reface din poză),
@@ -742,7 +758,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             </div>
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
-                <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
+                {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
+            <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
                   {(Object.keys(ASPECTS) as Aspect[]).map(a => (
                     <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
                       {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
@@ -795,7 +812,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => { setPure(false); setStyle(st); }}>
-                  {tr(`lx.enhance.style.${st}`)}{ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
+                  {mine?.style === st && <span className="lx-mine" title={tr('lx.enhance.mine')}>✦ </span>}{tr(`lx.enhance.style.${st}`)}{ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
               ))}
               {tilt !== 0 && (

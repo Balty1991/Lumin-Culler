@@ -21,7 +21,7 @@ import { PERSON_GROUPS, readPersonGroups, setPersonGroup, type PersonGroup } fro
 import { bestSpread } from './momentAlbums';
 import { makeLayoutCollage, shareCollage } from './collage';
 import { makeJournal, shareYearBook } from './yearBook';
-import { enhanceAll, notYetEnhanced } from './Enhance';
+import { enhanceAll, notYetEnhanced, batchLook } from './Enhance';
 import { learnFromShare } from './signals';
 import { PeopleGrid } from './People';
 import { CleanupCard } from './Cleanup';
@@ -501,7 +501,7 @@ function EnhanceAllButton({ ids: all }: { ids: string[] }) {
     <button className="lx-link" disabled={progress !== null} onClick={() => {
       setProgress('0');
       void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`)).finally(() => { setProgress(null); bump(n => n + 1); });
-    }}>✨ {progress ? tr('lx.enhance.allProgress', { progress }) : tr('lx.enhance.all', { count: ids.length })}</button>
+    }}>✨ {progress ? tr('lx.enhance.allProgress', { progress }) : tr(batchLook().mine ? 'lx.enhance.allMine' : 'lx.enhance.all', { count: ids.length })}</button>
   );
 }
 

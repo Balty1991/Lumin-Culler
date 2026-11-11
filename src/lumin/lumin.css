@@ -2033,3 +2033,7 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-recap-week i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--lx-line); }
 .lx-recap-week i.on { border: 0; background: var(--lx-grad); }
 .lx-kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); }
+
+/* „Stilul tău” în editor */
+.lx-enhance-mine { margin: 0 0 8px; font-size: 12.5px; color: rgb(var(--accent-rgb)); }
+.lx-mine { color: rgb(var(--accent-rgb)); }
