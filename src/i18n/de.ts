@@ -587,6 +587,7 @@ export const dict: Record<string, string> = {
   "lx.search.people": "Suche",
   "fr.photos.readAll": "Meine Galerie analysieren",
   "lx.reader.continue": "Trotzdem weiter",
+  "lx.today.more": "Mehr",
   "premium.cp.weekly.title": "Aufräumen jede Woche",
   "premium.cp.weekly.sub": "Jede Woche bereitet der Pilot vor, was aus den neuen Fotos weg kann, und sagt dir, wie viel Platz frei wird. Du prüfst und bestätigst mit einem Tipp.",
   "premium.cp.mine.title": "Dein Stil, für einen ganzen Tag oder ein Album",

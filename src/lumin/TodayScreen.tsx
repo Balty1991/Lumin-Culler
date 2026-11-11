@@ -19,12 +19,10 @@ import { IsItThem, WhoIsThis } from './WhoIsThis';
 import { openBatterySettings, readBatteryRestriction } from '../core/backgroundAnalysis';
 import { continueOnLowBattery, continueWithoutTraining, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
-import { FreedCard } from './TwinParts';
 import { readTwin } from './twin';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
-import { CleanupCard } from './Cleanup';
 import { onThisDay } from './momentAlbums';
 import { StoryButton } from './Story';
 import { photoTime } from './days';
@@ -42,7 +40,6 @@ import { CapsuleCard } from './Capsule';
 import { ForgottenCard, MissingCard } from './Insights';
 import { BeenHereCard } from './Moments';
 import { StudioStrip } from './Studio';
-import { VideoToday } from './VideoCleanup';
 import { FamilyVote } from './FamilyVote';
 import { LivePhotoSheet } from './LivePhoto';
 import { livePhotoAvailable } from './livePhoto';
@@ -306,22 +303,15 @@ export function TodayScreen() {
         </>
       )}
       <StudioStrip />
-      <WeekVote />
-      <BeenHereCard />
-      <CapsuleCard />
-      <ForgottenCard />
-      <MissingCard />
-      <OnThisDay heroCoversFirst={!busy} />
+      {/* Amintirea de azi și poza uitată sunt deja în poveștile de sus. */}
+      {!showStories && <ForgottenCard />}
+      {!showStories && <OnThisDay heroCoversFirst={!busy} />}
 
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
       <section className="lx-section">
         <div className="lx-section-head"><h2>{tr('lx.today.galleryGroup')}</h2></div>
         <div className="lx-today-group">
         <GalleryStatus />
-        <CleanupCard photos={photos} compact />
-        <VideoToday />
-
-        <FreedCard />
 
         <button className="lx-card lx-ai-mini" onClick={() => setTab('brain')}>
           <Orb mood="learn" size={44} />
@@ -334,6 +324,13 @@ export function TodayScreen() {
         </div>
       </section>
 
+      {/* Restul stă strâns: Azi rămâne scurt (cerut de audit: peste 20 de blocuri). */}
+      <details className="lx-more">
+        <summary>{tr('lx.today.more')}</summary>
+        <WeekVote />
+        <BeenHereCard />
+        <CapsuleCard />
+        <MissingCard />
       {past.length > 0 && (
         <section className="lx-section">
           <div className="lx-section-head">
@@ -358,6 +355,7 @@ export function TodayScreen() {
           </div>
         </section>
       )}
+      </details>
     </div>
   );
 }

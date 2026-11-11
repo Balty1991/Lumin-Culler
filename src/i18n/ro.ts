@@ -2708,6 +2708,7 @@ export const ro = {
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Analizează galeria",
   "lx.reader.continue": "Continuă oricum",
+  "lx.today.more": "Mai multe",
   "premium.cp.weekly.title": "Curățenia săptămânii",
   "premium.cp.weekly.sub": "În fiecare săptămână, Pilotul pregătește ce se poate scoate din pozele noi și îți spune cât spațiu eliberezi. Verifici și confirmi dintr-o atingere.",
   "premium.cp.mine.title": "Stilul tău, pe o zi sau pe un album",

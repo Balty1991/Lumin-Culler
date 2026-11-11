@@ -2622,6 +2622,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.search.people": "Search",
   "fr.photos.readAll": "Analyse my gallery",
   "lx.reader.continue": "Continue anyway",
+  "lx.today.more": "More",
   "premium.cp.weekly.title": "The weekly clean-up",
   "premium.cp.weekly.sub": "Every week the Pilot prepares what can go from your new photos and tells you how much space you free. You check and confirm in one tap.",
   "premium.cp.mine.title": "Your style, on a whole day or album",
