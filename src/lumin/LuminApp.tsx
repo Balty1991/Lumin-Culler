@@ -48,6 +48,7 @@ import '../design/system.css';
 // Doar Azi se încarcă la pornire; restul ecranelor, la prima deschidere (pornire mai rapidă).
 const DaysScreen = memo(lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen }))));
 const StudioTab = memo(lazy(() => import('./Studio').then(m => ({ default: m.StudioTab }))));
+const CleanScreen = memo(lazy(() => import('./CleanScreen').then(m => ({ default: m.CleanScreen }))));
 const SettingsScreen = memo(lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen }))));
 import { Icon } from './icons';
 /** Ecranele nu primesc nimic de la părinte: schimbarea filei nu are de ce să le redeseneze. */
@@ -63,8 +64,8 @@ const ACCEPT = 'image/*,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.
 const TABS: { id: LxTab; icon: string; label: string }[] = [
   { id: 'today', icon: 'today', label: 'lx.nav.today' },
   { id: 'days', icon: 'days', label: 'lx.nav.days' },
-  { id: 'brain', icon: 'studio', label: 'lx.nav.brain' },
-  { id: 'settings', icon: 'settings', label: 'lx.nav.settings' }
+  { id: 'clean', icon: 'clean', label: 'lx.nav.clean' },
+  { id: 'brain', icon: 'studio', label: 'lx.nav.brain' }
 ];
 
 /**
@@ -144,6 +145,7 @@ function TabIcon({ name }: { name: string }) {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
   if (name === 'today') return <svg {...common}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>;
   if (name === 'days') return <svg {...common}><rect x="3" y="4" width="18" height="17" rx="3" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>;
+  if (name === 'clean') return <svg {...common}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>;
   if (name === 'studio') return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>;
 }
@@ -179,7 +181,7 @@ export function LuminApp() {
   // ca prima atingere să nu mai aștepte descărcarea și citirea lui.
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const load = () => { void import('./DaysScreen'); void import('./Studio'); void import('./SettingsScreen'); void import('./SwipeSort'); void import('./Assistant'); };
+      const load = () => { void import('./DaysScreen'); void import('./Studio'); void import('./SettingsScreen'); void import('./CleanScreen'); void import('./SwipeSort'); void import('./Assistant'); };
       const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
       if (ric) ric(load, { timeout: 2000 }); else load();
     }, 2500);
@@ -448,6 +450,7 @@ export function LuminApp() {
                 reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
             {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayPane /></div>}
             {visited.has('days') && <div className="lx-tabpane" hidden={tab !== 'days'}><Suspense fallback={<ScreenWait />}><DaysScreen /></Suspense></div>}
+            {visited.has('clean') && <div className="lx-tabpane" hidden={tab !== 'clean'}><Suspense fallback={<ScreenWait />}><CleanScreen /></Suspense></div>}
             {visited.has('brain') && <div className="lx-tabpane" hidden={tab !== 'brain'}><Suspense fallback={<ScreenWait />}><StudioTab /></Suspense></div>}
             {visited.has('settings') && <div className="lx-tabpane" hidden={tab !== 'settings'}><Suspense fallback={<ScreenWait />}><SettingsScreen /></Suspense></div>}
           </main>
@@ -487,6 +490,9 @@ export function LuminApp() {
         </nav>
 
         {askOpen && <Suspense fallback={null}><Assistant onClose={() => setAskOpen(false)} /></Suspense>}
+        {(tab === 'today' || tab === 'clean' || tab === 'brain') && (
+          <button className="lx-gear" onClick={() => { haptic('tick'); setTab('settings'); }} aria-label={tr('lx.nav.settings')}><TabIcon name="settings" /></button>
+        )}
         {sortOpen && <Suspense fallback={null}><SwipeSort /></Suspense>}
         {booted && tourOpen && !sortOpen && (
           <Suspense fallback={null}><AppTour onClose={() => useLx.getState().setTourOpen(false)} /></Suspense>

@@ -7,7 +7,7 @@ import { closeWithTransition, openWithTransition } from './viewTransition';
  * Starea interfeței Lumin AI (navigarea), separată de motorul aplicației
  * (state/store.ts), care rămâne același: analiză, învățare, decizii.
  */
-export type LxTab = 'today' | 'days' | 'brain' | 'settings';
+export type LxTab = 'today' | 'days' | 'clean' | 'brain' | 'settings';
 export type GalleryView = 'wall' | 'moments' | 'days' | 'months' | 'people' | 'map' | 'aside';
 
 interface LxState {

@@ -73,7 +73,11 @@ export function SettingsScreen() {
 
   return (
     <div className="lx-screen">
-      <header className="lx-head"><h1 className="lx-title">{tr('lx.settings.title')}</h1></header>
+      <header className="lx-head">
+        <button className="lx-icon-btn" onClick={() => useLx.getState().setTab('today')} aria-label={tr('lx.back')}>‹</button>
+        <h1 className="lx-title small">{tr('lx.settings.title')}</h1>
+        <span />
+      </header>
 
       <button className={premium ? 'lx-card lx-pro-card active' : 'lx-card lx-pro-card'} onClick={() => setPremiumOpen(true)}>
         <span className="lx-pro-badge">PRO</span>
