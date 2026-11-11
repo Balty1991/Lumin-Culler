@@ -881,9 +881,15 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               const fixes = issues.length
                 ? issues.map(id => tr(`lx.enhance.issue.${id}`)).join(' · ')
                 : tr('lx.enhance.title');
-              void renderBeforeAfterCard(orig, view, fixes, tr('lx.share.cta')).then(blob => {
-                if (blob) void shareCard(blob, `cherrypic-inainte-dupa-${Date.now()}.jpg`, fixes, tr('lx.share.cta'));
-              });
+              // „După” e poza cu reglajele de pe ecran, nu sursa (raportat cu capturi:
+              // cele două jumătăți ieșeau aproape la fel).
+              void (async () => {
+                const after = edits ? await renderEditedUrl(view, edits).catch(() => null) : null;
+                try {
+                  const blob = await renderBeforeAfterCard(orig, after ?? view, fixes, tr('lx.share.cta'));
+                  if (blob) await shareCard(blob, `cherrypic-inainte-dupa-${Date.now()}.jpg`, fixes, tr('lx.share.cta'));
+                } finally { if (after) URL.revokeObjectURL(after); }
+              })();
             }}>{tr('lx.freed.share')}</button>
           )}
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr(proPreview ? 'lx.enhance.savePro' : 'lx.enhance.save')}</button>}
@@ -948,6 +954,25 @@ function StyleThumb({ src, edits }: { src: string; edits: EditAdjustments }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, key]);
   return <canvas ref={canvas} width={96} height={96} aria-hidden="true" />;
+}
+
+/** Poza cu reglajele aplicate, ca adresă temporară (cel mult 1600 px pe latura lungă). */
+async function renderEditedUrl(src: string, edits: EditAdjustments): Promise<string | null> {
+  const img = await createImageBitmap(await (await fetch(src)).blob());
+  const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+  const small = document.createElement('canvas');
+  small.width = w; small.height = h;
+  small.getContext('2d')?.drawImage(img, 0, 0, w, h);
+  img.close();
+  const o = outputSize(w, h, edits);
+  const c = document.createElement('canvas');
+  c.width = o.width; c.height = o.height;
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  drawAdjusted(ctx, small, w, h, o.width, o.height, edits);
+  const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.92));
+  return blob ? URL.createObjectURL(blob) : null;
 }
 
 const QUICK = 640;

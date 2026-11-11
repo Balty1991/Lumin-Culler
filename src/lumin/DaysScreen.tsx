@@ -73,7 +73,7 @@ export function DaysScreen() {
   if (person) {
     const face = people.find(p => p.name === person);
     const ids = new Set(face?.photoIds ?? []);
-    const list = photos.filter(p => ids.has(p.id) || p.personNames.includes(person));
+    const list = photos.filter(p => !p.aside && (ids.has(p.id) || p.personNames.includes(person)));
     return <PersonView name={person} list={list} onBack={() => setPerson(null)} onRenamed={setPerson} />;
   }
 

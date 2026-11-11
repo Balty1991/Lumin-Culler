@@ -5,10 +5,10 @@
  * scenă de la import), fără ca omul să mute ceva.
  */
 /** `objects`: dosarul e despre lucruri, deci pozele cu oameni nu intră (o mașină parcată în spatele copilului nu face poza „Mașina”). */
-export interface SmartFolder { id: string; emoji: string; tags: readonly string[]; aside?: boolean; objects?: boolean }
+export interface SmartFolder { id: string; emoji: string; tags: readonly string[]; aside?: boolean; objects?: boolean; /** Etichete care scot poza din dosar (bicicleta e „vehicul”, dar nu e mașină). */ not?: readonly string[] }
 
 export const SMART_FOLDERS: readonly SmartFolder[] = [
-  { id: 'car', objects: true, emoji: '🚗', tags: ['car', 'vehicle', 'wheel', 'tire', 'motorcycle', 'bicycle', 'truck'] },
+  { id: 'car', objects: true, emoji: '🚗', tags: ['car', 'vehicle', 'motorcycle', 'truck', 'van'], not: ['bicycle', 'stroller', 'toy', 'scooter'] },
   { id: 'home', objects: true, emoji: '🏠', tags: ['room', 'furniture', 'couch', 'sofa', 'bed', 'kitchen', 'interior design', 'house', 'home', 'curtain', 'shelf'] },
   { id: 'food', objects: true, emoji: '🍝', tags: ['food', 'dish', 'cuisine', 'cake', 'dessert', 'meal', 'pizza', 'bread', 'fruit', 'vegetable', 'cookie', 'drink'] },
   { id: 'clothes', objects: true, emoji: '👗', tags: ['clothing', 'dress', 'shoe', 'jeans', 'handbag', 'jacket', 'sneakers', 'boot', 'shirt', 'hat'] },
@@ -25,6 +25,7 @@ export function inFolder(p: FolderPhoto, f: SmartFolder): boolean {
   if (p.aside) return false;
   if (f.objects && ((p.faceCount ?? 0) > 0 || (p.personNames?.length ?? 0) > 0)) return false;
   const tags = (p.sceneTags ?? []).map(t => t.toLowerCase());
+  if (f.not && tags.some(t => f.not!.includes(t))) return false;
   return tags.some(t => f.tags.includes(t));
 }
 

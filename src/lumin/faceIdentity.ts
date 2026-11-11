@@ -37,7 +37,13 @@ const MIN_FACE_AREA = 0.0008;
  * cineva recunoscut sigur în aceeași zi primește numele — fotografiile unei
  * ieșiri au de obicei aceiași oameni, iar fețele mici nu ating pragul strict.
  */
-const SAME_DAY_NAME = SAME_PERSON;
+// Ridicat de la 0,42 la 0,46 (raportat cu capturi: doi adulți puși la copilul lor —
+// părinții seamănă cu copilul destul cât să treacă pragul de „seamănă”).
+const SAME_DAY_NAME = 0.46;
+/** Capturile de ecran și documentele nu intră la oameni: fețele din ele sunt de pe un ecran. */
+function asidePhotoIds(): Set<string> {
+  return new Set(useStore.getState().photos.filter(p => p.aside).map(p => p.id));
+}
 const DAY_MS = 86_400_000;
 
 type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[] };
@@ -187,7 +193,9 @@ export async function suggestFaces(skip: ReadonlySet<string>, limit = 6): Promis
   if (!named.size || !unnamed.length) return [];
   const models = personModels(named, useStore.getState().persons);
   const out: FaceSuggestion[] = [];
+  const aside = asidePhotoIds();
   for (const f of unnamed) {
+    if (aside.has(f.photoId)) continue;
     if (skip.has(`${f.photoId}:${f.faceIndex}`) || f.box[2] * f.box[3] < 0.01) continue;
     const [best, second] = scoreFace(f, models);
     if (!best || best.s < ASK_FROM || best.s >= AUTO_NAME || (second && best.s - second.s < AUTO_MARGIN / 2)) continue;
@@ -207,7 +215,9 @@ export async function autoNameFaces(): Promise<number> {
   const centroids = personModels(named, persons);
   const dayOf = await photoDays();
   const byName = new Map<string, FaceRef[]>();
+  const aside = asidePhotoIds();
   for (const f of unnamed) {
+    if (aside.has(f.photoId)) continue;
     const [best, second] = scoreFace(f, centroids);
     if (!best || (second && best.s - second.s < AUTO_MARGIN)) continue;
     const day = dayOf.get(f.photoId);
