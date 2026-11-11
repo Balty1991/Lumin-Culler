@@ -9,7 +9,7 @@ import { makeCollage, shareCollage } from './collage';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
-import { makeCalendar, makeYearBook, missingMonths, shareYearBook } from './yearBook';
+import { makeCalendar, makeFamilyAlbum, makeYearBook, missingMonths, shareYearBook } from './yearBook';
 import { intlTag } from '../i18n';
 
 const DAY_MS = 86_400_000;
@@ -101,6 +101,23 @@ export function Recaps() {
   };
 
   const [bookProgress, setBookProgress] = useState('');
+  const premiumLocked = useStore(s => s.premiumLocked);
+  // Albumul de familie (Pro): cartea anului pe larg, mai multe pagini pe lună.
+  const album = async () => {
+    if (useStore.getState().gatePremium('contactSheet')) return;
+    setBusy('album');
+    try {
+      const fmt = (m: number) => new Date(year, m, 1).toLocaleDateString(intlTag(locale), { month: 'long' });
+      const blob = await makeFamilyAlbum(year, kept, {
+        title: tr('lx.book.title'), subtitle: tr('lx.book.subtitle', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length }),
+        month: m => fmt(m).charAt(0).toUpperCase() + fmt(m).slice(1)
+      }, (d, t) => setBookProgress(`${d}/${t}`));
+      if (blob) await shareYearBook(blob, `cherrypic-album-${year}.pdf`);
+      else useStore.getState().setNotice(tr('lx.recap.failed'));
+    } catch {
+      useStore.getState().setNotice(tr('lx.recap.failed'));
+    } finally { setBusy(null); setBookProgress(''); }
+  };
   const book = async () => {
     setBusy('book');
     try {
@@ -168,6 +185,11 @@ export function Recaps() {
             {c.kind === 'year' && bookMissing.length === 0 && (
               <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void book()}>
                 {busy === 'book' ? `… ${bookProgress}` : `📖 ${tr('lx.book.button')}`}
+              </button>
+            )}
+            {c.kind === 'year' && (
+              <button className="lx-btn ghost small" disabled={busy !== null} onClick={() => void album()}>
+                {busy === 'album' ? `… ${bookProgress}` : tr('lx.album.button')}{premiumLocked && <b className="lx-pro">PRO</b>}
               </button>
             )}
           </div>

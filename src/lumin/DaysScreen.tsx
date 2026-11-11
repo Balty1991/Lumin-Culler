@@ -418,6 +418,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {!editing && <PersonTimeButtons name={name} list={list} />}
       {!editing && <FindPersonButton name={name} count={list.length} />}
       {!editing && <EnhanceAllButton ids={list.filter(p => p.status === 'selected' && !p.edits).map(p => p.id)} />}
+      {!editing && <SharePersonButton name={name} list={list} />}
       {!editing && canMakePhoneAlbums() && list.some(p => p.status === 'selected') && (
         <button className="lx-btn ghost wide" onClick={() => void copyToPhoneAlbum(name, list.filter(p => p.status === 'selected'))}>{tr('lx.phone.personAlbum', { name })}</button>
       )}
@@ -671,5 +672,31 @@ function FirstsButton({ name }: { name: string }) {
       <button className="lx-btn ghost small" onClick={() => setOpen(true)}>① {tr('lx.firsts.of', { name })}</button>
       {open && <FirstsSheet name={name} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+/**
+ * „Trimite un colaj cu Mia”: cele mai reușite poze ale omului, într-o singură imagine de
+ * trimis familiei. Fără Pro, mesajul duce și spre aplicație — așa află și alții de ea.
+ */
+function SharePersonButton({ name, list }: { name: string; list: PhotoView[] }) {
+  const tr = useTr();
+  const [busy, setBusy] = useState(false);
+  const best = useMemo(() => list.filter(p => p.status === 'selected' && !p.aside)
+    .sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 6), [list]);
+  if (best.length < 3) return null;
+  return (
+    <button className="lx-btn ghost wide" disabled={busy} onClick={() => {
+      setBusy(true);
+      void (async () => {
+        const { makeCollage, shareCollage } = await import('./collage');
+        const { shareCaption } = await import('./shareCards');
+        const { isPremium } = await import('../core/entitlement');
+        const title = tr('lx.people.collageTitle', { name });
+        const blob = await makeCollage(best.map(p => p.id), title, tr('lx.story.count', { count: best.length }));
+        if (blob) await shareCollage(blob, `cherrypic-${name}.jpg`, isPremium() ? title : shareCaption(title, tr('lx.share.cta')));
+        else useStore.getState().setNotice(tr('lx.recap.failed'));
+      })().catch(() => undefined).finally(() => setBusy(false));
+    }}>{busy ? '…' : tr('lx.people.collage', { name })}</button>
   );
 }

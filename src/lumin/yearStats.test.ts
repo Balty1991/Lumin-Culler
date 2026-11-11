@@ -25,3 +25,17 @@ describe('anul tău în poze', () => {
     expect(yearSeason(new Date(2026, 5, 1).getTime())).toBeNull();
   });
 });
+
+import { albumPages } from './yearBook';
+describe('paginile albumului de familie', () => {
+  it('împarte luna pe pagini cu așezări diferite, fără o poză rămasă singură la final', () => {
+    const n = (k: number) => albumPages(Array.from({ length: k }, (_, i) => i)).map(p => p.length);
+    expect(n(1)).toEqual([1]);
+    expect(n(4)).toEqual([1, 3]);
+    expect(n(5)).toEqual([1, 4]);
+    expect(n(9)).toEqual([1, 3, 5]);
+    expect(n(12)).toEqual([1, 3, 4, 2, 2]);
+    expect(n(12).reduce((a, b) => a + b, 0)).toBe(12);
+    expect(n(30).reduce((a, b) => a + b, 0)).toBe(12);
+  });
+});

@@ -322,6 +322,10 @@ export function PremiumPanel() {
             <i aria-hidden="true"><Icon name="pen" size={18} /></i>
             <span><b>{tr('premium.cp.styles.title')}</b><span>{tr('premium.cp.styles.sub')}</span></span>
           </div>
+          <div className="premium-perk">
+            <i aria-hidden="true"><Icon name="copy" size={18} /></i>
+            <span><b>{tr('premium.cp.album.title')}</b><span>{tr('premium.cp.album.sub')}</span></span>
+          </div>
           <div className={highlightedPerk === 'styles' ? 'premium-perk is-wanted' : 'premium-perk'}>
             <i aria-hidden="true"><Icon name="heart" size={18} /></i>
             <span><b>{tr('premium.cp.mine.title')}</b><span>{tr('premium.cp.mine.sub')}</span></span>

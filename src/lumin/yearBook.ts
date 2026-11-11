@@ -231,3 +231,75 @@ export async function makeJournal(
   }
   return new Blob([makePdf(pages) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
 }
+
+/** Câte poze intră pe paginile unei luni, pe rând: o pagină mare, apoi 3, 4, 2… */
+const ALBUM_LAYOUTS = [1, 3, 4, 2];
+export const ALBUM_MAX_PAGES = 60;
+/** Împarte pozele unei luni pe pagini, după așezările de mai sus (logică pură, testată). */
+export function albumPages<T>(photos: readonly T[], perMonth = 12): T[][] {
+  const list = photos.slice(0, perMonth);
+  const out: T[][] = [];
+  let i = 0, k = 0;
+  while (i < list.length) {
+    let n = ALBUM_LAYOUTS[k % ALBUM_LAYOUTS.length];
+    const left = list.length - i;
+    if (left - n === 1) n += 1; // nu lăsa o poză singură pe ultima pagină
+    out.push(list.slice(i, i + Math.min(n, left)));
+    i += n; k++;
+  }
+  return out;
+}
+
+/**
+ * „Albumul de familie” (Pro): cartea anului pe larg — până la 12 poze pe lună, pe mai multe
+ * pagini cu așezări diferite, gata de trimis la tipografie (A4, PDF). Cartea simplă rămâne gratuită.
+ */
+export async function makeFamilyAlbum(year: number, kept: readonly PhotoView[], texts: { title: string; subtitle: string; month: (m: number) => string }, onProgress?: (done: number, total: number) => void): Promise<Blob | null> {
+  const inYear = kept.filter(p => new Date(photoTime(p)).getFullYear() === year);
+  if (inYear.length < 8) return null;
+  const months = new Map<number, PhotoView[]>();
+  for (const p of inYear) { const m = new Date(photoTime(p)).getMonth(); months.set(m, [...(months.get(m) ?? []), p]); }
+  const order = [...months.keys()].sort((a, b) => a - b);
+  const plan: { month: number; first: boolean; photos: PhotoView[] }[] = [];
+  for (const m of order) {
+    const best = peopleFirst(bestSpread(months.get(m)!, 12)).sort((a, b) => photoTime(a) - photoTime(b));
+    albumPages(best).forEach((photos, i) => plan.push({ month: m, first: i === 0, photos }));
+  }
+  const pagesPlan = plan.slice(0, ALBUM_MAX_PAGES - 1);
+  const total = pagesPlan.length + 1;
+  const pages: PdfPage[] = [];
+  const coverPhoto = [...inYear].sort((a, b) => b.aiScore - a.aiScore)[0];
+  const first = await pageJpeg(async ctx => {
+    const img = await loadImage(coverPhoto.id);
+    if (img) cover(ctx, img, 0, 0, PW, PH * 0.72, 0);
+    ctx.fillStyle = '#2b2620';
+    ctx.font = '700 150px Georgia, serif';
+    ctx.fillText(String(year), 90, PH * 0.72 + 220);
+    ctx.font = '400 54px Georgia, serif';
+    ctx.fillStyle = '#6b6156';
+    ctx.fillText(texts.title, 90, PH * 0.72 + 310, PW - 180);
+    ctx.font = '400 34px Georgia, serif';
+    ctx.fillText(texts.subtitle, 90, PH * 0.72 + 370, PW - 180);
+  });
+  if (first) pages.push(first);
+  onProgress?.(1, total);
+  for (const [i, pg] of pagesPlan.entries()) {
+    const page = await pageJpeg(async ctx => {
+      const top = pg.first ? 240 : 110;
+      if (pg.first) { ctx.fillStyle = '#2b2620'; ctx.font = '600 72px Georgia, serif'; ctx.fillText(texts.month(pg.month), 90, 170); }
+      const imgs = (await Promise.all(pg.photos.map(p => loadImage(p.id)))).filter((x): x is HTMLImageElement => !!x);
+      const gap = 26, W = PW - 180, H = PH - top - 130;
+      const n = imgs.length;
+      if (n === 1) cover(ctx, imgs[0], 90, top, W, H, 12);
+      else if (n === 2) { const h = (H - gap) / 2; imgs.forEach((img, k) => cover(ctx, img, 90, top + k * (h + gap), W, h, 12)); }
+      else if (n === 3) { const big = H * 0.6, small = H - big - gap, w = (W - gap) / 2; cover(ctx, imgs[0], 90, top, W, big, 12); cover(ctx, imgs[1], 90, top + big + gap, w, small, 12); cover(ctx, imgs[2], 90 + w + gap, top + big + gap, w, small, 12); }
+      else { const cols = 2, rows = Math.ceil(n / cols), w = (W - gap) / cols, h = (H - gap * (rows - 1)) / rows; imgs.forEach((img, k) => cover(ctx, img, 90 + (k % cols) * (w + gap), top + Math.floor(k / cols) * (h + gap), w, h, 12)); }
+      ctx.fillStyle = '#9a8f82';
+      ctx.font = '400 26px Georgia, serif';
+      ctx.fillText(`${i + 2}`, PW / 2 - 8, PH - 60);
+    });
+    if (page) pages.push(page);
+    onProgress?.(i + 2, total);
+  }
+  return new Blob([makePdf(pages) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
+}
