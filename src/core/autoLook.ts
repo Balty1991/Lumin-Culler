@@ -69,6 +69,9 @@ export interface FrameStats {
   /** Înclinarea orizontului, în grade. 0 dacă nu e un orizont clar, mic. */
   horizonDeg: number;
   redEye: number;
+  /** Cât de lată e zona roșie din dreptul ochilor, ca parte din lățimea feței (0..1), și cât de plină. */
+  redSpan?: number;
+  redFill?: number;
   /** Câți pixeli s-au măsurat (pentru proporții). */
   pixels: number;
   skinCast: number;
@@ -95,6 +98,7 @@ export function measureFrame(
   let skyLum = 0, skySat = 0, skyN = 0;
   let noise = 0, noiseN = 0, sharp = 0, sharpN = 0;
   let faceSum = 0, faceN = 0, restSum = 0, restN = 0, redEye = 0;
+  let redMinX = Infinity, redMaxX = -Infinity, redMinY = Infinity, redMaxY = -Infinity, redMinFx = 1, redMaxFx = 0;
   let skinG = 0, skinN = 0;
   let coreSum = 0, coreN = 0, faceSharp = 0, faceSharpN = 0;
   let haloSum = 0, haloN = 0, haloBright = 0;
@@ -156,7 +160,12 @@ export function measureFrame(
         if (box) {
           const fy = (v - box.box[1]) / box.box[3];
           const fx = (x / width - box.box[0]) / box.box[2];
-          if (fy > 0.2 && fy < 0.55 && fx > 0.12 && fx < 0.88) redEye++;
+          if (fy > 0.2 && fy < 0.55 && fx > 0.12 && fx < 0.88) {
+            redEye++;
+            if (x < redMinX) redMinX = x; if (x > redMaxX) redMaxX = x;
+            if (y < redMinY) redMinY = y; if (y > redMaxY) redMaxY = y;
+            if (fx < redMinFx) redMinFx = fx; if (fx > redMaxFx) redMaxFx = fx;
+          }
         }
       }
       if (face && r > g && g > b && r - b > 12 && r - b < 90 && sat < 0.45 && lum > 40 && lum < 220) {
@@ -210,6 +219,8 @@ export function measureFrame(
     haloBright: haloN > 4 ? haloBright / haloN : 0,
     horizonDeg: horizonDegrees(bandSum, bandN, width, height),
     redEye,
+    redSpan: redEye ? redMaxFx - redMinFx : 0,
+    redFill: redEye ? redEye / (Math.max(1, (redMaxX - redMinX) / step + 1) * Math.max(1, (redMaxY - redMinY) / step + 1)) : 0,
     pixels: n,
     skinCast: skinN > 6 ? skinG / skinN / 255 : 0
   };
@@ -373,7 +384,12 @@ export function recipeFromStats(s: FrameStats, faces: readonly LookFace[] = []):
 
   // Pupilele sunt mici: multe pixeli roșii pe față înseamnă glugă sau căciulă roșie (raportat).
   const faceArea = faces.reduce((n, f) => n + f.box[2] * f.box[3], 0);
-  if (s.redEye >= 6 && (!faceArea || s.redEye < faceArea * s.pixels * 0.06)) {
+  // Și forma contează (raportat cu captură: ciucurii roșii ai unui batic, chiar deasupra ochilor,
+  // au fost luați drept ochi roșii și întunecați): pupilele sunt două pete mici, deci zona roșie
+  // ori e îngustă (o pupilă), ori e lată dar aproape goală. O bandă roșie lată și plină e haină.
+  const span = s.redSpan ?? 0, fill = s.redFill ?? 0;
+  const pupilLike = span <= 0.3 || (span <= 0.62 && fill < 0.35);
+  if (faceArea > 0 && pupilLike && s.redEye >= 6 && s.redEye < faceArea * s.pixels * 0.06) {
     issues.push('redEye');
     redEye = 100;
   }

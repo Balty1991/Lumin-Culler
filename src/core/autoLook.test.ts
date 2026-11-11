@@ -58,6 +58,21 @@ describe('corecția automată pe telefon', () => {
     expect(faceLuma(data)).toBeGreaterThan(faceLuma(src) + 25);
   });
 
+  it('nu ia drept ochi roșii o bandă roșie lată deasupra ochilor (ciucurii unui batic)', () => {
+    const w = 80, h = 60;
+    const src = paint(w, h, (x, y) => {
+      const u = x / w, v = y / h;
+      const trim = u > 0.38 && u < 0.62 && v > 0.3 && v < 0.35;
+      if (trim) return [225, 35, 40];
+      const skin = u > 0.35 && u < 0.65 && v > 0.22 && v < 0.56;
+      return skin ? [190, 150, 120] : [80, 110, 70];
+    });
+    const { data, recipe } = renderLook(src, w, h, [face]);
+    expect(recipe.issues).not.toContain('redEye');
+    const i = (Math.floor(0.32 * h) * w + Math.floor(0.5 * w)) * 4;
+    expect(data[i]).toBeGreaterThan(src[i] - 40);
+  });
+
   it('stinge o pupilă roșie', () => {
     const w = 80, h = 60;
     const src = paint(w, h, (x, y) => {

@@ -141,6 +141,9 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
       };
     }
     out.vignette = Math.max(out.vignette ?? 0, Math.round(10 * k));
+    // Dezaburirea se adună din mai multe locuri (ceață, cer, peisaj, stil) și, necontrolată,
+    // dă pietriș „crocant” și halouri (raportat cu captură). Plafon, oricare ar fi suma.
+    out.dehaze = Math.min(out.dehaze ?? 0, vivid ? 14 : 8);
   }
   // „Wow” pe pozele cu oameni (cerut cu capturi: „vreau și mai wow”): marginile coboară în
   // jurul omului, nu al centrului pozei, ca el să iasă în față. Tenul nu se atinge.
@@ -266,9 +269,11 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
 
 export type Scene = 'overcast' | 'food' | 'landscape' | 'night' | 'portrait' | 'backlit' | 'indoor';
 /** Scenele la care „Vie” arată mai bine decât „Natural”; cu oameni în cadru rămâne „Natural”. */
-const VIVID_SCENES: ReadonlySet<Scene> = new Set(['landscape', 'food', 'overcast']);
-export function recommendStyle(scenes: readonly Scene[]): EnhanceStyle {
-  if (scenes.includes('portrait') || scenes.includes('night')) return 'natural';
+const VIVID_SCENES: ReadonlySet<Scene> = new Set(['landscape', 'food']);
+export function recommendStyle(scenes: readonly Scene[], faces = 0): EnhanceStyle {
+  // Cu oameni în cadru rămâne „Natural”, oricât de mici ar fi (raportat cu captură: un copil
+  // pe o alee, sub cer înnorat, a ieșit dur pe „Vie”).
+  if (faces > 0 || scenes.includes('portrait') || scenes.includes('night')) return 'natural';
   return scenes.some(sc => VIVID_SCENES.has(sc)) ? 'vivid' : 'natural';
 }
 const FOOD = /pizza|cake|donut|sandwich|food|dish|meal|dessert|fruit|banana|apple|orange|broccoli|hot dog|cuisine|bread|coffee|wine|cup/i;
@@ -662,9 +667,9 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       if (!mine) {
         // Stilul de pornire, după ce fel de poză e (fără un stil învățat): peisajele, mâncarea
         // și cerul înnorat câștigă din culoare și contrast local; oamenii rămân naturali.
-        const pick = recommendStyle(found);
+        const pick = recommendStyle(found, faces.length);
         if (alive && pick !== 'natural') { setStyle(pick); setPicked({ style: pick, scene: found.find(sc => VIVID_SCENES.has(sc)) ?? null }); }
-        const fit = await fitAmount(url, lightOnly).catch(() => null);
+        const fit = await fitAmount(url, lightOnly, pick).catch(() => null);
         if (alive && fit !== null) setAmount(fit);
       }
     })().catch(() => { if (alive) setFailed(true); });
@@ -1081,28 +1086,30 @@ export function visibleChange(before: Uint8ClampedArray, after: Uint8ClampedArra
   return s / (before.length / 4) / 3;
 }
 /** Treptele de intensitate încercate și schimbarea de la care efectul „se vede”. */
-export const FIT_STEPS = [0.5, 0.65, 0.8, 0.95];
-export const FIT_TARGET = 11;
+export const FIT_STEPS = [0.5, 0.65, 0.8];
+export const FIT_TARGET = 10;
 /** Prima treaptă la care schimbarea atinge ținta; ultima dacă niciuna nu ajunge. */
 export function pickAmount(changes: readonly number[], steps: readonly number[] = FIT_STEPS, target = FIT_TARGET): number {
   const i = changes.findIndex(c => c >= target);
   return steps[i < 0 ? Math.min(changes.length, steps.length) - 1 : i];
 }
-async function fitAmount(src: string, base: EditAdjustments): Promise<number> {
+async function fitAmount(src: string, base: EditAdjustments, style: EnhanceStyle = 'natural'): Promise<number> {
+  // Măsurat pe stilul care chiar se aplică. „Vie” e deja tare: nu urcă peste 65%.
+  const steps = style === 'natural' ? FIT_STEPS : FIT_STEPS.filter(k => k <= 0.65);
   const tiny = await tinySource(src);
   const before = tiny.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, 96, 96).data;
   const c = document.createElement('canvas');
   c.width = 96; c.height = 96;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   const changes: number[] = [];
-  for (const k of FIT_STEPS) {
-    const e: EditAdjustments = { ...styledEdits(base, 'natural', k), crop: undefined, rotationDeg: 0, bokeh: 0, bokehMask: undefined, heal: undefined };
+  for (const k of steps) {
+    const e: EditAdjustments = { ...styledEdits(base, style, k), crop: undefined, rotationDeg: 0, bokeh: 0, bokehMask: undefined, heal: undefined };
     drawAdjusted(ctx, tiny, 96, 96, 96, 96, e);
     const ch = visibleChange(before, ctx.getImageData(0, 0, 96, 96).data);
     changes.push(ch);
     if (ch >= FIT_TARGET) break;
   }
-  return pickAmount(changes);
+  return pickAmount(changes, steps);
 }
 
 /** Poza cu reglajele aplicate, ca adresă temporară (cel mult 1600 px pe latura lungă). */
