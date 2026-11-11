@@ -1,3 +1,4 @@
+import { startJankLog } from '../core/jankLog';
 import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -206,6 +207,7 @@ export function LuminApp() {
   useModernPhone(booted, runImport);
 
   useEffect(() => {
+    startJankLog();
     applyPalette();
     void boot().finally(() => {
       markReaderStartedIfLegacy();

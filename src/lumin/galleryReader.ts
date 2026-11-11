@@ -1,3 +1,4 @@
+import { jankSpan } from '../core/jankLog';
 import { quizReady } from './quizReady';
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
@@ -207,7 +208,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       const fast = readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
       analysisPool.setGentle(!fast);
       useLx.getState().setReader({ done, total: missing.length, fast });
-      const files = await readPhotoFiles(missing.slice(i, i + size));
+      const files = await jankSpan('citire-fisiere', () => readPhotoFiles(missing.slice(i, i + size)));
       if (files.length) {
         const notice = useStore.getState().notice;
         // Bara urcă poză cu poză, nu din 24 în 24: altfel pare blocată.
@@ -224,17 +225,17 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         // nu după fiecare pachet, ci la ~200 de poze și la final.
         const momentsNow = Math.floor((i + size) / 200) > Math.floor(i / 200) || i + size >= missing.length;
         try {
-          await useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri), { deferMoments: !momentsNow });
+          await jankSpan(momentsNow ? 'analiza+momente' : 'analiza', () => useStore.getState().runImport(files.map(f => f.file), undefined, files.map(f => f.uri), { deferMoments: !momentsNow }));
         } finally { unsub(); }
         // Fără mesajul „am importat 24 de poze” după fiecare pachet: rezumatul vine la final.
         useStore.setState({ notice });
         // Antrenat prea puțin: ce ar arunca AI-ul rămâne „de văzut” (vezi trainingGate.ts).
         const uris = new Set(files.map(f => f.uri));
-        await holdRejectsUntilTrained(useStore.getState().photos.filter(p => p.mediaUri && uris.has(p.mediaUri)).map(p => p.id)).catch(() => 0);
+        await jankSpan('retinere-refuzuri', () => holdRejectsUntilTrained(useStore.getState().photos.filter(p => p.mediaUri && uris.has(p.mediaUri)).map(p => p.id)).catch(() => 0));
         // Oamenii se umplu pe parcurs, nu abia la final (raportat: „nu a citit toată
         // galeria să o repartizeze la persoane”): fețele din pachetele citite primesc
         // amprenta și numele la fiecare ~200 de poze — după import, nu în paralel cu el.
-        if (momentsNow && canEmbedFaces() && !stopRequested) await placeFaces();
+        if (momentsNow && canEmbedFaces() && !stopRequested) await jankSpan('fete', () => placeFaces());
       }
       done = Math.min(missing.length, i + size);
       // Ultimele 3 luni sunt gata (primele citite): omul află că le poate folosi deja.

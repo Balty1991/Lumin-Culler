@@ -3,6 +3,7 @@
  * Managementul starii (Zustand) — separat de UI. Include fluxul de comparare
  * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
+import { jankMark } from '../core/jankLog';
 import { create } from 'zustand';
 import { recordFreed } from '../core/freedSpace';
 import { db, type AnalysisRecord, type PhotoRecord, type KnownPerson, type ColorLabel, type CollectionRecord } from '../core/db';
@@ -1156,6 +1157,10 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
 
 /** Reconstruieste toate PhotoView-urile direct din Dexie — folosit la boot() si dupa restaurarea unui backup. */
 async function reloadPhotoViews(): Promise<PhotoView[]> {
+  const done = jankMark('reincarcare-completa');
+  try { return await reloadPhotoViewsInner(); } finally { done(); }
+}
+async function reloadPhotoViewsInner(): Promise<PhotoView[]> {
   const [photos, analyses] = await Promise.all([db.photos.toArray(), db.analyses.toArray()]);
   const byId = new Map(analyses.map(a => [a.photoId, a]));
   return photos
@@ -4831,6 +4836,15 @@ export const useStore = create<AppState>((set, get) => ({
     const persons = await db.persons.toArray();
     await analysisPool.setKnownPersons(persons).catch(() => {});
     contextEngine.setEnrolledPersonCount(persons.length);
+    // Numirea automată (în timpul citirii galeriei) reîncarcă doar pozele atinse, fără mesaj:
+    // reîncărcarea întregii biblioteci ținea ecranul pe loc la fiecare ~200 de poze citite.
+    if (auto) {
+      const [recs, ans] = await Promise.all([db.photos.bulkGet(photoIds), db.analyses.bulkGet(photoIds)]);
+      const fresh = new Map<string, PhotoView>();
+      recs.forEach((rec, i) => { if (rec) fresh.set(rec.id, toView(rec, ans[i] ?? undefined)); });
+      set(state => ({ persons, photos: state.photos.map(p => fresh.get(p.id) ?? p) }));
+      return;
+    }
     const views = await reloadPhotoViews();
     set({
       persons, photos: views,

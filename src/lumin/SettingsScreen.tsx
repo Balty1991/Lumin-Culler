@@ -1,3 +1,4 @@
+import { jankSummary } from '../core/jankLog';
 import { usePacedPhotos } from './useLxPhotos';
 import { DEV_UNLIMITED_KEY, devUnlimited, devUnlimitedAvailable } from '../core/entitlement';
 import { Capacitor } from '@capacitor/core';
@@ -246,7 +247,8 @@ async function sendReport(): Promise<void> {
     nu_azi: s.photos.filter(p => p.status === 'rejected').length,
     fete_numite: s.photos.filter(p => p.personNames.length > 0).length,
     cloud: cloudEnabled() ? 'pornit' : 'oprit',
-    citire_oprita: readerStopped() ? 'da' : 'nu'
+    citire_oprita: readerStopped() ? 'da' : 'nu',
+    blocaje: jankSummary()
   });
   const name = `cherrypic-raport-${new Date().toISOString().slice(0, 10)}.txt`;
   try {
