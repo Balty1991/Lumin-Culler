@@ -5,6 +5,7 @@ import { useTr } from './context';
 import { useLx } from './lxStore';
 import { useLxPhotos } from './useLxPhotos';
 import { Icon } from './icons';
+import { Thumb } from './Thumb';
 import { FaceThumb } from './FaceThumb';
 import { usePeopleFaces } from './faces';
 import { burstFilmAvailable } from './burstFilm';
@@ -190,22 +191,41 @@ export function StudioTab() {
   const rest = tools.filter(t => !STUDIO_ORDER.includes(t.id));
   const [open, setOpen] = useState<Tool | null>(null);
   const [enhance, setEnhance] = useState<PhotoView | null>(null);
+  // Poza din vitrină: una dintre cele mai reușite, alta în fiecare zi — editorul se deschide pe ea.
+  const all = useLxPhotos();
+  const star = useMemo(() => {
+    const top = all.filter(p => !p.aside && p.status !== 'rejected').sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 12);
+    return top.length ? top[Math.floor(Date.now() / 86_400_000) % top.length] : null;
+  }, [all]);
   const openEditor = () => {
-    const photos = useStore.getState().photos.filter(p => !p.aside);
-    const best = [...photos].sort((a, b) => b.aiScore - a.aiScore)[0];
-    if (best) setEnhance(best);
+    if (star) setEnhance(star);
     else useLx.getState().setTab('days');
   };
   return (
     <div className="lx-screen">
       <header className="lx-head"><h1 className="lx-title">{tr('lx.studio.title')}</h1></header>
       <p className="lx-sub">{tr('lx.studio.intro')}</p>
-      <div className="lx-studio-grid">
-        <button className="lx-studio-tile c-films" onClick={openEditor}>
-          <span className="lx-studio-glyph"><Icon name="sparkle" size={26} /></span>
-          <b>{tr('lx.enhance.title')}</b>
-          <small>{tr('lx.enhance.style')}</small>
+      {/* Vitrina: poza ta cât ecranul de lată, cu editorul la o atingere. */}
+      {star && (
+        <button className="lx-studio-hero" onClick={openEditor}>
+          <Thumb id={star.id} lqip={star.lqip} edits={star.edits} full />
+          <span className="lx-studio-hero-shade" aria-hidden="true" />
+          <span className="lx-studio-hero-text">
+            <i><Icon name="sparkle" size={14} /> {tr('lx.studio.hero.badge')}</i>
+            <b>{tr('lx.studio.hero.title')}</b>
+            <small>{tr('lx.studio.hero.sub')}</small>
+            <em>{tr('lx.studio.hero.cta')} →</em>
+          </span>
         </button>
+      )}
+      <div className="lx-studio-grid">
+        {!star && (
+          <button className="lx-studio-tile c-films" onClick={openEditor}>
+            <span className="lx-studio-glyph"><Icon name="sparkle" size={26} /></span>
+            <b>{tr('lx.enhance.title')}</b>
+            <small>{tr('lx.enhance.style')}</small>
+          </button>
+        )}
         {ordered.map(t => <Tile key={t.id} tool={t} onOpen={() => setOpen(t)} />)}
       </div>
       {rest.length > 0 && (

@@ -2038,3 +2038,14 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-enhance-mine { margin: 0 0 8px; font-size: 12.5px; color: rgb(var(--accent-rgb)); }
 .lx-mine { color: rgb(var(--accent-rgb)); }
 .lx-reader-fast { font-size: 12.5px; color: rgb(var(--accent-rgb)); }
+
+/* ── Studio: vitrina cu poza ta ─────────────────────────────────────────────── */
+.lx-studio-hero { position: relative; display: block; width: 100%; height: 300px; margin: 4px 0 14px; padding: 0; border: 0; border-radius: 30px; overflow: hidden; background: var(--surface-2); color: #fff; text-align: left; box-shadow: 0 26px 50px -28px rgb(0 0 0 / .8); }
+.lx-studio-hero > img, .lx-studio-hero > canvas, .lx-studio-hero > .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-studio-hero-shade { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(0 0 0 / 0) 15%, rgb(6 4 10 / .55) 55%, rgb(6 4 10 / .92) 100%); }
+.lx-studio-hero-text { z-index: 2; position: absolute; left: 20px; right: 20px; bottom: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.lx-studio-hero-text i { display: inline-flex; align-items: center; gap: 6px; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; background: rgb(255 255 255 / .16); backdrop-filter: blur(10px); }
+.lx-studio-hero-text b { font-family: var(--font-display); font-size: 30px; line-height: 1.05; letter-spacing: -0.02em; }
+.lx-studio-hero-text small { font-weight: 400; font-size: 14px; color: rgb(255 255 255 / .82); }
+.lx-studio-hero-text em { font-style: normal; margin-top: 6px; padding: 11px 18px; border-radius: 999px; background: #fff; color: #12070d; font-weight: 700; font-size: 14px; }
+.lx-studio-hero:active { transform: scale(.985); }
