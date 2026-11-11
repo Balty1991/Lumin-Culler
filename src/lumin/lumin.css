@@ -1943,3 +1943,72 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-today > .lx-head { min-height: 56px; }
 /* Cercul din cardul compact: inelele lui ies din cutie, deci primește loc pe margini. */
 .lx-hero.compact > :first-child { flex: 0 0 auto; margin: 0 16px 0 14px; }
+
+/* ── Poveștile de pe Azi: poza pe tot ecranul, până sub bara de stare ───────── */
+.lx-stories {
+  position: relative; overflow: hidden; isolation: isolate;
+  margin: calc(-18px - var(--safe-top, env(safe-area-inset-top, 0px))) -18px 0;
+  width: calc(100% + 36px); max-width: none; box-sizing: border-box;
+  height: min(78dvh, 720px); min-height: 460px;
+  border-radius: 0 0 36px 36px; background: #07060a; color: #fff;
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / .8);
+}
+.lx-story-media { position: absolute; inset: 0; opacity: 0; transition: opacity .5s var(--lx-ease); }
+.lx-story-media.on { opacity: 1; }
+.lx-story-media img, .lx-story-media .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-story-media.on img { animation: lx-story-zoom 9s ease-out both; }
+@keyframes lx-story-zoom { from { transform: scale(1.08); } to { transform: scale(1); } }
+.lx-story-shade { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgb(5 4 8 / .62) 0%, transparent 24%, transparent 46%, rgb(5 4 8 / .9) 100%); }
+.lx-story-tap { position: absolute; top: 0; bottom: 0; z-index: 2; border: 0; background: transparent; padding: 0; }
+.lx-story-tap.prev { left: 0; width: 30%; }
+.lx-story-tap.next { right: 0; width: 70%; }
+.lx-story-tap:disabled { opacity: 1; }
+.lx-story-top { position: absolute; z-index: 3; left: 18px; right: 18px; pointer-events: none;
+  top: calc(12px + var(--safe-top, env(safe-area-inset-top, 0px))); display: flex; flex-direction: column; gap: 14px; }
+.lx-story-bars { display: flex; gap: 5px; }
+.lx-story-bars i { flex: 1; height: 3px; border-radius: 3px; background: rgb(255 255 255 / .28); overflow: hidden; }
+.lx-story-bars i.done { background: rgb(255 255 255 / .92); }
+.lx-story-bars i b { display: block; height: 100%; width: 100%; background: #fff; transform-origin: left; animation: lx-story-bar linear both; }
+@keyframes lx-story-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.lx-story-greet { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lx-story-greet > div { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 12px rgb(0 0 0 / .5); }
+.lx-story-greet b { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.lx-story-greet span { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; opacity: .82; }
+.lx-story-streak { padding: 6px 11px; border-radius: 999px; background: rgb(255 255 255 / .16); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-family: var(--sans) !important; font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; font-weight: 600; opacity: 1 !important; }
+.lx-story-caption { position: absolute; z-index: 3; left: 22px; right: 22px; bottom: 26px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  pointer-events: none; animation: lx-in .45s var(--lx-ease) both; }
+.lx-story-badge { padding: 6px 12px; border-radius: 999px; background: rgb(255 255 255 / .18); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.lx-story-caption h1 { margin: 2px 0 0; font-family: var(--font-display); font-size: clamp(34px, 10.5vw, 46px); font-weight: 600; line-height: 1.02; letter-spacing: -0.03em; text-wrap: balance; text-shadow: 0 2px 24px rgb(0 0 0 / .45); }
+.lx-story-caption p { margin: 0; font-size: 15px; line-height: 1.4; opacity: .88; max-width: 30ch; }
+.lx-story-cta { pointer-events: auto; margin-top: 10px; height: 52px; padding: 0 22px; border: 0; border-radius: 999px; background: #fff; color: #0b0810 !important;
+  font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 12px 30px -10px rgb(0 0 0 / .6); transition: transform .18s var(--lx-spring); }
+.lx-story-cta:active { transform: scale(.96); }
+@media (prefers-reduced-motion: reduce) { .lx-story-media.on img { animation: none; } }
+
+/* ── „Întreabă-ți galeria”: conversația cu AI-ul, pe tot ecranul ─────────────── */
+.lx-ask { position: fixed; inset: 0; z-index: 1090; min-height: 0; display: flex; flex-direction: column; animation: lx-in .25s var(--lx-ease) both; }
+.lx-ask-head { display: flex; align-items: center; gap: 12px; padding: calc(14px + var(--safe-top, env(safe-area-inset-top, 0px))) 18px 12px; }
+.lx-ask-head > div:not(.lx-orb) { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.lx-ask-head b { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.02em; }
+.lx-ask-head span { font-size: 12px; color: var(--text-faint); }
+.lx-ask-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
+.lx-ask-msg { max-width: 88%; padding: 12px 14px; border-radius: 20px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; animation: lx-in .3s var(--lx-ease) both; }
+.lx-ask-msg p { margin: 0; font-size: 15px; line-height: 1.45; }
+.lx-ask-msg.ai { align-self: flex-start; background: var(--lx-glass); border: 1px solid var(--lx-line); border-bottom-left-radius: 6px; }
+.lx-ask-msg.me { align-self: flex-end; background: var(--lx-grad); color: #12070d; border-bottom-right-radius: 6px; font-weight: 600; }
+.lx-ask-grid { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.lx-ask-grid > * { position: relative; width: calc((100% - 12px) / 3); padding: 0 0 calc((100% - 12px) / 3); border: 0; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.lx-ask-grid img, .lx-ask-grid .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-ask-ideas { display: flex; gap: 8px; overflow-x: auto; padding: 4px 18px 10px; scrollbar-width: none; }
+.lx-ask-ideas::-webkit-scrollbar { display: none; }
+.lx-ask-ideas .lx-chip-btn { flex: 0 0 auto; white-space: nowrap; }
+.lx-ask-input { display: flex; gap: 10px; padding: 8px 18px calc(14px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+.lx-ask-input input { flex: 1; min-width: 0; height: 52px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--lx-line); background: var(--lx-glass); color: var(--text); font: inherit; font-size: 16px; outline: none; }
+.lx-ask-input input:focus { border-color: rgb(var(--accent-rgb) / .6); }
+.lx-ask-input button { flex: 0 0 52px; height: 52px; border-radius: 50%; border: 0; background: var(--lx-grad); color: #12070d !important; display: grid; place-items: center; }
+/* Butonul din mijlocul barei: AI-ul tău, nu „+”. */
+.lx-dock-add.ask > span { display: grid; place-items: center; }
+.lx-dock-add.ask:active { transform: scale(0.92); }

@@ -50,6 +50,7 @@ import { useModelsState } from './aiModels';
 import { dataMode, enginesWaitWaived, setDataMode, waiveEnginesWait } from './dataMode';
 import { isClipPlatform } from '../core/clip/clipEngine';
 import { openTasteQuiz } from '../state/tasteQuiz';
+import { TodayStories, useStories } from './TodayStories';
 
 export function TodayScreen() {
   const tr = useTr();
@@ -100,21 +101,30 @@ export function TodayScreen() {
 
   const percent = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
-  const heroShown = useHeroPick() !== null;
+  const stories = useStories();
+  // Poveștile pe tot ecranul țin locul antetului și al pozei zilei. În timpul unui
+  // import cerut de om rămâne ecranul de progres, ca să se vadă ce se întâmplă.
+  const showStories = !busy && stories.length > 0;
+  const heroShown = useHeroPick() !== null || showStories;
   return (
     <div className="lx-screen lx-today">
-      <header className="lx-head">
-        <div className="lx-greet">
-          <b>{tr(greetKey())}</b>
-          <span className="lx-eyebrow">{dateLabel}</span>
-        </div>
-        {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
-      </header>
+      {showStories ? (
+        <TodayStories stories={stories} greeting={tr(greetKey())} date={dateLabel}
+          streak={streak > 1 ? tr('lx.streak', { count: streak }) : undefined} />
+      ) : (
+        <header className="lx-head">
+          <div className="lx-greet">
+            <b>{tr(greetKey())}</b>
+            <span className="lx-eyebrow">{dateLabel}</span>
+          </div>
+          {streak > 1 && <span className="lx-pill warm">{tr('lx.streak', { count: streak })}</span>}
+        </header>
+      )}
 
       <EnginesIntro />
-      {!busy && <DayPhotoHero />}
+      {!busy && !showStories && <DayPhotoHero />}
 
-      <section className={busy || !heroShown ? 'lx-hero' : 'lx-hero compact'}>
+      {(!showStories || waitingInGallery > 0 || (today && today.photos.length > 0)) && <section className={busy || !heroShown ? 'lx-hero' : 'lx-hero compact'}>
         <Orb mood={busy ? 'think' : 'idle'} size={busy ? 132 : heroShown ? 48 : 112} />
         {busy && progress ? (
           <div className="lx-hero-text">
@@ -146,7 +156,7 @@ export function TodayScreen() {
             </button>
           </div>
         )}
-      </section>
+      </section>}
 
       <EnginesWaitCard />
       {reader && reader.paused === 'training' && (

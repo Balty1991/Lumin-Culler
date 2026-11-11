@@ -48,7 +48,9 @@ import '../design/system.css';
 const DaysScreen = lazy(() => import('./DaysScreen').then(m => ({ default: m.DaysScreen })));
 const StudioTab = lazy(() => import('./Studio').then(m => ({ default: m.StudioTab })));
 const SettingsScreen = lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+import { Icon } from './icons';
 const SwipeSort = lazy(() => import('./SwipeSort').then(m => ({ default: m.SwipeSort })));
+const Assistant = lazy(() => import('./Assistant').then(m => ({ default: m.Assistant })));
 const AppTour = lazy(() => import('./AppTour').then(m => ({ default: m.AppTour })));
 const PremiumPanel = lazy(() => import('../ui/PremiumPanel').then(m => ({ default: m.PremiumPanel })));
 
@@ -168,6 +170,7 @@ export function LuminApp() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [booted, setBooted] = useState(false);
   // Taburile deja deschise și locul din pagină al fiecăruia (fiecare tab își păstrează derularea).
+  const [askOpen, setAskOpen] = useState(false);
   const [visited, setVisited] = useState<ReadonlySet<LxTab>>(() => new Set([tab]));
   const scrolls = useRef<Partial<Record<LxTab, number>>>({});
   const shownTab = useRef(tab);
@@ -453,8 +456,9 @@ export function LuminApp() {
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
             </button>
           ))}
-          <button className="lx-dock-add" onClick={() => { haptic('tick'); actions.pick(); }} aria-label={tr('lx.addPhotos')}>
-            <span>+</span>
+          {/* Mijlocul barei e AI-ul tău: îl întrebi sau îi ceri ceva (și adăugarea de poze e acolo). */}
+          <button className="lx-dock-add ask" onClick={() => { haptic('tick'); setAskOpen(true); }} aria-label={tr('lx.ask.title')}>
+            <span><Icon name="sparkle" size={26} /></span>
           </button>
           {TABS.slice(2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>
@@ -463,6 +467,7 @@ export function LuminApp() {
           ))}
         </nav>
 
+        {askOpen && <Suspense fallback={null}><Assistant onClose={() => setAskOpen(false)} /></Suspense>}
         {sortOpen && <Suspense fallback={null}><SwipeSort /></Suspense>}
         {booted && tourOpen && !sortOpen && (
           <Suspense fallback={null}><AppTour onClose={() => useLx.getState().setTourOpen(false)} /></Suspense>
