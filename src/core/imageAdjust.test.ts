@@ -899,3 +899,20 @@ describe('outputSize — panza urmeaza raportul decuparii', () => {
     expect(out.width / out.height).toBeCloseTo(4000 / 3000, 2);
   });
 });
+
+describe('dezaburirea nu lasa patrate pe suprafete uniforme', () => {
+  it('pe un perete cu un gradient lin, pixelii vecini raman aproape la fel (fara trepte intre celule)', async () => {
+    const { applyDehaze } = await import('./imageAdjust');
+    const w = 128, h = 128;
+    const d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const v = 150 + Math.round((x / w) * 90); // perete: de la gri deschis la alb
+      d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+    }
+    applyDehaze(d, w, h, 30);
+    let maxStep = 0;
+    for (let x = 1; x < w; x++) maxStep = Math.max(maxStep, Math.abs(d[(64 * w + x) * 4] - d[(64 * w + x - 1) * 4]));
+    expect(maxStep).toBeLessThanOrEqual(4);
+  });
+});

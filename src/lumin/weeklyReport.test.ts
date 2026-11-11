@@ -43,3 +43,17 @@ describe('sfârșitul probei gratuite', () => {
     expect(trialDaysLeft(t0, [])).toBeNull();
   });
 });
+
+import { unlikeReference } from './faceIdentity';
+describe('curățarea albumului unui om după o poză aleasă', () => {
+  const ref = [1, 0, 0];
+  const faces = new Map<string, number[][]>([
+    ['aleasa', [[1, 0, 0]]],
+    ['aceeasi', [[0.9, 0.3, 0]]],
+    ['alta', [[0.1, 1, 0]]],
+    ['amandoua', [[0, 1, 0], [0.95, 0.1, 0]]]
+  ]);
+  it('scoate doar pozele în care nicio față nu seamănă cu reperul', () => {
+    expect(unlikeReference(ref, faces, 'aleasa')).toEqual(['alta']);
+  });
+});

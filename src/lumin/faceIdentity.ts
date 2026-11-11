@@ -23,8 +23,8 @@ export const MODEL = 'sface';
 /** Două fețe la peste atât (cosinus) sunt, foarte probabil, același om. */
 export const SAME_PERSON = 0.42;
 /** Recunoașterea automată cere mai mult: un nume greșit e mai rău decât niciunul. */
-export const AUTO_NAME = 0.5;
-const AUTO_MARGIN = 0.06;
+export const AUTO_NAME = 0.56;
+const AUTO_MARGIN = 0.08;
 /**
  * Fețe prea mici dau amprente nesigure. Coborât de la 0,004: în pozele „în larg”
  * (un copil întreg, de la câțiva metri) fața are ~0,1–0,3% din cadru și era
@@ -39,14 +39,14 @@ const MIN_FACE_AREA = 0.0008;
  */
 // Ridicat de la 0,42 la 0,46 (raportat cu capturi: doi adulți puși la copilul lor —
 // părinții seamănă cu copilul destul cât să treacă pragul de „seamănă”).
-const SAME_DAY_NAME = 0.46;
+const SAME_DAY_NAME = 0.5;
 /** Capturile de ecran și documentele nu intră la oameni: fețele din ele sunt de pe un ecran. */
 function asidePhotoIds(): Set<string> {
   return new Set(useStore.getState().photos.filter(p => p.aside).map(p => p.id));
 }
 const DAY_MS = 86_400_000;
 
-type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[] };
+type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[]; autoNamed?: boolean; similarity?: number };
 
 export function canEmbedFaces(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceEmbed');
@@ -100,6 +100,9 @@ export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>
     (a.faces as Face[] | undefined ?? []).forEach((f, faceIndex) => {
       if (f.embeddingModel !== MODEL || !f.embedding?.length) return;
       if (f.personId) {
+        // Reper devine doar fața numită de om. Cele recunoscute de aplicație (autoNamed, sau cu
+        // scor de potrivire de la import) nu: altfel o greșeală le atrage pe următoarele.
+        if (f.autoNamed || f.similarity !== undefined) return;
         const list = named.get(f.personId) ?? [];
         list.push(f.embedding);
         named.set(f.personId, list);
@@ -229,8 +232,39 @@ export async function autoNameFaces(): Promise<number> {
   }
   let total = 0;
   for (const [name, faces] of byName) {
-    await useStore.getState().enrollFaceCluster(name, faces.map(f => ({ photoId: f.photoId, faceIndex: f.faceIndex, embedding: f.embedding })));
+    await useStore.getState().enrollFaceCluster(name, faces.map(f => ({ photoId: f.photoId, faceIndex: f.faceIndex, embedding: f.embedding })), { auto: true });
     total += faces.length;
   }
   return total;
+}
+
+/** Peste atât (cosinus) față de poza aleasă de om, fața rămâne în album la curățare. */
+export const KEEP_LIKE = 0.45;
+/**
+ * „Păstrează doar ce seamănă cu poza asta”: omul alege o poză sigură cu persoana, iar aici
+ * se întorc pozele din album în care fața etichetată cu numele ei NU seamănă cu cea aleasă.
+ * Pozele fără amprentă (nu se pot compara) rămân neatinse.
+ */
+export async function photosUnlike(personName: string, refPhotoId: string): Promise<string[] | null> {
+  const person = useStore.getState().persons.find(p => p.name.trim().toLowerCase() === personName.trim().toLowerCase());
+  if (!person) return null;
+  const byPhoto = new Map<string, number[][]>();
+  await db.analyses.each(a => {
+    for (const f of (a.faces as Face[] | undefined ?? [])) {
+      if (f.personId !== person.id || f.embeddingModel !== MODEL || !f.embedding?.length) continue;
+      byPhoto.set(a.photoId, [...(byPhoto.get(a.photoId) ?? []), f.embedding]);
+    }
+  });
+  const ref = byPhoto.get(refPhotoId)?.[0];
+  if (!ref) return null;
+  return unlikeReference(ref, byPhoto, refPhotoId);
+}
+/** Logica pură a curățării: pozele ale căror fețe sunt toate sub prag față de reper. */
+export function unlikeReference(ref: readonly number[], byPhoto: ReadonlyMap<string, readonly (readonly number[])[]>, refPhotoId?: string, threshold = KEEP_LIKE): string[] {
+  const out: string[] = [];
+  for (const [photoId, list] of byPhoto) {
+    if (photoId === refPhotoId) continue;
+    if (list.every(e => cosine(ref as number[], e as number[]) < threshold)) out.push(photoId);
+  }
+  return out;
 }

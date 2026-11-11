@@ -403,6 +403,23 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       if (picked.size >= list.length) onRenamed(null);
     } finally { setBusy(false); }
   };
+  // Albumul s-a umplut cu alți oameni: omul alege o poză sigură, restul care nu seamănă pleacă.
+  const keepLike = async () => {
+    const ref = [...picked][0];
+    setBusy(true);
+    try {
+      const { photosUnlike } = await import('./faceIdentity');
+      const wrong = await photosUnlike(name, ref);
+      const st = useStore.getState();
+      if (wrong === null) { st.setNotice(tr('lx.people.keepLikeNoFace')); return; }
+      if (!wrong.length) { st.setNotice(tr('lx.people.keepLikeNone', { name })); return; }
+      if (!(await st.askConfirm(tr('lx.people.keepLikeConfirm', { count: wrong.length, name }), { confirmLabel: tr('lx.people.keepLikeGo') }))) return;
+      await correctPersonFaces(name, wrong);
+      useLx.getState().bumpFaces();
+      setPicked(new Set());
+      setEditing(false);
+    } finally { setBusy(false); }
+  };
   return (
     <div className="lx-screen">
       <header className="lx-head">
@@ -475,6 +492,9 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {editing && picked.size > 0 && (
         <div className="lx-pickbar" role="region" aria-live="polite">
           <span>{tr('lx.people.picked', { count: picked.size })}</span>
+          {picked.size === 1 && canEmbedFaces() && (
+            <button className="lx-btn ghost small" disabled={busy} onClick={() => void keepLike()}>{tr('lx.people.keepLike')}</button>
+          )}
           <button className="lx-btn ghost small" disabled={busy} onClick={() => void apply(true)}>{tr('lx.people.someoneElse')}</button>
           <button className="lx-btn primary small" disabled={busy} onClick={() => void apply()}>{tr('lx.people.notHim', { name })}</button>
         </div>

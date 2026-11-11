@@ -96,7 +96,7 @@ const RIGHT_EYE = { top: 386, bottom: 374, inner: 362, outer: 263 };
 // pentru Mouth Aspect Ratio — MAR).
 const MOUTH = { top: 13, bottom: 14, left: 61, right: 291 };
 
-const RECOGNITION_THRESHOLD = 0.55; // cosine similarity above this = known person
+const RECOGNITION_THRESHOLD = 0.62; // cosine similarity above this = known person
 const BLINK_EAR_THRESHOLD = 0.18;
 // eyeOpenness() normalizeaza EAR brut cu (ear - 0.08) / 0.25 — pragul de blink trebuie
 // trecut prin ACEEASI transformare, altfel comparatia se face pe scari diferite (bug real

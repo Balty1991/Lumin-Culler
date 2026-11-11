@@ -968,7 +968,8 @@ interface AppState {
    * RETROACTIV fetele din cluster in analizele deja existente, ca persoana
    * sa nu mai apara drept "strain" in restul bibliotecii curente.
    */
-  enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[]) => Promise<void>;
+  /** `auto`: numele a fost pus de aplicație, nu de om — fața se etichetează, dar NU devine referință pentru recunoașteri viitoare. */
+  enrollFaceCluster: (name: string, members: { photoId: string; faceIndex: number; embedding: number[] }[], options?: { auto?: boolean }) => Promise<void>;
   /**
    * Corectează un nume pus greșit: scoate persoana `name` de pe fețele ei din
    * `photoIds` (și ține minte „nu e ea”, ca recunoașterea să n-o mai pună).
@@ -1211,7 +1212,7 @@ async function relabelAnalyses(mapping: Map<string, { id: string; name: string }
 // worker-ul nu poate fi importat aici (ar trage Comlink/@vladmandic/human in
 // thread-ul principal doar pentru o constanta), asa ca pragul e duplicat, ca
 // si cosineSimilarity din core/faceClustering.ts pentru acelasi motiv.
-const RETROACTIVE_MATCH_THRESHOLD = 0.55;
+const RETROACTIVE_MATCH_THRESHOLD = 0.62;
 
 function faceCosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, na = 0, nb = 0;
@@ -4767,9 +4768,13 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  enrollFaceCluster: async (name, members) => {
+  enrollFaceCluster: async (name, members, options) => {
     const trimmedName = name.trim();
     if (!trimmedName || !members.length) return;
+    // O față recunoscută de aplicație nu se adaugă la referințe: o singură greșeală ar atrage
+    // altele după ea (raportat cu capturi: albumul unui copil plin de alt copil și de adulți).
+    if (options?.auto) members = members.map(m => ({ ...m, embedding: [] }));
+    const auto = !!options?.auto;
     // Fețele numite cu mâna (fără amprentă, vezi lumin/People.tsx) nu aduc embedding: se etichetează doar.
     const newEmbeddings = members.map(m => m.embedding).filter(e => e.length > 0);
     const existing = get().persons.find(p => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
@@ -4811,6 +4816,7 @@ export const useStore = create<AppState>((set, get) => ({
           if (face && !face.personId) {
             face.personId = person.id;
             face.personName = person.name;
+            if (auto) (face as { autoNamed?: boolean }).autoNamed = true;
             changed = true;
           }
         }

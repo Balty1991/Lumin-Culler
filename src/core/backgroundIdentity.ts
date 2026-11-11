@@ -16,7 +16,7 @@ const MIN_FACE_CROP_PX = 48;
 const MAX_FACES_WHEN_NAMED = 6;
 const MAX_FACES_FOR_GROUPING = 2;
 /** Același prag ca NATIVE_RECOGNITION_THRESHOLD din nativeAnalysis.ts. */
-const FACE_MATCH_THRESHOLD = 0.55;
+const FACE_MATCH_THRESHOLD = 0.62;
 
 export interface MeshFaceBox {
   boundingBox?: { left: number; top: number; width: number; height: number };

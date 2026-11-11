@@ -240,7 +240,10 @@ function cropFaceBitmap(
 // (si cu RETROACTIVE_MATCH_THRESHOLD din state/store.ts) — pragul de decizie
 // "e aceeasi persoana" trebuie sa fie acelasi peste tot unde se face comparatia,
 // indiferent ce worker/platforma a produs embeddingul.
-const NATIVE_RECOGNITION_THRESHOLD = 0.55;
+// Ridicat de la 0,55 și cu margine față de următorul om (raportat: copii și adulți amestecați
+// în același album): cel mai apropiat reper singur nu ajunge, mai ales la fețe de copii.
+const NATIVE_RECOGNITION_THRESHOLD = 0.62;
+const NATIVE_RECOGNITION_MARGIN = 0.05;
 
 function nativeCosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, na = 0, nb = 0;
@@ -251,13 +254,17 @@ function nativeCosineSimilarity(a: number[], b: number[]): number {
 
 function matchKnownPerson(embedding: number[], persons: KnownPerson[]): { id: string | null; name: string | null; similarity: number } {
   let best = { id: null as string | null, name: null as string | null, similarity: 0 };
+  let second = 0;
   for (const person of persons) {
-    for (const ref of person.embeddings) {
-      const sim = nativeCosineSimilarity(embedding, ref);
-      if (sim > best.similarity) best = { id: person.id, name: person.name, similarity: sim };
-    }
+    // Pe om: media celor mai apropiate două repere (când are măcar două), nu doar cel mai apropiat.
+    const sims = person.embeddings.map(ref => nativeCosineSimilarity(embedding, ref)).sort((a, b) => b - a);
+    if (!sims.length) continue;
+    const sim = sims.length >= 2 ? (sims[0] + sims[1]) / 2 : sims[0];
+    if (sim > best.similarity) { second = best.similarity; best = { id: person.id, name: person.name, similarity: sim }; }
+    else if (sim > second) second = sim;
   }
-  return best.similarity >= NATIVE_RECOGNITION_THRESHOLD ? best : { id: null, name: null, similarity: best.similarity };
+  const sure = best.similarity >= NATIVE_RECOGNITION_THRESHOLD && best.similarity - second >= NATIVE_RECOGNITION_MARGIN;
+  return sure ? best : { id: null, name: null, similarity: best.similarity };
 }
 
 function toFaceInsight(f: NativeFaceResult, imageWidth: number, imageHeight: number): FaceInsight {

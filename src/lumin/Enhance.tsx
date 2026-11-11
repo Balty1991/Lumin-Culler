@@ -142,6 +142,13 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
     }
     out.vignette = Math.max(out.vignette ?? 0, Math.round(10 * k));
   }
+  // „Wow” pe pozele cu oameni (cerut cu capturi: „vreau și mai wow”): marginile coboară în
+  // jurul omului, nu al centrului pozei, ca el să iasă în față. Tenul nu se atinge.
+  if (base.bokehSubject && style !== 'bw' && style !== 'portrait') {
+    const sub = base.bokehSubject;
+    out.vignetteAt = { x: sub.x + sub.width / 2, y: sub.y + sub.height * 0.3 };
+    out.vignette = Math.max(out.vignette ?? 0, Math.round(26 * Math.min(1.2, amount)));
+  }
   if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
   if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
   if (style === 'retouch') delete out.bokehSubject;
@@ -714,6 +721,80 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     }
     setSplit(splitValue.current);
   };
+  // Gesturi pe poză:
+  //  · ții apăsat fără să miști → vezi originalul pe tot cadrul, ridici degetul → revine editarea;
+  //  · tragi → muți linia înainte/după (ca până acum);
+  //  · două degete → mărești (până la 4×) și plimbi poza; atingere dublă → la loc.
+  const [holding, setHolding] = useState(false);
+  const zoomBox = useRef<HTMLDivElement>(null);
+  const gesture = useRef({ pointers: new Map<number, { x: number; y: number }>(), startX: 0, startY: 0, moved: false, holdTimer: 0, held: false, scale: 1, tx: 0, ty: 0, pinchDist: 0, pinchScale: 1, lastTap: 0 });
+  const applyZoom = () => {
+    const g = gesture.current;
+    if (zoomBox.current) zoomBox.current.style.transform = g.scale > 1.01 ? `translate3d(${g.tx}px,${g.ty}px,0) scale(${g.scale})` : '';
+  };
+  const clampPan = () => {
+    const g = gesture.current, box = stage.current?.getBoundingClientRect();
+    if (!box) return;
+    const mx = (box.width * (g.scale - 1)) / 2, my = (box.height * (g.scale - 1)) / 2;
+    g.tx = Math.max(-mx, Math.min(mx, g.tx)); g.ty = Math.max(-my, Math.min(my, g.ty));
+  };
+  const endHold = () => {
+    const g = gesture.current;
+    window.clearTimeout(g.holdTimer);
+    if (g.held) { g.held = false; setHolding(false); placeSplit(splitValue.current); }
+  };
+  const stageDown = (e: PointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.pointers.size === 2) {
+      endHold(); dragging.current = false;
+      const [a, b] = [...g.pointers.values()];
+      g.pinchDist = Math.hypot(a.x - b.x, a.y - b.y) || 1; g.pinchScale = g.scale;
+      return;
+    }
+    g.startX = e.clientX; g.startY = e.clientY; g.moved = false;
+    dragBounds.current = stage.current?.getBoundingClientRect() ?? null;
+    g.holdTimer = window.setTimeout(() => {
+      if (g.moved || g.pointers.size !== 1) return;
+      g.held = true; setHolding(true); placeSplit(100);
+      vibrate(8);
+    }, 280);
+  };
+  const stageMove = (e: PointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    const prev = g.pointers.get(e.pointerId);
+    if (!prev) return;
+    g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.pointers.size === 2) {
+      const [a, b] = [...g.pointers.values()];
+      g.scale = Math.max(1, Math.min(4, g.pinchScale * (Math.hypot(a.x - b.x, a.y - b.y) / g.pinchDist)));
+      clampPan(); applyZoom();
+      return;
+    }
+    if (g.held) return;
+    if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 8) return;
+    g.moved = true; window.clearTimeout(g.holdTimer);
+    if (g.scale > 1.01) { g.tx += e.clientX - prev.x; g.ty += e.clientY - prev.y; clampPan(); applyZoom(); return; }
+    dragging.current = true;
+    move(e);
+  };
+  const stageUp = (e: PointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    const wasPinch = g.pointers.size === 2;
+    g.pointers.delete(e.pointerId);
+    if (wasPinch) { if (g.scale < 1.05) { g.scale = 1; g.tx = 0; g.ty = 0; applyZoom(); } return; }
+    const tap = !g.moved && !g.held;
+    endHold();
+    if (tap) {
+      const now = Date.now();
+      if (now - g.lastTap < 300) { g.scale = 1; g.tx = 0; g.ty = 0; applyZoom(); g.lastTap = 0; return; }
+      g.lastTap = now;
+      // O atingere scurtă mută linia acolo (ca până acum), doar când poza nu e mărită.
+      if (g.scale <= 1.01) { dragging.current = true; move(e); }
+    }
+    finishDrag();
+  };
   const [retouch, setRetouch] = useState<ToolKind | null>(null);
   const [tools, setTools] = useState<{ clarity: boolean; cutout: boolean }>({ clarity: false, cutout: false });
   useEffect(() => { void onDeviceEditAvailable().then(a => setTools({ clarity: a.clarity, cutout: a.cutout })); }, []);
@@ -786,12 +867,13 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           <button className="lx-icon-btn" onClick={() => stepHistory(1)} disabled={histAt >= hist.length - 1} aria-label={tr('lx.enhance.redo')}>↷</button>
         </span>
       </header>
-      <div className="lx-enhance-stage" ref={stage}
-        onPointerDown={e => { dragging.current = true; dragBounds.current = stage.current?.getBoundingClientRect() ?? null; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
-        onPointerMove={move} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+      <div className={`lx-enhance-stage${holding ? ' holding' : ''}`} ref={stage}
+        onPointerDown={stageDown} onPointerMove={stageMove} onPointerUp={stageUp} onPointerCancel={stageUp}>
+        {holding && <span className="lx-enhance-hold">{tr('lx.enhance.before')}</span>}
         {proPreview && <span className="lx-pro-preview" aria-hidden="true"><b>PRO</b> {tr('lx.enhance.proPreview')}</span>}
         {!src && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
+        <div className="lx-enhance-zoom" ref={zoomBox}>
         {src && edits && (edits.crop || panel === 'frame') ? (
           <div className="lx-enhance-frame cropped">
             <LivePreview src={view!} edits={edits} />
@@ -813,6 +895,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             )}
           </div>
         )}
+        </div>
       </div>
       <div className="lx-viewer-info">
         {base && (
@@ -998,8 +1081,8 @@ export function visibleChange(before: Uint8ClampedArray, after: Uint8ClampedArra
   return s / (before.length / 4) / 3;
 }
 /** Treptele de intensitate încercate și schimbarea de la care efectul „se vede”. */
-export const FIT_STEPS = [0.5, 0.65, 0.8, 0.9];
-export const FIT_TARGET = 9;
+export const FIT_STEPS = [0.5, 0.65, 0.8, 0.95];
+export const FIT_TARGET = 11;
 /** Prima treaptă la care schimbarea atinge ținta; ultima dacă niciuna nu ajunge. */
 export function pickAmount(changes: readonly number[], steps: readonly number[] = FIT_STEPS, target = FIT_TARGET): number {
   const i = changes.findIndex(c => c >= target);

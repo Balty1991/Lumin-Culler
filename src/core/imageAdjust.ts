@@ -60,6 +60,8 @@ export interface EditAdjustments {
   toneMap?: number;
   /** Intunecarea/luminarea colturilor — -100..100. Negativ = colturi mai deschise. */
   vignette?: number;
+  /** Centrul vinietei (0..1 din cadru). Absent = centrul pozei. Folosit ca omul să rămână în lumină. */
+  vignetteAt?: { x: number; y: number };
   /**
    * Cerul: pozitiv îl face albastru și adânc (cerul alb-gri al unei zile
    * înnorate), negativ îi dă culoarea serii. Doar pe cer — vezi applySky.
@@ -167,7 +169,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix' | 'faceBoxes'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix' | 'faceBoxes' | 'vignetteAt'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -732,7 +734,7 @@ export function drawAdjusted(
 
   // Vinieta ULTIMA: e un efect de obiectiv, se aseaza peste imaginea finita,
   // nu peste una careia urmeaza sa i se mai schimbe contrastul.
-  if (vignette !== 0) applyVignette(d, width, height, vignette);
+  if (vignette !== 0) applyVignette(d, width, height, vignette, a.vignetteAt);
   if (hasSubject) applySubjectFinish(d, width, height, relight, redEyeAmt, a.faceBoxes);
 
   ctx.putImageData(imgData, 0, 0);
@@ -1144,14 +1146,26 @@ export function applyDehaze(d: Uint8ClampedArray, width: number, height: number,
   for (let g = 1; g < dark.length; g++) if (dark[g] > dark[celMaiCetos]) celMaiCetos = g;
   const A = Math.max(1, bright[celMaiCetos]);
 
+  // Ceata se citeste NETED intre celule (interpolare biliniara intre centrele lor), nu cu
+  // valoarea celulei in care cade pixelul. Raportat cu capturi: pe pereti albi, marginile
+  // dintre celule ieseau ca pete albe, patrate. Ponderile pe coloane se calculeaza o data.
+  const x0 = new Int32Array(width), x1 = new Int32Array(width);
+  const wx = new Float32Array(width);
+  for (let x = 0; x < width; x++) {
+    const gx = Math.max(0, Math.min(cols - 1, (x + 0.5) / cw - 0.5));
+    x0[x] = gx | 0; x1[x] = Math.min(cols - 1, x0[x] + 1); wx[x] = gx - x0[x];
+  }
   for (let y = 0; y < height; y++) {
-    const fy = Math.min(rows - 1, (y / ch) | 0);
+    const gyf = Math.max(0, Math.min(rows - 1, (y + 0.5) / ch - 0.5));
+    const y0 = gyf | 0, y1 = Math.min(rows - 1, y0 + 1), wy = gyf - y0;
     for (let x = 0; x < width; x++) {
-      const g = fy * cols + Math.min(cols - 1, (x / cw) | 0);
+      const top = dark[y0 * cols + x0[x]] * (1 - wx[x]) + dark[y0 * cols + x1[x]] * wx[x];
+      const bottom = dark[y1 * cols + x0[x]] * (1 - wx[x]) + dark[y1 * cols + x1[x]] * wx[x];
+      const darkHere = top * (1 - wy) + bottom * wy;
       // Transmisia: 1 = aer curat, spre 0 = ceata groasa. Pragul de jos
       // opreste impartirea sa explodeze in zonele cele mai albe (cerul), unde
       // altfel ar scoate artefacte violente.
-      const transmisie = Math.max(0.25, 1 - 0.95 * (dark[g] / A) * t);
+      const transmisie = Math.max(0.25, 1 - 0.95 * (darkHere / A) * t);
       const i = (y * width + x) << 2;
       for (let c = 0; c < 3; c++) {
         d[i + c] = clamp255((d[i + c] - A * (1 - transmisie)) / transmisie);
@@ -1253,9 +1267,13 @@ export function applyGrain(d: Uint8ClampedArray, width: number, amount: number):
  * Centrul ramane COMPLET neatins la orice intensitate: o vinieta care inchide
  * si mijlocul e doar o scadere de expunere prost deghizata.
  */
-export function applyVignette(d: Uint8ClampedArray, width: number, height: number, amount: number): void {
-  const cx = width / 2, cy = height / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
+export function applyVignette(d: Uint8ClampedArray, width: number, height: number, amount: number, at?: { x: number; y: number }): void {
+  // Cu `at` (0..1), vinieta se așază în jurul subiectului, nu al centrului pozei: marginile
+  // coboară, omul rămâne în lumină. Raza se măsoară până la colțul cel mai depărtat.
+  const cx = at ? Math.max(0, Math.min(1, at.x)) * width : width / 2;
+  const cy = at ? Math.max(0, Math.min(1, at.y)) * height : height / 2;
+  const fx = Math.max(cx, width - cx), fy = Math.max(cy, height - cy);
+  const maxDist = Math.sqrt(fx * fx + fy * fy);
   const strength = (amount / 100) * 0.85;
   // pana la 45% din raza nu se intampla nimic — zona "curata" din centru
   const inner = 0.45;
