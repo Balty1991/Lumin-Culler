@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { hasVaultPin, isValidPinFormat } from '../core/vault';
@@ -57,7 +58,7 @@ export function PrivatePhotosRow() {
 
 function PrivateSheet({ onClose }: { onClose: () => void }) {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const collections = useStore(s => s.collections);
   const removeFromVault = useStore(s => s.removeFromVault);
   const lockVault = useStore(s => s.lockVault);

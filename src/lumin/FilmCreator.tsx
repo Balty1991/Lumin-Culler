@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -21,7 +22,7 @@ type Choice<T extends string> = { value: T; label: string };
 export function FilmCreator({ startId, initialIds, initialTransition, onClose }: { startId: string; initialIds: string[]; initialTransition?: 'ai' | 'fade'; onClose: () => void }) {
   useHoldAnalysis();
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const byId = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
   const [ids, setIds] = useState<string[]>(() => (initialIds.length ? initialIds : [startId]).slice(0, FILM_MAX_PHOTOS));
   const [active, setActive] = useState<string | null>(null);

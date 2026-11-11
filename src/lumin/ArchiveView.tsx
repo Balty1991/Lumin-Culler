@@ -5,7 +5,7 @@ import { archiveCandidates, archiveNow, autoArchiveOn, setAutoArchive, useArchiv
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
-import { useLxPhotos } from './useLxPhotos';
+import { useLxPhotos, usePacedPhotos } from './useLxPhotos';
 
 /**
  * lumin/ArchiveView.tsx
@@ -14,7 +14,7 @@ import { useLxPhotos } from './useLxPhotos';
  */
 export function ArchiveEntry() {
   const tr = useTr();
-  const all = useStore(s => s.photos);
+  const all = usePacedPhotos();
   const ids = useArchive(s => s.ids);
   const visible = useLxPhotos();
   const [open, setOpen] = useState(false);
@@ -39,7 +39,7 @@ export function ArchiveEntry() {
 
 function ArchiveList({ onBack }: { onBack: () => void }) {
   const tr = useTr();
-  const all = useStore(s => s.photos);
+  const all = usePacedPhotos();
   const ids = useArchive(s => s.ids);
   const remove = useArchive(s => s.remove);
   const openViewer = useLx(s => s.openViewer);

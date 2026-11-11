@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
@@ -15,7 +16,7 @@ type Step = { kind: 'setup' } | { kind: 'vote'; voter: number } | { kind: 'pass'
 
 export function FamilyVote({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const setStatus = useStore(s => s.setStatus);
   const list = ids.map(id => photos.find(p => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 6);
   const [voters, setVoters] = useState(3);

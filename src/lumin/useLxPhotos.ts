@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useStore, type PhotoView } from '../state/store';
 import { useArchive } from './archive';
 import { useLx } from './lxStore';
@@ -17,6 +17,9 @@ import { useLx } from './lxStore';
  * citește, pozele NOI ajung pe ecran cel mult o dată la două secunde; o decizie a
  * omului (aceeași listă, alt status) trece pe loc, ca butonul să răspundă imediat.
  */
+/** Se vede ecranul acesta acum? Filele îl pun pe `false` cât sunt ascunse; în afara lor e `true`. */
+export const PaneActive = createContext(true);
+
 const THROTTLE_MS = 2000;
 let live = useStore.getState().photos;
 let shown = live;
@@ -52,7 +55,13 @@ function subscribe(cb: () => void): () => void {
 }
 /** Pozele din magazin, cu ritmul de mai sus. Pentru ecranele care doar le arată. */
 export function usePacedPhotos(): PhotoView[] {
-  return useSyncExternalStore(subscribe, () => shown);
+  // Un ecran care nu se vede (altă filă, sau fila de sub poza deschisă) rămâne pe lista pe care
+  // o avea: nu-și recalculează nimic până nu e arătat din nou. Măsurat pe 1.500 de poze: o
+  // atingere pe „Nu azi” ținea ecranul 200–300 ms, fiindcă toate cele patru file se refăceau.
+  const active = useContext(PaneActive);
+  const frozen = useRef(shown);
+  if (active) frozen.current = shown;
+  return useSyncExternalStore(subscribe, () => (active ? shown : frozen.current));
 }
 
 export function useLxPhotos(): PhotoView[] {

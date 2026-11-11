@@ -23,7 +23,7 @@ import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
 import { learnFromShare } from './signals';
-import { usePacedPhotos, visiblePhotos } from './useLxPhotos';
+import { PaneActive, usePacedPhotos, visiblePhotos } from './useLxPhotos';
 import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } from './autoBackup';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
@@ -171,6 +171,8 @@ export function LuminApp() {
   const tab = useLx(s => s.tab);
   const setTab = useLx(s => s.setTab);
   const sortOpen = useLx(s => s.sortIds !== null);
+  // Sub sortare sau sub poza mare, fila din spate nu se vede: stă pe loc (vezi PaneActive).
+  const overlayOpen = useLx(s => s.sortIds !== null || s.viewer !== null);
   const tourOpen = useLx(s => s.tourOpen);
   const fileRef = useRef<HTMLInputElement>(null);
   const [booted, setBooted] = useState(false);
@@ -449,11 +451,11 @@ export function LuminApp() {
             {booted && <PhotosAccessNotice />}
             {/* Ecranele vizitate rămân montate, ascunse: schimbarea din meniu nu le mai
                 reconstruiește (raportat: „la schimbarea prin meniu merge sacadat”). */}
-            {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><TodayPane /></div>}
-            {visited.has('days') && <div className="lx-tabpane" hidden={tab !== 'days'}><Suspense fallback={<ScreenWait />}><DaysScreen /></Suspense></div>}
-            {visited.has('clean') && <div className="lx-tabpane" hidden={tab !== 'clean'}><Suspense fallback={<ScreenWait />}><CleanScreen /></Suspense></div>}
-            {visited.has('brain') && <div className="lx-tabpane" hidden={tab !== 'brain'}><Suspense fallback={<ScreenWait />}><StudioTab /></Suspense></div>}
-            {visited.has('settings') && <div className="lx-tabpane" hidden={tab !== 'settings'}><Suspense fallback={<ScreenWait />}><SettingsScreen /></Suspense></div>}
+            {visited.has('today') && <div className="lx-tabpane" hidden={tab !== 'today'}><PaneActive.Provider value={tab === 'today' && !overlayOpen}><TodayPane /></PaneActive.Provider></div>}
+            {visited.has('days') && <div className="lx-tabpane" hidden={tab !== 'days'}><PaneActive.Provider value={tab === 'days' && !overlayOpen}><Suspense fallback={<ScreenWait />}><DaysScreen /></Suspense></PaneActive.Provider></div>}
+            {visited.has('clean') && <div className="lx-tabpane" hidden={tab !== 'clean'}><PaneActive.Provider value={tab === 'clean' && !overlayOpen}><Suspense fallback={<ScreenWait />}><CleanScreen /></Suspense></PaneActive.Provider></div>}
+            {visited.has('brain') && <div className="lx-tabpane" hidden={tab !== 'brain'}><PaneActive.Provider value={tab === 'brain' && !overlayOpen}><Suspense fallback={<ScreenWait />}><StudioTab /></Suspense></PaneActive.Provider></div>}
+            {visited.has('settings') && <div className="lx-tabpane" hidden={tab !== 'settings'}><PaneActive.Provider value={tab === 'settings' && !overlayOpen}><Suspense fallback={<ScreenWait />}><SettingsScreen /></Suspense></PaneActive.Provider></div>}
           </main>
         )}
 

@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { DEV_UNLIMITED_KEY, devUnlimited, devUnlimitedAvailable } from '../core/entitlement';
 import { Capacitor } from '@capacitor/core';
 import { LOCALES } from '../i18n';
@@ -51,7 +52,7 @@ export function SettingsScreen() {
   const setPremiumOpen = useStore(s => s.setPremiumOpen);
   const clearAll = useStore(s => s.clearAll);
   const askConfirm = useStore(s => s.askConfirm);
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const exportBackup = useStore(s => s.exportBackup);
   const setTab = useLx(s => s.setTab);
 

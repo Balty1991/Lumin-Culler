@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
@@ -24,7 +25,7 @@ import { baseLocale, plural } from '../i18n';
  */
 export function BrainScreen({ embedded = false }: { embedded?: boolean }) {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const persons = useStore(s => s.persons);
   const locale = useStore(s => s.locale);
   const askConfirm = useStore(s => s.askConfirm);

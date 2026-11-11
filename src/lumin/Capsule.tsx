@@ -6,7 +6,7 @@ import { Thumb } from './Thumb';
 import { Icon } from './icons';
 import { photoTime } from './days';
 import { useLx } from './lxStore';
-import { useLxPhotos } from './useLxPhotos';
+import { useLxPhotos, usePacedPhotos } from './useLxPhotos';
 import { intlTag } from '../i18n';
 import { addCapsule, isOpen, markSeen, openTimeFor, readCapsules, rescheduleCapsules, type Capsule } from './capsule';
 import { FilmCreator } from './FilmCreator';
@@ -48,7 +48,7 @@ function useNotifyText() {
 export function CapsuleCreator({ initialIds, onClose }: { initialIds: string[]; onClose: () => void }) {
   const tr = useTr();
   const locale = useStore(s => s.locale);
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const notifyText = useNotifyText();
   const [ids, setIds] = useState<string[]>(initialIds.slice(0, MAX));
   const [message, setMessage] = useState('');
@@ -146,7 +146,7 @@ export function CapsuleCreator({ initialIds, onClose }: { initialIds: string[]; 
 export function CapsuleOpen({ capsule, onClose }: { capsule: Capsule; onClose: () => void }) {
   const tr = useTr();
   const locale = useStore(s => s.locale);
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const [stage, setStage] = useState<0 | 1 | 2>(0);
   const [typed, setTyped] = useState(0);
   const [film, setFilm] = useState(false);

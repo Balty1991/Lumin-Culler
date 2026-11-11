@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
@@ -41,7 +42,7 @@ export function useWhyContext(): WhyContext {
       setSubjects(cachedSubjects);
     }).catch(() => {});
   }, []);
-  const photos = useStore(st => st.photos);
+  const photos = usePacedPhotos();
   const groupBest = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of photos) if (p.groupId && !p.aside) m.set(p.groupId, Math.max(m.get(p.groupId) ?? 0, p.aiScore));

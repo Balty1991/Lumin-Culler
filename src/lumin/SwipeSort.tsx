@@ -1,3 +1,4 @@
+import { usePacedPhotos } from './useLxPhotos';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
@@ -45,7 +46,7 @@ export function SwipeSort() {
   const [elapsed, setElapsed] = useState(0);
   const [took, setTook] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const setStatus = useStore(s => s.setStatus);
   const undo = useStore(s => s.undo);
   const tr = useTr();
@@ -268,7 +269,7 @@ export function SwipeSort() {
 /** Finalul ritualului: cele mai bune trei poze păstrate azi, timpul și săptămâna ta. */
 function DayRecap({ ids, seconds }: { ids: readonly string[]; seconds: number | null }) {
   const tr = useTr();
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const top = useMemo(() => {
     const set = new Set(ids);
     return photos.filter(p => set.has(p.id) && p.status === 'selected')
