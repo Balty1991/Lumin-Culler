@@ -2012,3 +2012,24 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 /* Butonul din mijlocul barei: AI-ul tău, nu „+”. */
 .lx-dock-add.ask > span { display: grid; place-items: center; }
 .lx-dock-add.ask:active { transform: scale(0.92); }
+
+/* ── Ritualul zilei: cronometrul de 60 s și „Ziua ta în 3 poze” ──────────────── */
+.lx-ritual-ring { position: relative; margin-top: 4px; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(rgb(var(--accent-rgb)) calc(var(--p) * 360deg), rgb(255 255 255 / .14) 0); }
+.lx-ritual-ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: rgb(10 8 14 / .92); }
+.lx-sort-title .lx-ritual-ring b { position: relative; font-family: var(--mono); font-size: 12.5px; color: #fff; max-width: none; }
+.lx-ritual-ring.over { background: rgb(255 255 255 / .14); }
+.lx-ritual-ring.over b { color: var(--text-faint); }
+.lx-recap { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 12px; border: 0 !important; background: none !important; padding: 0 !important; animation: lx-in .5s var(--lx-ease) both; }
+.lx-recap-grid { width: 100%; display: grid; gap: 6px; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; height: 240px; }
+.lx-recap-grid button { position: relative; min-width: 0; width: 100%; height: 100%; border: 0; padding: 0; border-radius: 18px; overflow: hidden; background: var(--surface-2); }
+.lx-recap-grid button:first-child { grid-row: 1 / 3; }
+.lx-recap-grid.n1 { grid-template-columns: 1fr; }
+.lx-recap-grid.n2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.lx-recap-grid.n2 button:first-child { grid-row: auto; }
+.lx-recap-grid img, .lx-recap-grid .lx-thumb-empty { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-recap-week { display: flex; align-items: center; gap: 7px; }
+.lx-recap-week span { flex: 1; font-size: 12.5px; color: var(--text-dim); }
+.lx-recap-week i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--lx-line); }
+.lx-recap-week i.on { border: 0; background: var(--lx-grad); }
+.lx-kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); }

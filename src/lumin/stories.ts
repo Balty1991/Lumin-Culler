@@ -9,7 +9,7 @@ import { startOfDay } from '../core/todayDigest';
 import { photoTime } from './days';
 import { onThisDay } from './momentAlbums';
 
-export type StoryKind = 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
+export type StoryKind = 'today' | 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
 export interface Story {
   id: string;
   kind: StoryKind;
@@ -29,11 +29,19 @@ const DAY = 86_400_000;
 const score = (p: PhotoView) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
 const byScore = (a: PhotoView, b: PhotoView) => score(b) - score(a);
 
-export function buildStories(photos: readonly PhotoView[], now = Date.now()): Story[] {
+export function buildStories(photos: readonly PhotoView[], now = Date.now(), ritualDoneToday = false): Story[] {
   const out: Story[] = [];
   const used = new Set<string>();
   const push = (s: Story) => { if (!used.has(s.cover.id)) { used.add(s.cover.id); out.push(s); } };
   const kept = photos.filter(p => p.status === 'selected' && !p.aside);
+
+  // 0. Ritualul zilei: pozele de azi, alese într-un minut (o dată pe zi).
+  const today = startOfDay(now);
+  const todays = photos.filter(p => !p.aside && startOfDay(photoTime(p)) === today);
+  if (todays.length >= 3 && !ritualDoneToday) {
+    const list = [...todays].sort((a, b) => photoTime(a) - photoTime(b));
+    push({ id: 'today', kind: 'today', cover: [...list].sort(byScore)[0], photos: list });
+  }
 
   // 1. Amintirea de azi (acum un an, doi…).
   const mem = onThisDay(photos as PhotoView[], now)[0];
@@ -95,5 +103,5 @@ export function buildStories(photos: readonly PhotoView[], now = Date.now()): St
     push({ id: `forgotten-${star.id}`, kind: 'forgotten', cover: star, photos: [star, ...old.filter(p => p !== star)] });
   }
 
-  return out.slice(0, 6);
+  return out.slice(0, 7);
 }

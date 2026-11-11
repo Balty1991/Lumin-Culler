@@ -7,6 +7,8 @@ import { Thumb } from './Thumb';
 import { dayLabel } from './format';
 import { photoTime } from './days';
 import { buildStories, type Story } from './stories';
+import { readRitualDays } from '../core/ritualStreak';
+import { startOfDay } from '../core/todayDigest';
 
 /**
  * lumin/TodayStories.tsx
@@ -16,7 +18,13 @@ import { buildStories, type Story } from './stories';
  */
 export function useStories(): Story[] {
   const photos = useLxPhotos();
-  return useMemo(() => buildStories(photos), [photos]);
+  // Ritualul de azi dispare după ce l-ai terminat: recitim când se închide sortarea.
+  const sorting = useLx(s => !!s.sortIds);
+  return useMemo(() => {
+    const now = Date.now();
+    const done = !sorting && readRitualDays().some(d => startOfDay(d) === startOfDay(now));
+    return buildStories(photos, now, done);
+  }, [photos, sorting]);
 }
 
 const STORY_MS = 7000;
@@ -38,6 +46,7 @@ export function TodayStories({ stories, greeting, date, streak }: { stories: Sto
   const count = story.photos.length;
   const day = dayLabel(photoTime(story.cover), locale);
   const text = {
+    today: { badge: tr('lx.ritual60.badge'), title: tr('lx.ritual60.title'), sub: tr('lx.ritual60.sub', { count }), cta: tr('lx.ritual60.cta') },
     memory: { badge: tr(story.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', { years: story.years ?? 1 }), title: day, sub: tr('lx.story.count', { count }), cta: tr('lx.story.see') },
     best: { badge: tr(story.recent ? 'lx.hero.weekBest' : 'lx.hero.fromGallery'), title: day, sub: tr('lx.story.count', { count }), cta: tr('lx.story.see') },
     waiting: { badge: tr('lx.story.waiting.badge'), title: tr('lx.story.waiting.title', { count }), sub: tr('lx.story.waiting.sub'), cta: tr('lx.story.waiting.cta') },
@@ -46,7 +55,8 @@ export function TodayStories({ stories, greeting, date, streak }: { stories: Sto
     forgotten: { badge: tr('lx.story.forgotten.badge'), title: day, sub: tr('lx.story.forgotten.sub'), cta: tr('lx.story.see') }
   }[story.kind];
   const act = () => {
-    if (story.kind === 'waiting') useLx.getState().openSort(ids, text.title);
+    if (story.kind === 'today') useLx.getState().openSort(ids, tr('lx.ritual60.title'), true);
+    else if (story.kind === 'waiting') useLx.getState().openSort(ids, text.title);
     else if (story.kind === 'series') useLx.getState().openSort(ids, tr('lx.story.series.badge'));
     else useLx.getState().openViewer(ids, 0);
   };

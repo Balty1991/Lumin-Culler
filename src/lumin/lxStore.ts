@@ -19,7 +19,9 @@ interface LxState {
   /** Pozele din sortarea deschisă (pachetul de carduri); null = închisă. */
   sortIds: string[] | null;
   sortTitle: string | null;
-  openSort: (ids: string[], title?: string) => void;
+  /** Ritualul zilei: sortare cu cronometru de 60 s și recapitularea „Ziua ta în 3 poze”. */
+  sortRitual: boolean;
+  openSort: (ids: string[], title?: string, ritual?: boolean) => void;
   /** Poza mare, doar de privit (glisezi liber), pornind de la `index`. */
   viewer: { ids: string[]; index: number } | null;
   openViewer: (ids: string[], index?: number) => void;
@@ -57,11 +59,12 @@ export const useLx = create<LxState>((set, get) => ({
   setTourOpen: open => set({ tourOpen: open }),
   sortIds: null,
   sortTitle: null,
-  openSort: (ids, title) => set({ sortIds: ids, sortTitle: title ?? null }),
+  sortRitual: false,
+  openSort: (ids, title, ritual) => set({ sortIds: ids, sortTitle: title ?? null, sortRitual: !!ritual }),
   viewer: null,
   openViewer: (ids, index = 0) => openWithTransition(() => set({ viewer: ids.length ? { ids, index: Math.max(0, Math.min(ids.length - 1, index)) } : null })),
   closeViewer: () => closeWithTransition(() => set({ viewer: null }), get().viewer ? get().viewer!.ids[get().viewer!.index] : undefined),
-  closeSort: () => set({ sortIds: null, sortTitle: null }),
+  closeSort: () => set({ sortIds: null, sortTitle: null, sortRitual: false }),
   openDay: null,
   setOpenDay: day => set({ openDay: day }),
   galleryView: 'wall',

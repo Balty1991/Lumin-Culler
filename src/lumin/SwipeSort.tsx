@@ -14,6 +14,8 @@ import { haptic } from '../core/device';
 import { claimPaywall, setPaywallContext } from './paywallMoment';
 import { t } from '../i18n';
 import { useHoldAnalysis } from './useHoldAnalysis';
+import { readRitualDays } from '../core/ritualStreak';
+import { startOfDay } from '../core/todayDigest';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -34,6 +36,11 @@ export function SwipeSort() {
   const ids = useLx(s => s.sortIds);
   const title = useLx(s => s.sortTitle);
   const close = useLx(s => s.closeSort);
+  const ritual = useLx(s => s.sortRitual);
+  // Cronometrul ritualului: 60 s, fără presiune — după minut doar spune că a trecut.
+  const [elapsed, setElapsed] = useState(0);
+  const [took, setTook] = useState<number | null>(null);
+  const startedAt = useRef(Date.now());
   const photos = useStore(s => s.photos);
   const setStatus = useStore(s => s.setStatus);
   const undo = useStore(s => s.undo);
@@ -61,6 +68,7 @@ export function SwipeSort() {
     setIndex(0);
     setDx(0);
     setDecisions(0);
+    startedAt.current = Date.now(); setElapsed(0); setTook(null);
     setLesson(null);
     setPeek(null);
   }, [ids]);
@@ -70,6 +78,12 @@ export function SwipeSort() {
   const current = index < queue.length ? byId.get(queue[index]) : undefined;
   const next = index + 1 < queue.length ? byId.get(queue[index + 1]) : undefined;
   const shown = (peek && byId.get(peek)) || current;
+  useEffect(() => {
+    if (!ritual) return;
+    if (!current) { setTook(t => t ?? Math.max(1, Math.round((Date.now() - startedAt.current) / 1000))); return; }
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt.current) / 1000)), 250);
+    return () => window.clearInterval(timer);
+  }, [ritual, !current]);
   // După ce rezultatul e pe ecran (coada s-a terminat), nu în timpul alegerilor.
   useEffect(() => {
     if (current || decisions < 7 || !useStore.getState().premiumLocked) return;
@@ -163,6 +177,11 @@ export function SwipeSort() {
         <div className="lx-sort-title">
           <b>{title ?? tr('lx.sort.title')}</b>
           {current && <span>{index + 1} / {queue.length}</span>}
+          {ritual && current && (
+            <span className={`lx-ritual-ring${elapsed >= 60 ? ' over' : ''}`} style={{ ['--p' as string]: Math.min(1, elapsed / 60) }} role="timer" aria-label={`${Math.max(0, 60 - elapsed)} s`}>
+              <b>{Math.max(0, 60 - elapsed)}</b>
+            </span>
+          )}
         </div>
         <button className="lx-icon-btn" onClick={back} disabled={index === 0} aria-label={tr('lx.undo')}>↺</button>
       </header>
@@ -215,6 +234,7 @@ export function SwipeSort() {
           )}
 
           {lesson && <div className="lx-lesson" role="status">{lesson}</div>}
+          {ritual && !lesson && elapsed >= 60 && elapsed < 66 && <div className="lx-lesson" role="status">{tr('lx.ritual60.over')}</div>}
 
           <div className="lx-sort-actions">
             <button className="lx-round drop" onClick={() => decide(false)} aria-label={tr('lx.notToday')}>
@@ -230,12 +250,46 @@ export function SwipeSort() {
         </>
       ) : (
         <div className="lx-sort-done">
+          {ritual && decisions > 0 && <DayRecap ids={queue} seconds={took} />}
           <div className="lx-done-wrap">
             <RitualDone ids={queue} decided={decisions} />
           </div>
           <button className="lx-btn primary wide" onClick={close}>{tr('lx.sort.finish')}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Finalul ritualului: cele mai bune trei poze păstrate azi, timpul și săptămâna ta. */
+function DayRecap({ ids, seconds }: { ids: readonly string[]; seconds: number | null }) {
+  const tr = useTr();
+  const photos = useStore(s => s.photos);
+  const top = useMemo(() => {
+    const set = new Set(ids);
+    return photos.filter(p => set.has(p.id) && p.status === 'selected')
+      .sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 3);
+  }, [ids, photos]);
+  // Ultimele 7 zile, de la stânga (acum 6 zile) la dreapta (azi).
+  const week = useMemo(() => {
+    const done = new Set(readRitualDays().map(d => startOfDay(d)));
+    const today = startOfDay(Date.now());
+    done.add(today);
+    return Array.from({ length: 7 }, (_, k) => { const d = new Date(today); d.setDate(d.getDate() - (6 - k)); return done.has(startOfDay(d.getTime())); });
+  }, []);
+  if (!top.length) return null;
+  return (
+    <div className="lx-recap">
+      <span className="lx-kicker">{tr('lx.ritual60.recap')}{seconds ? ` · ${tr('lx.ritual60.time', { seconds })}` : ''}</span>
+      <div className={`lx-recap-grid n${top.length}`}>
+        {top.map((p, i) => (
+          <button key={p.id} onClick={() => useLx.getState().openViewer(top.map(x => x.id), i)}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></button>
+        ))}
+      </div>
+      <div className="lx-recap-week" aria-label={tr('lx.ritual60.week')}>
+        <span>{tr('lx.ritual60.week')}</span>
+        {week.map((on, k) => <i key={k} className={on ? 'on' : ''} />)}
+      </div>
     </div>
   );
 }
