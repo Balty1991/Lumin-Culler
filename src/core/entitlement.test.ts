@@ -131,7 +131,9 @@ describe('jurnalul de folosire (format comprimat)', () => {
    * deci mai aproape de QuotaExceededError, nu mai departe.
    */
   it('migrarea din formatul vechi chiar comprima: 3000 de timestampuri dintr-o ora devin o intrare', () => {
-    const now = Date.now();
+    // Mijlocul orei curente: cu Date.now(), testul pica in primele 3 secunde ale
+    // oricarei ore (cele 3000 ms treceau in ora dinainte).
+    const now = Math.floor(Date.now() / 3_600_000) * 3_600_000 + 1_800_000;
     const legacy = Array.from({ length: 3000 }, (_, i) => now - i); // toate in aceeasi ora
     localStorage.setItem('lumin-export-log', JSON.stringify(legacy));
     const bytesBefore = localStorage.getItem('lumin-export-log')!.length;

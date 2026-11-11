@@ -1,4 +1,4 @@
-import { claimPaywall, setPaywallContext } from './paywallMoment';
+import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
 import { formatBytes } from '../core/freedSpace';
 import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useEffect, useMemo, useState } from 'react';
@@ -182,6 +182,7 @@ export function TodayScreen() {
         )}
       </section>}
 
+      <TrialEndCard />
       <EnginesWaitCard />
       {reader && reader.paused === 'training' && (
         <section className="lx-card lx-reader lx-train-pause" role="status">
@@ -626,6 +627,29 @@ function GalleryGlimpse() {
       {info.urls.length > 0 && <div className="lx-glimpse-strip">{info.urls.map(u => <img key={u} src={u} alt="" loading="lazy" decoding="async" />)}</div>}
       <span>{tr('lx.glimpse.next')}</span>
     </div>
+  );
+}
+
+/**
+ * Cu două zile înainte de sfârșitul probei: omul află din aplicație când începe plata
+ * și de unde anulează. Fără surprize la prima încasare (și mai puține rambursări).
+ */
+function TrialEndCard() {
+  const tr = useTr();
+  const premium = useStore(s => s.premium);
+  const [hidden, setHidden] = useState(false);
+  const left = trialDaysLeft();
+  if (!premium || hidden || left === null || left > 2) return null;
+  return (
+    <section className="lx-card lx-auto-result" role="status">
+      <button className="lx-auto-close" onClick={() => setHidden(true)} aria-label={tr('lx.close')}>✕</button>
+      <span className="lx-eyebrow">Cherrypic Pro</span>
+      <b>{tr(left === 1 ? 'lx.trialEnd.one' : 'lx.trialEnd.title', { count: left })}</b>
+      <span>{tr('lx.trialEnd.sub')}</span>
+      <div className="lx-decide-actions">
+        <a className="lx-btn ghost" href="https://play.google.com/store/account/subscriptions" target="_blank" rel="noreferrer">{tr('lx.trialEnd.manage')}</a>
+      </div>
+    </section>
   );
 }
 

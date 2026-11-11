@@ -1,3 +1,5 @@
+import { isPremium } from '../core/entitlement';
+import { shareCaption } from './shareCards';
 import { useMemo, useState } from 'react';
 import { useLxPhotos } from './useLxPhotos';
 import { useStore, type PhotoView } from '../state/store';
@@ -89,7 +91,7 @@ export function Recaps() {
         ? `${new Date(photoTime(list[0])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })} – ${new Date(photoTime(list[list.length - 1])).toLocaleDateString(intlTag(locale), { day: 'numeric', month: 'short' })}`
         : tr('lx.recap.year.sub', { count: kept.filter(p => new Date(photoTime(p)).getFullYear() === year).length });
       const blob = await makeCollage(list.map(p => p.id), title, range);
-      if (blob) await shareCollage(blob, `lumin-${kind}-${year}.jpg`, title);
+      if (blob) await shareCollage(blob, `cherrypic-${kind}-${year}.jpg`, isPremium() ? title : shareCaption(title, tr('lx.share.cta')));
       else useStore.getState().setNotice(tr('lx.recap.failed'));
     } catch {
       useStore.getState().setNotice(tr('lx.recap.failed'));

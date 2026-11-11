@@ -85,3 +85,16 @@ export function purchaseEvent(planId: string | undefined): PaywallEvent | null {
   if (planId === 'cherrypic_pro_forever') return 'purchase_lifetime';
   return null;
 }
+
+/**
+ * Câte zile mai are proba gratuită (pornită de pe telefonul acesta), sau `null`.
+ * Din jurnalul local: începutul probei + durata ei. Nu știe de o anulare făcută în
+ * Play, așa că apelantul o arată doar cât abonamentul e activ.
+ */
+export const TRIAL_DAYS = 7;
+export function trialDaysLeft(now = Date.now(), log: readonly PaywallLogEntry[] = readPaywallLog()): number | null {
+  const start = log.find(e => e.event === 'trial_started');
+  if (!start) return null;
+  const left = Math.ceil((start.at + TRIAL_DAYS * 86_400_000 - now) / 86_400_000);
+  return left > 0 && left <= TRIAL_DAYS ? left : null;
+}

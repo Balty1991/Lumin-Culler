@@ -30,3 +30,16 @@ describe('curățenia săptămânii', () => {
     expect(weekKey(new Date(2026, 10, 16).getTime())).not.toBe(weekKey(new Date(2026, 10, 15).getTime()));
   });
 });
+
+import { trialDaysLeft } from './paywallMoment';
+describe('sfârșitul probei gratuite', () => {
+  const day = 86_400_000;
+  const t0 = 1_800_000_000_000;
+  const log = [{ at: t0, event: 'trial_started' as const, source: 'yearly' }];
+  it('numără zilele rămase și tace după ce proba s-a terminat sau n-a existat', () => {
+    expect(trialDaysLeft(t0 + 5.5 * day, log)).toBe(2);
+    expect(trialDaysLeft(t0 + 6.5 * day, log)).toBe(1);
+    expect(trialDaysLeft(t0 + 8 * day, log)).toBeNull();
+    expect(trialDaysLeft(t0, [])).toBeNull();
+  });
+});
