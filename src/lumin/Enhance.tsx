@@ -869,6 +869,24 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
  * ms), cât tragi de linie; când te oprești, aceeași poză la claritate deplină.
  */
 const QUICK = 640;
+/** Treptele cadrului rapid, ca fracțiune din 640 px. */
+const QUICK_STEPS = [1, 0.75, 0.56, 0.42, 0.32];
+let quickScale = 1;
+/** Ținta: sub ~24 ms pe cadru. Peste → o treaptă mai mic; sub 9 ms → o treaptă mai mare. */
+export function nextQuickScale(current: number, ms: number): number {
+  const i = Math.max(0, QUICK_STEPS.indexOf(current));
+  if (ms > 24) return QUICK_STEPS[Math.min(QUICK_STEPS.length - 1, i + (ms > 60 ? 2 : 1))];
+  if (ms < 9) return QUICK_STEPS[Math.max(0, i - 1)];
+  return QUICK_STEPS[i];
+}
+const pads: (HTMLCanvasElement | null)[] = [null, null];
+function pad(n: number, w: number, h: number): HTMLCanvasElement {
+  const c = pads[n] ?? (pads[n] = document.createElement('canvas'));
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  return c;
+}
+const scratch = (w: number, h: number) => pad(0, w, h);
+const scratch2 = (w: number, h: number) => pad(1, w, h);
 function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -913,7 +931,31 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       const ctx = out.getContext('2d');
       if (ctx) try { drawAdjusted(ctx, source, w, h, o.width, o.height, edits); } catch { /* fără memorie: rămâne ultima */ }
     };
-    const frame = requestAnimationFrame(() => draw(small, small.width, small.height));
+    // Cadrul rapid se adaptează la telefon: dacă desenul durează mai mult de un cadru
+    // și jumătate, următorul se face mai mic (și se întinde pe aceeași pânză); dacă
+    // merge ușor, crește la loc. Claritatea deplină vine oricum când te oprești.
+    const frame = requestAnimationFrame(() => {
+      const k = quickScale;
+      const t0 = performance.now();
+      if (k >= 1) draw(small, small.width, small.height);
+      else {
+        const w = Math.max(1, Math.round(small.width * k)), h = Math.max(1, Math.round(small.height * k));
+        const src = scratch(w, h);
+        src.getContext('2d')?.drawImage(small, 0, 0, w, h);
+        const o = outputSize(w, h, edits);
+        const mid = scratch2(o.width, o.height);
+        const mctx = mid.getContext('2d');
+        const big = outputSize(small.width, small.height, edits);
+        if (out.width !== big.width || out.height !== big.height) { out.width = big.width; out.height = big.height; }
+        const ctx = out.getContext('2d');
+        if (mctx && ctx) try {
+          drawAdjusted(mctx, src, w, h, o.width, o.height, edits);
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(mid, 0, 0, out.width, out.height);
+        } catch { /* fără memorie: rămâne ultima */ }
+      }
+      quickScale = nextQuickScale(quickScale, performance.now() - t0);
+    });
     const full = window.setTimeout(() => (screen ? draw(screen, screen.width, screen.height) : draw(img, img.naturalWidth, img.naturalHeight)), 650);
     return () => { cancelAnimationFrame(frame); window.clearTimeout(full); };
   }, [img, small, screen, edits]);
