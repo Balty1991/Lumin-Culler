@@ -125,19 +125,40 @@ export function fold(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+/**
+ * Cuvântul și sinonimele lui, cu formele românești aduse la cuvântul de bază:
+ * „pisici”, „pisicile”, „pisicii” → „pisica”; „câini” → „câine”; „torturi” → „tort”.
+ * Fără asta, pluralul nu găsea nimic din ce se vede în poze.
+ */
+const ENDINGS = ['ilor', 'elor', 'ului', 'ile', 'uri', 'lor', 'ii', 'le', 'ul', 'ei', 'i', 'e', 'a'];
+const TAILS = ['', 'a', 'e', 'i', 'ie'];
+export function termOptions(term: string): string[] {
+  const direct = SYNONYMS[term];
+  if (direct) return [term, ...direct];
+  for (const end of ENDINGS) {
+    if (term.length - end.length < 3 || !term.endsWith(end)) continue;
+    const stem = term.slice(0, -end.length);
+    for (const tail of TAILS) {
+      const key = stem + tail;
+      if (SYNONYMS[key]) return [term, key, ...SYNONYMS[key]];
+    }
+  }
+  return [term];
+}
+
 function words(s: string): string[] {
   return fold(s).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !STOP.has(w));
 }
 
 /** Textul în care se caută, pentru o poză. */
-export function searchText(p: SearchablePhoto): string {
+export function searchText(p: SearchablePhoto, withOcr = true): string {
   const tags = (p.sceneTags ?? []).flatMap(t => [t, translateSceneTag(t, 'ro')]);
   const when = new Date(p.capturedAt ?? p.importedAt);
   const parts = [
     ...tags,
     p.aiDescription ?? '',
     p.aiDescriptionTr ?? '',
-    (p.ocrText ?? '').slice(0, 400),
+    withOcr ? (p.ocrText ?? '').slice(0, 400) : '',
     ...p.personNames,
     ...(p.petNames ?? []),
     p.aside === 'document' ? 'document bon act' : p.aside === 'screenshot' ? 'captura screenshot' : '',
@@ -154,7 +175,7 @@ export function searchText(p: SearchablePhoto): string {
 export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], query: string): P[] {
   const terms = words(query);
   if (!terms.length) return [];
-  const scored: { p: P; score: number; t: number }[] = [];
+  const scored: { p: P; score: number; t: number; seen: boolean }[] = [];
   for (const p of photos) {
     // Potrivire de la începutul cuvântului: „Ana” nu mai găsește „banana”, „Ioana”,
     // „canapea” (raportat). Prefixul rămâne: „pisic” găsește „pisică”.
@@ -163,17 +184,26 @@ export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], qu
     let score = 0;
     let all = true;
     for (const term of terms) {
-      const options = [term, ...(SYNONYMS[term] ?? [])];
+      const options = termOptions(term);
       const hit = options.find(o => text.includes(' ' + fold(o)));
       if (!hit) { all = false; break; }
       score += hit === term ? 2 : 1;
       // Persoana numită exact cum ai scris: prima.
       if (names.includes(' ' + fold(term) + ' ') || names.endsWith(' ' + fold(term))) score += 6;
     }
-    if (all) scored.push({ p, score, t: p.capturedAt ?? p.importedAt });
+    if (all) {
+      // „Văzut” = cuvintele se regăsesc în ce e ÎN poză (etichete, descriere, oameni), nu doar
+      // în textul citit de pe ea. Raportat: „poze cu pisici” întorcea un bon de mâncare pentru pisici.
+      const visual = ' ' + searchText(p, false).replace(/[^a-z0-9]+/g, ' ');
+      const seen = terms.every(term => termOptions(term).some(o => visual.includes(' ' + fold(o))));
+      scored.push({ p, score, t: p.capturedAt ?? p.importedAt, seen });
+    }
   }
   // La scor egal, cele mai noi întâi (nu ordinea importului).
-  return scored.sort((a, b) => b.score - a.score || b.t - a.t).map(x => x.p);
+  // Dacă există poze în care subiectul se vede, cele găsite doar după textul de pe ele rămân afară;
+  // când nu există (ex. numele unui magazin), textul citit e tot ce avem și se întoarce el.
+  const pool = scored.some(x => x.seen) ? scored.filter(x => x.seen) : scored;
+  return pool.sort((a, b) => b.score - a.score || b.t - a.t).map(x => x.p);
 }
 
 /**

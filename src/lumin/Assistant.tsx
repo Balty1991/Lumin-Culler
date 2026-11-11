@@ -52,12 +52,17 @@ export function Assistant({ onClose }: { onClose: () => void }) {
     const reply = answer(clean, photos);
     setMsgs(m => [...m, { id: a, me: clean }, { id: b, reply }]);
     setText('');
-    // Cuvintele n-au găsit nimic: caută după ce se vede în poze (motorul vizual, tot pe telefon).
-    if (reply.kind === 'none') {
-      void clipSearch(clean).then(ids => {
+    // Cuvintele au găsit puțin sau nimic: caută și după ce se vede în poze (motorul vizual,
+    // tot pe telefon) și adaugă ce lipsea. Raportat: „poze cu pisici” întorcea o singură poză.
+    const few = reply.kind === 'none' || (reply.kind === 'results' && reply.photos.length < 6);
+    if (few) {
+      const visualQuery = reply.kind === 'results' ? reply.query : clean;
+      void clipSearch(visualQuery).then(ids => {
         const byId = new Map(photos.map(p => [p.id, p]));
-        const found = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside);
-        if (found.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: clean, photos: found, best: false } } : x));
+        const had = reply.kind === 'results' ? reply.photos : [];
+        const have = new Set(had.map(p => p.id));
+        const extra = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside && !have.has(p.id)).slice(0, 30);
+        if (extra.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: visualQuery, photos: [...had, ...extra], best: reply.kind === 'results' && reply.best } } : x));
       }).catch(() => undefined);
     }
   };

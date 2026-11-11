@@ -1,3 +1,4 @@
+import { quizReady } from './quizReady';
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
 import { useLx } from './lxStore';
@@ -246,7 +247,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       if (holding) void updateHeldBackground(done, missing.length, bgText(done));
       // Primele ~40 de poze sunt gata: pauză, ca omul să-l antreneze pe ele înainte de
       // restul galeriei. Continuă singur după test (sau când omul alege să continue fără).
-      if (!trainingOffered() && done >= TRAIN_PAUSE_AT && done < missing.length && !readTasteQuizDone() && !(await trainedEnough())) {
+      // Doar când antrenamentul chiar are din ce face perechi: dacă primele poze sunt capturi
+      // sau documente, citirea merge mai departe și pauza vine la un pachet următor.
+      if (!trainingOffered() && done >= TRAIN_PAUSE_AT && done < missing.length && !readTasteQuizDone() && !(await trainedEnough()) && quizReady(useStore.getState().photos)) {
         try { localStorage.setItem(TRAIN_OFFERED_KEY, '1'); } catch { /* fără stocare */ }
         skipTraining = false;
         analysisPool.setGentle(false);

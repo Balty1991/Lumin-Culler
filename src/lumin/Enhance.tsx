@@ -716,7 +716,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       // Portretul cu omul decupat: masca nu se păstrează în copie (se reface din poză),
       // deci rezultatul se salvează gata făcut, ca poză nouă, la rezoluție mare.
       const useLit = lit && !pure;
-      if ((style === 'portrait' && edits.bokehMask && !pure) || useLit) {
+      // Pe telefon, poza editată se scrie mereu ca poză nouă în galeria telefonului
+      // (Pictures/Cherrypic/Editate), unde apare prima. Raportat: „dacă salvezi o poză după
+      // editare, nu o văd în galeria telefonului” — copia rămânea doar în aplicație, iar
+      // trimiterea ei dădea eroare, fiindcă nu avea fișier.
+      if ((style === 'portrait' && edits.bokehMask && !pure) || useLit || canSharpen()) {
         const url = useLit ? src : (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
         const img = url ? await createImageBitmap(await (await fetch(url)).blob()) : null;
         if (img) {
@@ -725,9 +729,18 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
           c.width = o.width; c.height = o.height;
           const ctx = c.getContext('2d');
           if (ctx) {
-            drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
+            // Desenul mare, în afara firului principal când se poate: ecranul nu îngheață la salvare.
+            let drawn = false;
+            if (canRenderOff(edits)) {
+              const source = document.createElement('canvas');
+              source.width = img.width; source.height = img.height;
+              source.getContext('2d')?.drawImage(img, 0, 0);
+              const out = await renderOff(source, edits).catch(() => null);
+              if (out) { ctx.drawImage(out, 0, 0, o.width, o.height); out.close(); drawn = true; }
+            }
+            if (!drawn) drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
             const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
-            const ok = blob ? await saveEditedBlob(blob, useLit ? 'lumina' : 'portret') : false;
+            const ok = blob ? await saveEditedBlob(blob, useLit ? 'lumina' : style === 'portrait' ? 'portret' : 'editat') : false;
             if (ok) vibrate(12);
             useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
             if (ok) { onClose(); return; }

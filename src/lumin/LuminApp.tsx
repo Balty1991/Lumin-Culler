@@ -23,7 +23,7 @@ import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
 import { learnFromShare } from './signals';
-import { visiblePhotos } from './useLxPhotos';
+import { usePacedPhotos, visiblePhotos } from './useLxPhotos';
 import { autoBackupIfDue, markRestoreAsked, restorableBackup, setAutoBackup } from './autoBackup';
 import { Viewer } from './GalleryWall';
 import { superviseUnsure } from './cloud';
@@ -256,7 +256,8 @@ export function LuminApp() {
   }, []);
 
   // Widgetul de pe ecranul telefonului urmează ziua: poza cea mai bună și ce mai așteaptă.
-  const photos = useStore(s => s.photos);
+  // Lista vine cu ritm în timpul citirii (useLxPhotos.ts), ca rădăcina să nu se redeseneze la fiecare poză.
+  const photos = usePacedPhotos();
   useEffect(() => {
     if (!booted) return;
     const timer = window.setTimeout(() => {
@@ -526,7 +527,7 @@ export function LuminApp() {
 /** Poza mare deschisă de oriunde (zi, serie, oameni, momente, Azi): doar privit, glisat liber. */
 function GlobalViewer() {
   const viewer = useLx(s => s.viewer);
-  const photos = useStore(s => s.photos);
+  const photos = usePacedPhotos();
   const list = useMemo(() => {
     if (!viewer) return [];
     const byId = new Map(photos.map(p => [p.id, p]));

@@ -39,3 +39,21 @@ describe('asistentul galeriei', () => {
     expect(answer('Ce mă așteaptă?', []).kind).toBe('waiting');
   });
 });
+
+import { searchPhotos, termOptions } from './textSearch';
+describe('căutarea după ce se vede', () => {
+  const cat = p('pisica', { sceneTags: ['cat'], capturedAt: Date.UTC(2026, 2, 21) });
+  const bon = p('bon', { sceneTags: ['receipt'], ocrText: 'WHISKAS hrana pisici 12,99', capturedAt: Date.UTC(2026, 3, 2) } as Partial<PhotoView>);
+  it('pluralul românesc ajunge la cuvântul de bază', () => {
+    expect(termOptions('pisici')).toContain('cat');
+    expect(termOptions('caini')).toContain('dog');
+    expect(termOptions('torturi')).toContain('cake');
+    expect(termOptions('masinile')).toContain('car');
+  });
+  it('„pisici” găsește pisica, nu bonul pe care scrie „pisici”', () => {
+    expect(searchPhotos([cat, bon], 'pisici').map(x => x.id)).toEqual(['pisica']);
+  });
+  it('când nimic nu se vede în poze, textul citit de pe ele rămâne de folos', () => {
+    expect(searchPhotos([cat, bon], 'whiskas').map(x => x.id)).toEqual(['bon']);
+  });
+});

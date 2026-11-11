@@ -23,7 +23,8 @@ export function sizeFor(cssPx: number): number {
 }
 
 const urls = new Map<string, Promise<string | null>>();
-const queue = new RenderQueue<string | null>(1, 24);
+// Limita e largă: o dală abandonată ar rămâne neclară până reapare; cele vechi doar așteaptă la urmă.
+const queue = new RenderQueue<string | null>(1, 400);
 /** Ce s-a terminat deja, citibil pe loc (fără așteptare): poza clară apare din primul cadru. */
 const ready = new Map<string, string>();
 export function peekSharpUrl(photoId: string, size: number): string | null {
