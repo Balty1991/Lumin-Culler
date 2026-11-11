@@ -91,6 +91,30 @@ class NotificationsPlugin : Plugin() {
         call.resolve()
     }
 
+    /** Poate lansatorul telefonului să fixeze widgetul la cererea aplicației? (Android 8+, nu toate lansatoarele.) */
+    @PluginMethod
+    fun canPinFrameWidget(call: PluginCall) {
+        val ok = runCatching {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                android.appwidget.AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported
+        }.getOrDefault(false)
+        call.resolve(JSObject().put("supported", ok))
+    }
+
+    /** Cere lansatorului să pună „Rama vie” pe ecranul principal; omul confirmă în dialogul sistemului. */
+    @PluginMethod
+    fun pinFrameWidget(call: PluginCall) {
+        val asked = runCatching {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) false
+            else {
+                val manager = android.appwidget.AppWidgetManager.getInstance(context)
+                manager.isRequestPinAppWidgetSupported &&
+                    manager.requestPinAppWidget(android.content.ComponentName(context, FrameWidgetProvider::class.java), null, null)
+            }
+        }.getOrDefault(false)
+        call.resolve(JSObject().put("asked", asked))
+    }
+
     @PluginMethod
     fun checkAccess(call: PluginCall) {
         call.resolve(statusResult())

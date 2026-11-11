@@ -28,10 +28,24 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-interface FrameApi { updateFrameWidget(o: { items: { uri: string; label: string }[] }): Promise<void> }
+interface FrameApi {
+  updateFrameWidget(o: { items: { uri: string; label: string }[] }): Promise<void>;
+  canPinFrameWidget(): Promise<{ supported: boolean }>;
+  pinFrameWidget(): Promise<{ asked: boolean }>;
+}
 const Native = registerPlugin<FrameApi>('Notifications');
 
 export async function updateFrameWidget(items: { uri: string; label: string }[]): Promise<void> {
   if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('Notifications')) return;
   try { await Native.updateFrameWidget({ items }); } catch { /* versiune nativă mai veche */ }
+}
+
+/** Poate telefonul să pună widgetul pe ecran la cererea aplicației? Fals pe web și pe versiuni native vechi. */
+export async function canPinFrameWidget(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('Notifications')) return false;
+  try { return (await Native.canPinFrameWidget()).supported; } catch { return false; }
+}
+/** Deschide dialogul sistemului „Adaugă pe ecranul principal”. Întoarce dacă cererea a pornit. */
+export async function pinFrameWidget(): Promise<boolean> {
+  try { return (await Native.pinFrameWidget()).asked; } catch { return false; }
 }

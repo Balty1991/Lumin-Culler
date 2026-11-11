@@ -21,6 +21,8 @@ import { makeCollage, shareCollage } from './collage';
 import { Thumb } from './Thumb';
 import { personalWhy, useWhyContext } from './why';
 import { baseLocale } from '../i18n';
+import { canPinFrameWidget, pinFrameWidget } from './frameWidget';
+import { readRitualDays } from '../core/ritualStreak';
 
 /**
  * lumin/LumiFeed.tsx
@@ -101,6 +103,8 @@ export function LumiFeed() {
   const why = useWhyContext();
   const [, bump] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [canPin, setCanPin] = useState(false);
+  useEffect(() => { void canPinFrameWidget().then(setCanPin); }, []);
 
   const ideas = useMemo<Idea[]>(() => {
     const out: Idea[] = [];
@@ -355,10 +359,22 @@ export function LumiFeed() {
       });
     }
 
+    // Rama vie pe ecranul telefonului: propusă după primul ritual terminat, o singură dată
+    // (apoi doar din Setările telefonului). Numai unde lansatorul o poate fixa la cerere.
+    if (canPin && readRitualDays().length > 0 && photos.filter(p => p.status === 'selected' && !p.aside).length >= 5) {
+      out.push({
+        id: 'pin-widget',
+        text: tr('lx.feed.widget'),
+        sub: tr('lx.feed.widgetSub'),
+        action: tr('lx.feed.widgetGo'),
+        run: async () => { await pinFrameWidget(); snooze('pin-widget', 3650); }
+      });
+    }
+
     const now = Date.now();
     const snoozed = readSnooze();
     return out.filter(i => !(snoozed[i.id] > now));
-  }, [photos, lessons, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, askConfirm, openSort, openViewer, setTab, setView]);
+  }, [canPin, photos, lessons, locale, premiumLocked, why, tr, exportSelection, exportBackup, trashPhotos, gatePremium, askConfirm, openSort, openViewer, setTab, setView]);
 
   const shown = ideas.slice(0, 3);
   if (!shown.length || reader) return null;
