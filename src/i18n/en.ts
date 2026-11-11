@@ -2622,6 +2622,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.search.people": "Search",
   "fr.photos.readAll": "Analyse my gallery",
   "lx.reader.continue": "Continue anyway",
+  "lx.enhance.redo": "Redo",
   "lx.enhance.proPreview": "Preview · save with Pro",
   "lx.enhance.savePro": "Save with Pro",
   "lx.studio.hero.badge": "Your editor",

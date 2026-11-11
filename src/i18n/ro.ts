@@ -2708,6 +2708,7 @@ export const ro = {
   "lx.search.people": "Caută",
   "fr.photos.readAll": "Analizează galeria",
   "lx.reader.continue": "Continuă oricum",
+  "lx.enhance.redo": "Refă",
   "lx.enhance.proPreview": "Probă · se salvează cu Pro",
   "lx.enhance.savePro": "Salvează cu Pro",
   "lx.studio.hero.badge": "Editorul tău",

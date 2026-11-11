@@ -559,6 +559,34 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   }, [base, style, amount, rotation, crop, manual, personMask, pure]);
   // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
   const view = pure ? (orig ?? src) : src;
+  // Anulare pas cu pas: fiecare stare la care te-ai oprit (stil, intensitate, reglaje).
+  type Snap = { style: EnhanceStyle; amount: number; manual: Partial<Record<ManualKey, number>>; pure: boolean };
+  const [hist, setHist] = useState<Snap[]>([]);
+  const [histAt, setHistAt] = useState(-1);
+  const restoring = useRef(false);
+  useEffect(() => {
+    if (!base) return;
+    if (restoring.current) { restoring.current = false; return; }
+    const snap: Snap = { style, amount, manual, pure };
+    const timer = window.setTimeout(() => {
+      setHist(h => {
+        const kept = h.slice(0, histAt + 1);
+        if (kept.length && JSON.stringify(kept[kept.length - 1]) === JSON.stringify(snap)) return h;
+        const next = [...kept, snap].slice(-40);
+        setHistAt(next.length - 1);
+        return next;
+      });
+    }, 450);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, style, amount, manual, pure]);
+  const stepHistory = (d: number) => {
+    const snap = hist[histAt + d];
+    if (!snap) return;
+    restoring.current = true;
+    setHistAt(histAt + d);
+    setStyle(snap.style); setAmount(snap.amount); setManual(snap.manual); setPure(snap.pure);
+  };
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
   const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
@@ -719,7 +747,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       <header className="lx-viewer-top">
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
         <span className="lx-viewer-date">{tr('lx.enhance.title')}</span>
-        <span />
+        <span className="lx-undo-pair">
+          <button className="lx-icon-btn" onClick={() => stepHistory(-1)} disabled={histAt <= 0} aria-label={tr('lx.undo')}>↶</button>
+          <button className="lx-icon-btn" onClick={() => stepHistory(1)} disabled={histAt >= hist.length - 1} aria-label={tr('lx.enhance.redo')}>↷</button>
+        </span>
       </header>
       <div className="lx-enhance-stage" ref={stage}
         onPointerDown={e => { dragging.current = true; dragBounds.current = stage.current?.getBoundingClientRect() ?? null; e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
@@ -815,8 +846,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             )}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
-                <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => { setPure(false); setStyle(st); }}>
-                  {mine?.style === st && <span className="lx-mine" title={tr('lx.enhance.mine')}>✦ </span>}{tr(`lx.enhance.style.${st}`)}{ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
+                <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
+                  {view && base && <StyleThumb src={view} edits={styledEdits(base, st, Math.max(0.6, amount))} />}
+                  <span>{mine?.style === st && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
+                  {ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
               ))}
               {tilt !== 0 && (
@@ -869,6 +902,54 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
  * și o comprima în JPEG. Acum: întâi o variantă mică (640 px, câteva zeci de
  * ms), cât tragi de linie; când te oprești, aceeași poză la claritate deplină.
  */
+/**
+ * Miniatura unui stil, pe poza ta: vezi cum arată înainte să-l alegi. Desenată mic
+ * (96 px) și pe rând, una pe cadru, ca să nu țină ecranul pe loc.
+ */
+const tinyCache = new Map<string, Promise<HTMLCanvasElement>>();
+function tinySource(src: string): Promise<HTMLCanvasElement> {
+  let p = tinyCache.get(src);
+  if (!p) {
+    p = new Promise<HTMLCanvasElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => {
+        const side = Math.min(el.naturalWidth, el.naturalHeight);
+        const c = document.createElement('canvas');
+        c.width = 96; c.height = 96;
+        c.getContext('2d')?.drawImage(el, (el.naturalWidth - side) / 2, (el.naturalHeight - side) / 2, side, side, 0, 0, 96, 96);
+        resolve(c);
+      };
+      el.onerror = reject;
+      el.src = src;
+    });
+    if (tinyCache.size > 4) tinyCache.clear();
+    tinyCache.set(src, p);
+  }
+  return p;
+}
+let thumbQueue: Promise<void> = Promise.resolve();
+function StyleThumb({ src, edits }: { src: string; edits: EditAdjustments }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const key = useMemo(() => JSON.stringify({ ...edits, bokehMask: undefined, crop: undefined }), [edits]);
+  useEffect(() => {
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      thumbQueue = thumbQueue.then(async () => {
+        if (!alive) return;
+        const tiny = await tinySource(src).catch(() => null);
+        const ctx = canvas.current?.getContext('2d');
+        if (!alive || !tiny || !ctx) return;
+        const e: EditAdjustments = { ...edits, crop: undefined, rotationDeg: 0, bokeh: 0, bokehMask: undefined, heal: undefined };
+        try { drawAdjusted(ctx, tiny, 96, 96, 96, 96, e); } catch { /* rămâne goală */ }
+        await new Promise<void>(r => requestAnimationFrame(() => r()));
+      });
+    }, 250);
+    return () => { alive = false; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, key]);
+  return <canvas ref={canvas} width={96} height={96} aria-hidden="true" />;
+}
+
 const QUICK = 640;
 /** Treptele cadrului rapid, ca fracțiune din 640 px. */
 const QUICK_STEPS = [1, 0.75, 0.56, 0.42, 0.32];
