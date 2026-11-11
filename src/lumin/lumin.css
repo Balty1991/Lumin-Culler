@@ -2112,3 +2112,12 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-more > summary::-webkit-details-marker { display: none; }
 .lx-more[open] > summary { margin-bottom: 12px; }
 .lx-more[open] > * + * { margin-top: 12px; }
+
+/* Curățenie pe dosare */
+.lx-folder-list { display: flex; flex-direction: column; gap: 8px; }
+.lx-folder-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; }
+.lx-folder-text { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lx-folder-text b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-folder-text span { font-size: 12.5px; color: var(--text-dim); }
+.lx-folder-actions { display: flex; gap: 6px; align-items: center; }
+.lx-folder-actions .lx-pro { margin-left: 6px; }

@@ -11,6 +11,7 @@ import { VideoCleanup } from './VideoCleanup';
 import { FreedCard } from './TwinParts';
 import { Icon } from './icons';
 import { WeeklyClean } from './WeeklyClean';
+import { FolderClean } from './FolderClean';
 
 /**
  * lumin/CleanScreen.tsx
@@ -62,6 +63,7 @@ export function CleanScreen() {
         </button>
       )}
       <CleanupCard photos={photos.filter(p => !p.aside)} />
+      <FolderClean />
       <Housekeeping />
       <VideoCleanup />
       <FreedCard />

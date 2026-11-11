@@ -337,3 +337,8 @@ export async function openAppSettings(): Promise<void> {
     console.error('Nu am putut deschide setarile aplicatiei:', err);
   }
 }
+
+/** Doar lista pozelor dintr-un dosar (fără să citească fișierele): pentru curățenia pe dosare. */
+export async function listPhotosInFolder(bucketId: string): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }> {
+  return MediaLibraryNative.photosInFolder({ bucketId });
+}
