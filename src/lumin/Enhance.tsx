@@ -411,13 +411,13 @@ function markEnhanced(ids: readonly string[]): void {
 export function batchLook(): { style: EnhanceStyle; amount: number; mine: boolean } {
   const mine = readMyLook();
   const style = mine && (ENHANCE_STYLES as string[]).includes(mine.style) ? mine.style as EnhanceStyle : null;
-  if (!mine || !style || NEEDS_FACE.has(style) || (ADVANCED.has(style) && useStore.getState().premiumLocked)) return { style: 'natural', amount: 1, mine: false };
+  if (!mine || !style || NEEDS_FACE.has(style)) return { style: 'natural', amount: 1, mine: false };
   return { style, amount: mine.amount, mine: true };
 }
 
-export async function enhanceAll(photoIds: readonly string[], onProgress?: (done: number, total: number) => void): Promise<number> {
+export async function enhanceAll(photoIds: readonly string[], onProgress?: (done: number, total: number) => void, forceNatural = false): Promise<number> {
   const plans: { sourceId: string; adjustments: EditAdjustments }[] = [];
-  const look = batchLook();
+  const look = forceNatural ? { style: 'natural' as EnhanceStyle, amount: 1 } : batchLook();
   for (let i = 0; i < photoIds.length; i++) {
     try {
       const { edits } = await autoEnhance(photoIds[i]);
@@ -639,6 +639,13 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       setSrc(url);
       setOrig(original);
       setBase(lightOnly);
+      // Intensitatea de pornire, pe măsura pozei: o poză deja bună primea la 50% o
+      // schimbare aproape invizibilă (raportat cu capturi). Fără un stil învățat,
+      // urcăm până se vede — cel mult 90%.
+      if (!mine) {
+        const fit = await fitAmount(url, lightOnly).catch(() => null);
+        if (alive && fit !== null) setAmount(fit);
+      }
     })().catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [photo.id]);
@@ -954,6 +961,37 @@ function StyleThumb({ src, edits }: { src: string; edits: EditAdjustments }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, key]);
   return <canvas ref={canvas} width={96} height={96} aria-hidden="true" />;
+}
+
+/** Cât de mult schimbă reglajele poza: media diferenței pe pixel (0..255), pe miniatura de 96 px. */
+export function visibleChange(before: Uint8ClampedArray, after: Uint8ClampedArray): number {
+  let s = 0;
+  for (let i = 0; i < before.length; i += 4) s += Math.abs(before[i] - after[i]) + Math.abs(before[i + 1] - after[i + 1]) + Math.abs(before[i + 2] - after[i + 2]);
+  return s / (before.length / 4) / 3;
+}
+/** Treptele de intensitate încercate și schimbarea de la care efectul „se vede”. */
+export const FIT_STEPS = [0.5, 0.65, 0.8, 0.9];
+export const FIT_TARGET = 9;
+/** Prima treaptă la care schimbarea atinge ținta; ultima dacă niciuna nu ajunge. */
+export function pickAmount(changes: readonly number[], steps: readonly number[] = FIT_STEPS, target = FIT_TARGET): number {
+  const i = changes.findIndex(c => c >= target);
+  return steps[i < 0 ? Math.min(changes.length, steps.length) - 1 : i];
+}
+async function fitAmount(src: string, base: EditAdjustments): Promise<number> {
+  const tiny = await tinySource(src);
+  const before = tiny.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, 96, 96).data;
+  const c = document.createElement('canvas');
+  c.width = 96; c.height = 96;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  const changes: number[] = [];
+  for (const k of FIT_STEPS) {
+    const e: EditAdjustments = { ...styledEdits(base, 'natural', k), crop: undefined, rotationDeg: 0, bokeh: 0, bokehMask: undefined, heal: undefined };
+    drawAdjusted(ctx, tiny, 96, 96, 96, 96, e);
+    const ch = visibleChange(before, ctx.getImageData(0, 0, 96, 96).data);
+    changes.push(ch);
+    if (ch >= FIT_TARGET) break;
+  }
+  return pickAmount(changes);
 }
 
 /** Poza cu reglajele aplicate, ca adresă temporară (cel mult 1600 px pe latura lungă). */

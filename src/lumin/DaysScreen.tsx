@@ -492,16 +492,25 @@ function PhotoGrid({ list }: { list: PhotoView[]; title: string }) {
 /** „✨ Mai frumoase”: toate pozele păstrate ale zilei, cu stilul Natural, ca și copii. */
 function EnhanceAllButton({ ids: all }: { ids: string[] }) {
   const tr = useTr();
+  const premiumLocked = useStore(s => s.premiumLocked);
   const [progress, setProgress] = useState<string | null>(null);
   const [, bump] = useState(0);
   // Doar pozele încă neînfrumusețate: butonul nu mai face copii duplicate.
   const ids = notYetEnhanced(all);
   if (ids.length < 2 && progress === null) return null;
+  const mine = batchLook().mine;
+  const run = (natural: boolean) => {
+    // „În stilul tău” pe o zi întreagă e în Pro; o poză pe rând și „Natural” pe zi rămân gratuite.
+    if (!natural && useStore.getState().gatePremium('styles')) return;
+    setProgress('0');
+    void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`), natural).finally(() => { setProgress(null); bump(n => n + 1); });
+  };
+  if (progress !== null) return <button className="lx-link" disabled>✨ {tr('lx.enhance.allProgress', { progress })}</button>;
   return (
-    <button className="lx-link" disabled={progress !== null} onClick={() => {
-      setProgress('0');
-      void enhanceAll(ids, (d, t) => setProgress(`${d}/${t}`)).finally(() => { setProgress(null); bump(n => n + 1); });
-    }}>✨ {progress ? tr('lx.enhance.allProgress', { progress }) : tr(batchLook().mine ? 'lx.enhance.allMine' : 'lx.enhance.all', { count: ids.length })}</button>
+    <>
+      {mine && <button className="lx-link" onClick={() => run(false)}>✦ {tr('lx.enhance.allMine', { count: ids.length })}{premiumLocked && <b className="lx-pro">PRO</b>}</button>}
+      {(!mine || premiumLocked) && <button className="lx-link" onClick={() => run(true)}>✨ {tr('lx.enhance.all', { count: ids.length })}</button>}
+    </>
   );
 }
 
