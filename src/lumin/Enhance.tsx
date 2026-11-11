@@ -14,6 +14,7 @@ import { AiRetouch, type ToolKind } from './AiRetouch';
 import { portraitAvailable } from '../core/portraitEdit';
 import { Icon } from './icons';
 import { learnLook, readMyLook } from './myLook';
+import { canRenderOff, renderOff } from './editRender';
 import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
@@ -956,8 +957,21 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       }
       quickScale = nextQuickScale(quickScale, performance.now() - t0);
     });
-    const full = window.setTimeout(() => (screen ? draw(screen, screen.width, screen.height) : draw(img, img.naturalWidth, img.naturalHeight)), 650);
-    return () => { cancelAnimationFrame(frame); window.clearTimeout(full); };
+    let alive = true;
+    const onMain = () => (screen ? draw(screen, screen.width, screen.height) : draw(img, img.naturalWidth, img.naturalHeight));
+    const full = window.setTimeout(() => {
+      // Cadrul clar se calculează în afara firului principal când se poate (fără gumă
+      // și fără fundal estompat): ecranul nu îngheață nici când te oprești.
+      if (!canRenderOff(edits)) { onMain(); return; }
+      renderOff(screen ?? img, edits).then(bitmap => {
+        if (alive) {
+          if (out.width !== bitmap.width || out.height !== bitmap.height) { out.width = bitmap.width; out.height = bitmap.height; }
+          out.getContext('2d')?.drawImage(bitmap, 0, 0);
+        }
+        bitmap.close();
+      }).catch(() => { if (alive) onMain(); });
+    }, 350);
+    return () => { alive = false; cancelAnimationFrame(frame); window.clearTimeout(full); };
   }, [img, small, screen, edits]);
 
   return <canvas ref={canvas} className="lx-enhance-canvas" />;
