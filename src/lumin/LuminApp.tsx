@@ -18,6 +18,7 @@ import { FirstRun } from '../ui/FirstRun';
 import { TasteQuiz } from '../ui/TasteQuiz';
 import { noticeTone } from '../ui/noticeTone';
 import { t } from '../i18n';
+import { readRitualDays } from '../core/ritualStreak';
 import { useLx, type LxTab } from './lxStore';
 import { LxActionsContext } from './context';
 import { groupDays } from './days';
@@ -240,7 +241,13 @@ export function LuminApp() {
         const result = summarizeToday(added ?? 0);
         if (result) useLx.getState().setAutoResult(result);
         const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
-        if (day?.waiting.length) useLx.getState().openSort(day.waiting.map(p => p.id), t(useStore.getState().locale, 'lx.sort.today'));
+        // Notificarea de seară duce direct în ritualul zilei, când ai din ce alege.
+        const todays = visiblePhotos().filter(p => !p.aside && startOfDay(p.capturedAt ?? p.importedAt) === startOfDay());
+        const ritualDone = readRitualDays().some(d => startOfDay(d) === startOfDay());
+        if (todays.length >= 3 && !ritualDone) {
+          const ids = [...todays].sort((a, b) => (a.capturedAt ?? a.importedAt) - (b.capturedAt ?? b.importedAt)).map(p => p.id);
+          useLx.getState().openSort(ids, t(useStore.getState().locale, 'lx.ritual60.title'), true);
+        } else if (day?.waiting.length) useLx.getState().openSort(day.waiting.map(p => p.id), t(useStore.getState().locale, 'lx.sort.today'));
       });
     }).then(fn => { stop = fn; });
     return () => stop?.();

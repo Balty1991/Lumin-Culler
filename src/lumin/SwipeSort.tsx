@@ -14,6 +14,10 @@ import { haptic } from '../core/device';
 import { claimPaywall, setPaywallContext } from './paywallMoment';
 import { t } from '../i18n';
 import { useHoldAnalysis } from './useHoldAnalysis';
+import { renderDayCard, shareCard } from './shareCards';
+import { getDisplayUrl } from '../core/previewUrlCache';
+import { Icon } from './icons';
+import { intlTag } from '../i18n';
 import { readRitualDays } from '../core/ritualStreak';
 import { startOfDay } from '../core/todayDigest';
 
@@ -277,6 +281,7 @@ function DayRecap({ ids, seconds }: { ids: readonly string[]; seconds: number | 
     done.add(today);
     return Array.from({ length: 7 }, (_, k) => { const d = new Date(today); d.setDate(d.getDate() - (6 - k)); return done.has(startOfDay(d.getTime())); });
   }, []);
+  const [sharing, setSharing] = useState(false);
   if (!top.length) return null;
   return (
     <div className="lx-recap">
@@ -286,6 +291,16 @@ function DayRecap({ ids, seconds }: { ids: readonly string[]; seconds: number | 
           <button key={p.id} onClick={() => useLx.getState().openViewer(top.map(x => x.id), i)}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></button>
         ))}
       </div>
+      <button className="lx-btn ghost small lx-recap-share" disabled={sharing} onClick={() => {
+        setSharing(true);
+        void (async () => {
+          const urls = (await Promise.all(top.map(p => getDisplayUrl(p.id).catch(() => null)))).filter((u): u is string => !!u);
+          const line = tr('lx.ritual60.cardLine', { count: top.length });
+          const date = new Date().toLocaleDateString(intlTag(useStore.getState().locale), { weekday: 'long', day: 'numeric', month: 'long' });
+          const blob = await renderDayCard(urls, line, date, tr('lx.share.cta'));
+          if (blob) await shareCard(blob, `cherrypic-ziua-${Date.now()}.jpg`, line, tr('lx.share.cta'));
+        })().catch(() => undefined).finally(() => setSharing(false));
+      }}><Icon name="share" size={16} /> {tr('lx.ritual60.share')}</button>
       <div className="lx-recap-week" aria-label={tr('lx.ritual60.week')}>
         <span>{tr('lx.ritual60.week')}</span>
         {week.map((on, k) => <i key={k} className={on ? 'on' : ''} />)}

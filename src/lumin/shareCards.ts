@@ -124,3 +124,44 @@ function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, 
 export async function shareCard(blob: Blob, name: string, line: string, cta: string): Promise<void> {
   await shareCollage(blob, name, shareCaption(line, cta));
 }
+
+/**
+ * „Ziua mea în 3 poze”: cardul de trimis după ritual. O poză mare și două mici (sau
+ * mai puține, câte sunt), data și semnătura discretă.
+ */
+export async function renderDayCard(srcs: readonly string[], title: string, date: string, cta: string): Promise<Blob | null> {
+  const imgs = (await Promise.all(srcs.slice(0, 3).map(loadImg))).filter((i): i is HTMLImageElement => !!i);
+  if (!imgs.length) return null;
+  const box = canvas(STORY_W, STORY_H);
+  if (!box) return null;
+  const { c, ctx } = box;
+  ctx.fillStyle = '#07060a';
+  ctx.fillRect(0, 0, STORY_W, STORY_H);
+  const pad = 48, gap = 14, top = 250, bottom = STORY_H - 190;
+  const w = STORY_W - pad * 2, h = bottom - top;
+  const tile = (img: HTMLImageElement, x: number, y: number, tw: number, th: number) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, tw, th, 44);
+    ctx.clip();
+    cover(ctx, img, x, y, tw, th);
+    ctx.restore();
+  };
+  if (imgs.length === 1) tile(imgs[0], pad, top, w, h);
+  else if (imgs.length === 2) { const th = (h - gap) / 2; tile(imgs[0], pad, top, w, th); tile(imgs[1], pad, top + th + gap, w, th); }
+  else {
+    const big = Math.round(h * 0.62), small = h - big - gap, half = (w - gap) / 2;
+    tile(imgs[0], pad, top, w, big);
+    tile(imgs[1], pad, top + big + gap, half, small);
+    tile(imgs[2], pad + half + gap, top + big + gap, half, small);
+  }
+  ctx.fillStyle = '#fff6f9';
+  ctx.textBaseline = 'top';
+  ctx.font = '700 64px system-ui, sans-serif';
+  ctx.fillText(title, pad, 92);
+  ctx.fillStyle = 'rgba(255, 246, 249, 0.62)';
+  ctx.font = '500 32px system-ui, sans-serif';
+  ctx.fillText(date, pad, 176);
+  paintBrand(ctx, STORY_W, STORY_H, cta);
+  return blobOf(c);
+}
