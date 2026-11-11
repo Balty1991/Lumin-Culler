@@ -2077,3 +2077,10 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-wall-wrap { gap: 8px; }
 .lx-burst-tidy { padding: 8px 12px; }
 .lx-burst-tidy .lx-burst-tidy-icon { width: 30px; height: 30px; }
+
+/* Primul minut: galeria ta, cât se descarcă motoarele */
+.lx-glimpse { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--lx-line); }
+.lx-glimpse b { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.01em; }
+.lx-glimpse span { font-size: 13px; color: var(--text-dim); }
+.lx-glimpse-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 4px 0; }
+.lx-glimpse-strip img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--surface-2); }

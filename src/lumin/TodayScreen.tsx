@@ -1,3 +1,4 @@
+import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useEffect, useMemo, useState } from 'react';
 import { TrainingCard } from './TrainingCard';
 import { useLxPhotos } from './useLxPhotos';
@@ -558,6 +559,7 @@ function EnginesWaitCard() {
       <b>{tr(stuck ? (models.phase === 'metered' ? 'lx.enginesWait.metered' : 'lx.enginesWait.error') : 'lx.enginesWait.title', { done: ready, total: list.length })}</b>
       <div className="lx-progress small"><i style={{ width: `${pct}%` }} /></div>
       <span>{tr('lx.enginesWait.sub')}</span>
+      <GalleryGlimpse />
       {stuck && (
         <div className="lx-train-pause-actions">
           <button className="lx-btn primary small" onClick={() => retry(models.phase === 'metered')}>{tr(models.phase === 'metered' ? 'lx.enginesWait.useData' : 'lx.enginesWait.retry')}</button>
@@ -565,6 +567,39 @@ function EnginesWaitCard() {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Primul minut după instalare: cât se descarcă motoarele, omul vede deja galeria lui —
+ * câte poze are, de când, câte a făcut luna asta și ultimele șase. Fără analiză: doar
+ * lista galeriei. Tace dacă telefonul nu răspunde sau accesul nu e dat.
+ */
+function GalleryGlimpse() {
+  const tr = useTr();
+  const [info, setInfo] = useState<{ total: number; year: number | null; month: number; urls: string[] } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const made: string[] = [];
+    void (async () => {
+      const now = Date.now();
+      const [overview, range, recent] = await Promise.all([readGalleryOverview(), readGalleryDateRange(), listPhotosInRange(now - 30 * 86_400_000, now + 1)]);
+      if (!overview.granted || overview.totalCount < 1) return;
+      const latest = [...recent.photos].sort((a, b) => b.capturedAt - a.capturedAt).slice(0, 6);
+      const files = latest.length ? await readPhotoFiles(latest).catch(() => []) : [];
+      for (const f of files) made.push(URL.createObjectURL(f.file));
+      if (alive) setInfo({ total: overview.totalCount, year: range.earliestMs ? new Date(range.earliestMs).getFullYear() : null, month: recent.photos.length, urls: [...made] });
+    })().catch(() => undefined);
+    return () => { alive = false; for (const u of made) URL.revokeObjectURL(u); };
+  }, []);
+  if (!info) return null;
+  return (
+    <div className="lx-glimpse">
+      <b>{tr('lx.glimpse.title', { count: info.total })}</b>
+      <span>{[info.year ? tr('lx.glimpse.since', { year: info.year }) : '', info.month > 0 ? tr('lx.glimpse.month', { count: info.month }) : ''].filter(Boolean).join(' ')}</span>
+      {info.urls.length > 0 && <div className="lx-glimpse-strip">{info.urls.map(u => <img key={u} src={u} alt="" loading="lazy" decoding="async" />)}</div>}
+      <span>{tr('lx.glimpse.next')}</span>
+    </div>
   );
 }
 
