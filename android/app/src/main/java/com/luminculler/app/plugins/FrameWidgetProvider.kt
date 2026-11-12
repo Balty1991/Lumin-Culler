@@ -45,7 +45,7 @@ class FrameWidgetProvider : AppWidgetProvider() {
 
         private fun thumbnail(context: Context, raw: String): Bitmap? {
             if (raw.isEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-            return runCatching { context.contentResolver.loadThumbnail(Uri.parse(raw), Size(540, 540), null) }.getOrNull()
+            return sharpPreview(context, Uri.parse(raw), 540)
         }
 
         private fun render(context: Context, manager: AppWidgetManager, id: Int) {

@@ -114,8 +114,7 @@ class DailyDigestReceiver : BroadcastReceiver() {
             }.timeInMillis
             // Întâi poza aleasă de AI azi (cea de pe widget): pe ea o trimite „Trimite familiei”.
             LuminWidgetProvider.bestUriToday(context, start)?.let { best ->
-                runCatching { context.contentResolver.loadThumbnail(android.net.Uri.parse(best), Size(720, 720), null) }
-                    .getOrNull()?.let { return it }
+                sharpPreview(context, android.net.Uri.parse(best), 1080)?.let { return it }
             }
             return runCatching {
                 val id = context.contentResolver.query(
@@ -126,7 +125,7 @@ class DailyDigestReceiver : BroadcastReceiver() {
                     "${MediaStore.Images.Media.DATE_TAKEN} DESC"
                 )?.use { c -> if (c.moveToFirst()) c.getLong(0) else null } ?: return null
                 val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                context.contentResolver.loadThumbnail(uri, Size(720, 720), null)
+                sharpPreview(context, uri, 1080)
             }.getOrNull()
         }
     }

@@ -328,3 +328,28 @@ fun totalRamMb(context: Context): Long {
     am.getMemoryInfo(mi)
     return mi.totalMem / 1_000_000
 }
+
+/**
+ * Poza din galerie, clară, la mărimea cerută (latura lungă), pentru notificări și widget-uri.
+ * Nu miniatura sistemului: pe multe telefoane (raportat pe Xiaomi) `loadThumbnail` dă o
+ * imagine mică, oricât ceri, și notificarea mare ieșea neclară. Decodăm originalul
+ * sub-eșantionat (rapid) în memorie obișnuită (o notificare nu poate purta bitmap „hardware”).
+ */
+fun sharpPreview(context: Context, uri: Uri, longSide: Int): Bitmap? {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        runCatching {
+            android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+                val w = info.size.width
+                val h = info.size.height
+                val scale = kotlin.math.min(1f, longSide.toFloat() / kotlin.math.max(w, h))
+                decoder.setTargetSize(kotlin.math.max(1, kotlin.math.round(w * scale)), kotlin.math.max(1, kotlin.math.round(h * scale)))
+                decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        }.getOrNull()?.let { return it }
+    }
+    runCatching { decodeUri(context, uri, longSide) }.getOrNull()?.let { return it }
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        return runCatching { context.contentResolver.loadThumbnail(uri, android.util.Size(longSide, longSide), null) }.getOrNull()
+    }
+    return null
+}

@@ -69,7 +69,7 @@ class LuminWidgetProvider : AppWidgetProvider() {
 
         private fun thumbnail(context: Context, raw: String?): Bitmap? {
             if (raw.isNullOrEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-            return runCatching { context.contentResolver.loadThumbnail(Uri.parse(raw), Size(600, 600), null) }.getOrNull()
+            return sharpPreview(context, Uri.parse(raw), 600)
         }
 
         private fun render(context: Context, manager: AppWidgetManager, id: Int) {

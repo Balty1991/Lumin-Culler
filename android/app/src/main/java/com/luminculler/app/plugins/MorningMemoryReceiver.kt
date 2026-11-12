@@ -133,7 +133,7 @@ class MorningMemoryReceiver : BroadcastReceiver() {
             builder.addAction(0, it, LuminWidgetProvider.launch(context, ACTION_SEE, REQUEST_CODE + 2))
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching { context.contentResolver.loadThumbnail(Uri.parse(uri), Size(720, 720), null) }.getOrNull()?.let { thumb ->
+            sharpPreview(context, Uri.parse(uri), 1080)?.let { thumb ->
                 builder.setLargeIcon(thumb)
                     .setStyle(NotificationCompat.BigPictureStyle().bigPicture(thumb).bigLargeIcon(null as Bitmap?).setSummaryText(body))
             }
