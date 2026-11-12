@@ -123,8 +123,11 @@ export function TasteQuiz() {
     const ids = [pair?.aId, pair?.bId, pairs[index + 1]?.aId, pairs[index + 1]?.bId].filter((x): x is string => !!x);
     for (const id of ids) {
       if (urls[id]) continue;
-      void getDisplayUrl(id).then(url => {
-        if (alive && url) setUrls(prev => ({ ...prev, [id]: url }));
+      // Decodată dinainte: altfel perechea următoare apărea o clipă cu cadre goale (video 12 nov.).
+      void getDisplayUrl(id).then(async url => {
+        if (!url) return;
+        try { const im = new Image(); im.src = url; await im.decode(); } catch { /* se arată oricum */ }
+        if (alive) setUrls(prev => ({ ...prev, [id]: url }));
       });
     }
     return () => { alive = false; };
@@ -215,7 +218,8 @@ export function TasteQuiz() {
                 return (
                   <button key={id} className={cls} disabled={busy || !!reveal} onClick={() => void answer(side)}
                     aria-label={tr(side === 'a' ? 'taste.keepLeft' : 'taste.keepRight')}>
-                    {src && <img src={src} alt="" />}
+                    {p?.lqip && src !== p.lqip && <img className="tq-lqip" src={p.lqip} alt="" aria-hidden="true" />}
+                    {src && <img src={src} alt="" decoding="sync" />}
                     {decided && aiPick && (
                       <span className={reveal.choice === side ? 'tq-badge hit' : 'tq-badge miss'}>
                         {reveal.choice === side ? tr('taste.badge.hit') : tr('taste.badge.miss')}
