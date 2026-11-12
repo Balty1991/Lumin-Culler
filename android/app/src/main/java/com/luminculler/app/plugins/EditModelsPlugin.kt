@@ -77,16 +77,9 @@ class EditModelsPlugin : Plugin() {
         call.resolve(out)
         if (lamaReady() || totalRamMb(context) < 5000) return
         downloader.execute {
-            runCatching {
-                val tmp = java.io.File(context.filesDir, "$LAMA_FILE.part")
-                if (tmp.exists()) return@runCatching
-                val conn = java.net.URL(LAMA_URL).openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 20000; conn.readTimeout = 120000; conn.instanceFollowRedirects = true
-                try {
-                    if (conn.responseCode == 200) conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
-                } finally { conn.disconnect() }
-                if (tmp.length() > LAMA_MIN) tmp.renameTo(lamaFile()) else tmp.delete()
-            }.onFailure { java.io.File(context.filesDir, "$LAMA_FILE.part").delete() }
+            // Firul `downloader` e unul singur, deci două descărcări nu se suprapun. Bucata deja
+            // luată (.part) rămâne: data viitoare se continuă de acolo, nu de la zero.
+            runCatching { ModelDownload.fetch(LAMA_URL, lamaFile(), LAMA_MIN) }
         }
     }
 
@@ -159,15 +152,7 @@ class EditModelsPlugin : Plugin() {
         if (f.length() > minSize) return f.readBytes()
         // MI-GAN direct de pe Hugging Face (ca restul motoarelor); celelalte, de pe site.
         val url = if (file == MIGAN_FILE) MIGAN_URL else DOWNLOADS[file]?.first ?: "$MODELS_URL/$file"
-        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 15000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
-        try {
-            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            val tmp = java.io.File(context.filesDir, "$file.part")
-            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it) } }
-            if (tmp.length() <= minSize) { tmp.delete(); throw IllegalStateException("model trunchiat") }
-            tmp.renameTo(f)
-        } finally { conn.disconnect() }
+        ModelDownload.fetch(url, f, minSize)
         return f.readBytes()
     }
 

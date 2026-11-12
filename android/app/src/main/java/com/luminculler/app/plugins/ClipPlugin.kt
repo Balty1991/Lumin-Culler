@@ -90,46 +90,11 @@ class ClipPlugin : Plugin() {
 
     /** Descarcă, cu progres către JS (evenimentul „progress”), ca omul să vadă că se întâmplă ceva. */
     private fun download(url: String, dest: File, minBytes: Long, what: String = "text") {
-        val tmp = File(dest.parentFile, dest.name + ".part")
-        var conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 20000; conn.readTimeout = 120000
-        conn.instanceFollowRedirects = true
-        conn.setRequestProperty("User-Agent", "Cherrypic-Android")
-        try {
-            // Hugging Face trimite spre CDN-ul lui; urmăm manual și redirecționările între domenii.
-            var hops = 0
-            while (conn.responseCode in 301..308 && hops < 5) {
-                val next = conn.getHeaderField("Location") ?: break
-                conn.disconnect()
-                conn = java.net.URL(java.net.URL(url), next).openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 20000; conn.readTimeout = 120000
-                conn.setRequestProperty("User-Agent", "Cherrypic-Android")
-                hops++
-            }
-            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            val total = conn.contentLengthLong
-            conn.inputStream.use { inp ->
-                tmp.outputStream().use { out ->
-                    val buf = ByteArray(1 shl 16)
-                    var done = 0L
-                    var lastSent = 0L
-                    while (true) {
-                        val n = inp.read(buf)
-                        if (n < 0) break
-                        out.write(buf, 0, n)
-                        done += n
-                        if (done - lastSent > 2_000_000) {
-                            lastSent = done
-                            val ev = JSObject()
-                            ev.put("what", what); ev.put("loaded", done.toDouble()); ev.put("total", total.toDouble())
-                            notifyListeners("progress", ev)
-                        }
-                    }
-                }
-            }
-        } finally { conn.disconnect() }
-        if (tmp.length() <= minBytes) { tmp.delete(); throw IllegalStateException("fișier trunchiat") }
-        tmp.renameTo(dest)
+        ModelDownload.fetch(url, dest, minBytes) { loaded, total ->
+            val ev = JSObject()
+            ev.put("what", what); ev.put("loaded", loaded.toDouble()); ev.put("total", total.toDouble())
+            notifyListeners("progress", ev)
+        }
     }
 
     @PluginMethod

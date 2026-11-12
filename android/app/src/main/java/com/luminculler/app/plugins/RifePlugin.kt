@@ -46,17 +46,7 @@ class RifePlugin : Plugin() {
         session?.let { return it }
         runCatching { File(context.filesDir, OLD_FILE).delete() }
         val f = File(context.filesDir, RIFE_FILE)
-        if (f.length() < 18_000_000) {
-            val tmp = File(context.filesDir, "$RIFE_FILE.part")
-            val conn = java.net.URL(RIFE_URL).openConnection() as java.net.HttpURLConnection
-            conn.connectTimeout = 20000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
-            try {
-                if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-                conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
-            } finally { conn.disconnect() }
-            if (tmp.length() < 18_000_000) { tmp.delete(); throw IllegalStateException("model trunchiat") }
-            tmp.renameTo(f)
-        }
+        ModelDownload.fetch(RIFE_URL, f, 18_000_000 - 1)
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
         return e.createSession(f.absolutePath, OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) }).also { session = it }
     }

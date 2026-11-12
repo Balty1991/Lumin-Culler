@@ -52,16 +52,7 @@ class SamPlugin : Plugin() {
 
     private fun file(name: String, url: String, min: Long): File {
         val f = File(context.filesDir, name)
-        if (f.length() > min) return f
-        val tmp = File(context.filesDir, "$name.part")
-        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 15000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
-        try {
-            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
-        } finally { conn.disconnect() }
-        if (tmp.length() <= min) { tmp.delete(); throw IllegalStateException("model trunchiat") }
-        tmp.renameTo(f)
+        ModelDownload.fetch(url, f, min)
         return f
     }
 

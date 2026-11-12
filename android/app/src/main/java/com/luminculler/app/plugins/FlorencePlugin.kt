@@ -52,16 +52,7 @@ class FlorencePlugin : Plugin() {
     private fun ready() = FL_FILES.all { file(it).length() > FL_MIN[it]!! } && tokFile().length() > 1_000_000
 
     private fun download(url: String, dest: File, min: Long) {
-        if (dest.length() > min) return
-        val tmp = File(dest.parentFile, dest.name + ".part")
-        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 20000; conn.readTimeout = 120000; conn.instanceFollowRedirects = true
-        try {
-            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
-        } finally { conn.disconnect() }
-        if (tmp.length() <= min) { tmp.delete(); throw IllegalStateException("fișier trunchiat") }
-        tmp.renameTo(dest)
+        ModelDownload.fetch(url, dest, min)
     }
 
     @PluginMethod

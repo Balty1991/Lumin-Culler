@@ -41,16 +41,7 @@ class EmotionPlugin : Plugin() {
 
     private fun model(): File {
         val f = File(context.filesDir, FER_FILE)
-        if (f.length() > 30_000_000) return f
-        val tmp = File(context.filesDir, "$FER_FILE.part")
-        val conn = java.net.URL(FER_URL).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 20000; conn.readTimeout = 90000; conn.instanceFollowRedirects = true
-        try {
-            if (conn.responseCode != 200) throw IllegalStateException("model ${conn.responseCode}")
-            conn.inputStream.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
-        } finally { conn.disconnect() }
-        if (tmp.length() <= 30_000_000) { tmp.delete(); throw IllegalStateException("model trunchiat") }
-        tmp.renameTo(f)
+        ModelDownload.fetch(FER_URL, f, 30_000_000)
         return f
     }
 
