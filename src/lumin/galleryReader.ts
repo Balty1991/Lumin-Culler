@@ -179,6 +179,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   let holding = false;
   // Cât citește în fundal, analiza lasă loc ecranului (vezi AnalysisPool.setGentle).
   analysisPool.setGentle(true);
+  analysisPool.setBackground(true);
   const lx = useLx.getState();
   try {
     // Cu acces parțial nu avem ce citi singuri; fără acces încă, citirea listei cere permisiunea.
@@ -213,6 +214,10 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       // lui) ține analiza pornită, cât îi permite telefonul — vezi Setări → Lucru în fundal.
       // Editorul deschis: pachetul următor așteaptă, ca tragerea de reglaje să rămână fluidă.
       while (!stopRequested && analysisPool.uiHeld()) await sleep(700);
+      // Cu aplicația pe ecran, un pachet întreg (citirea fișierelor, salvarea, seriile) pornește
+      // abia după 8 s fără atingeri, nu doar analiza din el (video 12 nov.: derularea greoaie și
+      // poza care abia se deschidea, cât citea galeria). Cu ecranul stins merge ca până acum.
+      while (!stopRequested && document.visibilityState === 'visible' && (userActive(8_000) || analysisPool.uiHeld())) await sleep(600);
       while (!stopRequested && (importBusy() || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
@@ -316,6 +321,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   } finally {
     if (holding) void releaseBackgroundAnalysis();
     analysisPool.setGentle(false);
+    analysisPool.setBackground(false);
     running = false;
     useLx.getState().setReader(null);
   }

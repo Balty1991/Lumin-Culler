@@ -24,10 +24,12 @@ export const RECIPES: readonly Recipe[] = [
   // Fără decupaj (o poză tăiată nu e ce aștepți de la „Perfectă”) și fără claritate locală
   // (lăsa un contur luminos în jurul omului) — raportat cu capturi.
   { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 10, shadows: 8, highlights: -10, sharpen: 8 }, aspect: 'orig' },
-  { key: 'insta', icon: '📸', style: 'vivid', amount: 0.6, manual: { sharpen: 10, clarity: 6 }, aspect: '4:5' },
-  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.45, manual: { shadows: 8, sharpen: 8 }, aspect: 'orig' },
-  { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.7, manual: { contrast: 10, saturation: 10, clarity: 8, sharpen: 12 }, aspect: '9:16' },
-  { key: 'story', icon: '📱', style: 'vivid', amount: 0.6, manual: { sharpen: 8 }, aspect: '9:16' },
+  // Rețetele pentru rețele „pocnesc” prin lumină și contur (claritate, ceață, vignetă, umbre),
+  // nu prin saturație: saturația ardea roșul (raportat), lumina nu (cerut: „să fie WOW”).
+  { key: 'insta', icon: '📸', style: 'vivid', amount: 0.65, manual: { clarity: 14, dehaze: 8, shadows: 10, highlights: -14, vignette: 12, sharpen: 14 }, aspect: '4:5' },
+  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.55, manual: { relight: 12, shadows: 12, highlights: -12, clarity: 10, vignette: 8, sharpen: 10 }, aspect: 'orig' },
+  { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.75, manual: { contrast: 14, saturation: 6, clarity: 14, dehaze: 10, vignette: 16, sharpen: 14 }, aspect: '9:16' },
+  { key: 'story', icon: '📱', style: 'vivid', amount: 0.65, manual: { relight: 10, clarity: 10, highlights: -10, vignette: 10, sharpen: 10 }, aspect: '9:16' },
   { key: 'sunset', icon: '🌅', style: 'warm', amount: 0.8, manual: { saturation: 8, highlights: -10 }, aspect: 'orig' },
   { key: 'food', icon: '🍕', style: 'vivid', amount: 0.7, manual: { temperature: 6, sharpen: 14, clarity: 8 }, aspect: '1:1' },
   { key: 'landscape', icon: '🏞️', style: 'vivid', amount: 0.75, manual: { dehaze: 8, clarity: 10, highlights: -12 }, aspect: 'orig' },
@@ -52,9 +54,9 @@ export function resolveRecipe(r: Recipe, opts: { recommended?: RecipeStyle | nul
 }
 
 /** Treptele încercate pentru o rețetă pe o poză anume (din plin, apoi tot mai blând). */
-export const RECIPE_STEPS = [1, 0.75, 0.55, 0.4];
+export const RECIPE_STEPS = [1, 0.85, 0.7, 0.55];
 /** Cât poate schimba o rețetă poza (diferența medie pe pixel) și cât din poză poate „arde”. */
-export const RECIPE_MAX_CHANGE = 16;
+export const RECIPE_MAX_CHANGE = 22;
 export const RECIPE_MAX_CLIP = 0.015;
 
 /** Rețeta la intensitatea `k`: stilul și reglajele de mână, toate scalate. */

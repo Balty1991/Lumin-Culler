@@ -614,6 +614,11 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
     setStyle(snap.style); setAmount(snap.amount); setManual(snap.manual); setPure(snap.pure);
     setAspect(snap.aspect); setUserTilt(snap.tilt);
   };
+  const resetAll = () => {
+    setPure(true); setManual({}); setAspect('orig'); setUserTilt(0); setStraight(false);
+    setStyle('natural'); setAmount(0.5); setApplied(null);
+    vibrate(8);
+  };
   // Copiază reglajele de pe poza asta și le lipește pe alta (stil, intensitate, reglaje de mână).
   const [clip, setClip] = useState<EditClip | null>(() => readEditClip());
   const copyEdits = () => { const c = { style, amount, manual, pure }; writeEditClip(c); setClip(c); useStore.getState().setNotice(tr('lx.enhance.copied')); };
@@ -924,6 +929,8 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
         <span className="lx-viewer-date">{tr('lx.enhance.title')}</span>
         <span className="lx-undo-pair">
+          {/* „Resetează”: înapoi la poza originală, fără nimic aplicat (cerut). Se poate anula cu ↶. */}
+          <button className="lx-reset-btn" onClick={resetAll} disabled={!base}>{tr('lx.enhance.resetAll')}</button>
           <button className="lx-icon-btn" onClick={() => stepHistory(-1)} disabled={histAt <= 0} aria-label={tr('lx.undo')}>↶</button>
           <button className="lx-icon-btn" onClick={() => stepHistory(1)} disabled={histAt >= hist.length - 1} aria-label={tr('lx.enhance.redo')}>↷</button>
         </span>

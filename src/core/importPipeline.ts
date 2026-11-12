@@ -990,6 +990,7 @@ function sizeOnly(width: number, height: number): ImageBitmap {
 
 async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation, ready?: StageOneReady, heavy = true): Promise<{ item: ImportedPhoto; persisted: Promise<void> }> {
   await analysisPool.waitWhileUiHeld();
+  await analysisPool.waitForQuiet?.();
   const prepared = ready ?? await stageOnePrepare(file, mediaUri);
   const id = prepared.id;
   const isRaw = isRawFile(file);
@@ -1555,6 +1556,9 @@ export async function importFiles(
       }
       if (uris.length) {
         try {
+          // Prima etapă stă și ea cât omul folosește ecranul (video 12 nov.: contorul urca
+          // în timpul derulării, fără încărcător — doar analiza de după aștepta).
+          await analysisPool.waitForQuiet?.();
           const items = await fingerprintBatch(uris);
           items.forEach((item, n) => { if (item?.dHash) precomputed.set(indexes[n], item); });
         } catch {

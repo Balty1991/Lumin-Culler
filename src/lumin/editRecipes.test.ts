@@ -30,12 +30,12 @@ describe('rețetele pe măsura pozei', () => {
     const r = scaleRecipe(tiktok, 0.55, true);
     expect(r.manual.saturation).toBeUndefined();
     expect(r.manual.contrast).toBeUndefined();
-    expect(r.amount).toBeCloseTo(0.39, 2);
+    expect(r.amount).toBeCloseTo(0.41, 2);
   });
   it('alege prima treaptă sub praguri, altfel cea mai blândă', async () => {
     const { pickRecipeStep } = await import('./editRecipes');
-    expect(pickRecipeStep([{ change: 25, clip: 0 }, { change: 14, clip: 0.001 }])).toBe(0.75);
-    expect(pickRecipeStep([{ change: 25, clip: 0 }, { change: 20, clip: 0 }, { change: 18, clip: 0 }, { change: 17, clip: 0.03 }])).toBe(0.4);
+    expect(pickRecipeStep([{ change: 25, clip: 0 }, { change: 14, clip: 0.001 }])).toBe(0.85);
+    expect(pickRecipeStep([{ change: 30, clip: 0 }, { change: 26, clip: 0 }, { change: 24, clip: 0 }, { change: 23, clip: 0.03 }])).toBe(0.55);
     expect(pickRecipeStep([{ change: 8, clip: 0 }])).toBe(1);
   });
 });

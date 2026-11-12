@@ -2258,3 +2258,9 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-gal-more button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: transparent; color: var(--text);
   font: inherit; font-size: 15px; font-weight: 600; text-align: left; }
 .lx-gal-more button.on { background: rgb(var(--accent-rgb) / .14); color: var(--accent); }
+
+/* Editor: „Resetează” lângă anulare */
+.lx-undo-pair { display: inline-flex; align-items: center; gap: 6px; }
+.lx-reset-btn { min-height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--lx-line); background: transparent;
+  color: var(--text); font: inherit; font-size: 13px; font-weight: 600; }
+.lx-reset-btn:disabled { opacity: .4; }

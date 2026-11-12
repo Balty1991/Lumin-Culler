@@ -498,7 +498,10 @@ export class AnalysisPool {
       // Citirea din fundal (gentle) stă de tot cât derulezi: dalele clare ale galeriei au
       // nevoie de procesor (raportat cu înregistrare: poze neclare la derulare, în timpul citirii).
       const quiet = Date.now() - this.lastTouch;
-      if (this.gentle && quiet < GENTLE_QUIET_MS) return 0;
+      // Citirea din fundal (și cea pe viteză maximă, la încărcat) stă cât omul folosește
+      // ecranul: viteza se alegea o dată pe pachet, iar un pachet pornit „plin” rămânea plin
+      // și când omul începea să deruleze (video 12 nov.: contorul urca în timpul derulării).
+      if ((this.gentle || this.background) && quiet < GENTLE_QUIET_MS) return 0;
       if (quiet < INTERACTION_QUIET_MS) return 1;
       // Cu aplicația pe ecran, citirea din fundal: o singură poză odată. Cu două, modelele
       // a 2 poze ocupau toate nucleele și ecranul îngheța ~1 s (raportul din 12 nov.,
@@ -528,7 +531,7 @@ export class AnalysisPool {
               this.nativeInFlight++;
               next();
             }
-          }, (this.gentle ? GENTLE_QUIET_MS : INTERACTION_QUIET_MS) + 20);
+          }, (this.gentle || this.background ? GENTLE_QUIET_MS : INTERACTION_QUIET_MS) + 20);
         };
         for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchmove', 'keydown', 'scroll']) {
           window.addEventListener(ev, mark, { passive: true, capture: true });
@@ -540,6 +543,9 @@ export class AnalysisPool {
   /** Pornit de citirea galeriei în fundal (galleryReader): importurile cerute de om merg cu tot plafonul. */
   private gentle = false;
   setGentle(on: boolean): void { this.gentle = on; }
+  /** Citirea galeriei din fundal e pornită (oricare ar fi viteza ei). */
+  private background = false;
+  setBackground(on: boolean): void { this.background = on; }
   /** Modelele unei poze, pe rând: cât citirea din fundal rulează cu aplicația pe ecran. */
   private serialWatch = setModelsSerial(() => this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible');
 
@@ -554,6 +560,16 @@ export class AnalysisPool {
    */
   async waitWhileUiHeld(): Promise<void> {
     while (this.gentle && this.uiHolds > 0 && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+  /**
+   * Citirea din fundal, cu aplicația pe ecran: așteaptă un editor deschis și 8 s fără atingeri.
+   * Pentru etapele care nu trec prin permisul nativ (prima etapă: fișiere, miniaturi, amprente).
+   */
+  async waitForQuiet(): Promise<void> {
+    while ((this.gentle || this.background) && typeof document !== 'undefined' && document.visibilityState === 'visible'
+      && (this.uiHolds > 0 || Date.now() - this.lastTouch < GENTLE_QUIET_MS)) {
       await new Promise(r => setTimeout(r, 300));
     }
   }
@@ -724,7 +740,7 @@ export class AnalysisPool {
         // a lucrat (cel mult 1,5 s). Rapoartele cu Long Animation Frames (12 nov.) arătau
         // cadre de ~900 ms cu doar ~90 ms de cod: ecranul aștepta procesorul ocupat de
         // modele, nu codul aplicației. Cu ecranul stins, fără pauză.
-        const rest = restAfterPhoto(this.gentle, performance.now() - bodyStart);
+        const rest = restAfterPhoto(this.gentle || this.background, performance.now() - bodyStart);
         if (rest > 0) await new Promise(r => setTimeout(r, rest));
         this.releaseNativePermit();
       }

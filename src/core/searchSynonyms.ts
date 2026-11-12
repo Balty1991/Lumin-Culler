@@ -96,6 +96,16 @@ const SYNONYMS: Record<string, string[]> = {
   birou: ['laptop', 'keyboard', 'mouse', 'monitor', 'chair'],
   sport: ['sports ball', 'tennis racket', 'skateboard', 'surfboard', 'skis', 'bicycle'],
 
+  // băuturi (raportat: „poza cu pahar” nu găsea paharul din mână)
+  pahar: ['cup', 'wine glass', 'glass', 'drink', 'beverage', 'bottle'],
+  pahare: ['cup', 'wine glass', 'glass', 'drink', 'beverage'],
+  cana: ['cup', 'mug', 'coffee', 'drink'],
+  cafea: ['coffee', 'cup', 'mug', 'drink'],
+  bautura: ['drink', 'beverage', 'cup', 'bottle', 'wine glass'],
+  sticla: ['bottle', 'drink'],
+  vin: ['wine glass', 'wine', 'bottle'],
+  bere: ['beer', 'drink', 'bottle', 'cup'],
+
   // bani (raportat: „poze cu bani” / „monede” nu găseau poza cu monede)
   bani: ['coin', 'currency', 'money', 'banknote', 'cash'],
   monede: ['coin', 'currency', 'money'],

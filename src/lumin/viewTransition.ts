@@ -20,7 +20,18 @@ if (typeof document !== 'undefined') {
   }, { capture: true, passive: true });
 }
 
-type Doc = Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } };
+type Transition = { finished: Promise<void>; skipTransition?: () => void };
+type Doc = Document & { startViewTransition?: (cb: () => void) => Transition };
+
+/**
+ * O tranziție nu are voie să rămână pe ecran: cât ține, poza „zburătoare” stă peste tot
+ * (raportat cu video: rămânea secunde întregi peste titlul lunii, cât citea galeria).
+ */
+function capped(t: Transition): Transition {
+  const timer = setTimeout(() => { try { t.skipTransition?.(); } catch { /* deja gata */ } }, 650);
+  void t.finished.finally(() => clearTimeout(timer)).catch(() => {});
+  return t;
+}
 
 function canAnimate(): boolean {
   const doc = document as Doc;
@@ -28,9 +39,10 @@ function canAnimate(): boolean {
   try { return !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return true; }
 }
 
+/** Dala e întreagă pe ecran, sub titlul lunii lipit sus (altfel poza zboară peste el). */
 function visible(el: Element): boolean {
   const r = el.getBoundingClientRect();
-  return r.width > 0 && r.bottom > 0 && r.top < innerHeight;
+  return r.width > 0 && r.top >= 90 && r.bottom <= innerHeight - 70;
 }
 
 /** Deschide poza mare pornind de la dala atinsă (sau `from`, dacă e dat). */
@@ -38,20 +50,20 @@ export function openWithTransition(update: () => void, from?: HTMLElement | null
   const src = from ?? (tapped && Date.now() - tapped.at < 1500 ? tapped.el : null);
   if (!src || !canAnimate() || !visible(src)) { update(); return; }
   src.style.viewTransitionName = NAME;
-  (document as Doc).startViewTransition!(() => {
+  capped((document as Doc).startViewTransition!(() => {
     src.style.viewTransitionName = '';
     flushSync(update);
-  });
+  }));
 }
 
 /** Închide poza mare, cu poza întorcându-se în dala ei (dacă dala e pe ecran). */
 export function closeWithTransition(update: () => void, photoId?: string): void {
   if (!photoId || !canAnimate()) { update(); return; }
   let target: HTMLElement | null = null;
-  const t = (document as Doc).startViewTransition!(() => {
+  const t = capped((document as Doc).startViewTransition!(() => {
     flushSync(update);
     const el = document.querySelector<HTMLElement>(`[data-photo-id="${CSS.escape(photoId)}"]`);
     if (el && visible(el)) { el.style.viewTransitionName = NAME; target = el; }
-  });
+  }));
   void t.finished.finally(() => { if (target) target.style.viewTransitionName = ''; });
 }
