@@ -1,5 +1,6 @@
 import { buildMorningReport, markMorningSeen, morningSeen } from './morningReport';
 import { SampleResultCard } from './SampleFlow';
+import { storedSampleResult } from './galleryReader';
 import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
 import { formatBytes } from '../core/freedSpace';
 import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
@@ -72,6 +73,10 @@ export function TodayScreen() {
   const reader = useLx(s => s.reader);
   const readerResult = useLx(s => s.readerResult);
   const sampling = useLx(s => s.sampling);
+  // Cât stă pe ecran rezultatul primei priviri, el e singurul pas: restul cardurilor spuneau
+  // același lucru în alte cuvinte (raportat cu video: „ecranul de acasă e prea încărcat”).
+  const liveSample = useLx(s => s.sampleResult);
+  const focusSample = !reader && (!!liveSample || !!storedSampleResult());
   const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
   const setAutoResult = useLx(s => s.setAutoResult);
@@ -200,7 +205,7 @@ export function TodayScreen() {
       </section>}
 
       <TrialEndCard />
-      {!sortingActive && <MorningReportCard />}
+      {!sortingActive && !focusSample && <MorningReportCard />}
       <EnginesWaitCard />
       {reader && reader.paused === 'training' && (
         <section className="lx-card lx-reader lx-train-pause" role="status">
@@ -259,7 +264,7 @@ export function TodayScreen() {
         </section>
       )}
 
-      {autoResult && autoResult.day === todayStart && !busy && (
+      {autoResult && autoResult.day === todayStart && !busy && !focusSample && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setAutoResult(null)} aria-label={tr('lx.close')}>✕</button>
           <span className="lx-eyebrow">{tr('lx.auto.eyebrow')}</span>
@@ -308,7 +313,7 @@ export function TodayScreen() {
         </section>
       )}
 
-      {today && today.waiting.length > 0 && !busy && (
+      {today && today.waiting.length > 0 && !busy && !focusSample && (
         <section className="lx-card lx-decide">
           <div>
             <b>{tr(plural(today.waiting.length, 'lx.today.unsure.one', 'lx.today.unsure'), { count: today.waiting.length })}</b>
@@ -332,9 +337,9 @@ export function TodayScreen() {
         </section>
       )}
 
-      {!sortingActive && <TrainingCard />}
+      {!sortingActive && !focusSample && <TrainingCard />}
 
-      {today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
+      {!focusSample && today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
         <section className="lx-stats">
           <div><b>{today.series.length}</b><span>{tr(plural(today.series.length, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
           <div><b>{today.rejected.length}</b><span>{tr('lx.stat.notToday')}</span></div>
@@ -355,7 +360,7 @@ export function TodayScreen() {
       {!showStories && !beginner && <OnThisDay heroCoversFirst={!busy} />}
 
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
-      <section className="lx-section">
+      {!focusSample && <section className="lx-section">
         <div className="lx-section-head"><h2>{tr('lx.today.galleryGroup')}</h2></div>
         <div className="lx-today-group">
         <GalleryStatus />
@@ -369,7 +374,7 @@ export function TodayScreen() {
           <span className="lx-chev" aria-hidden="true">›</span>
         </button>
         </div>
-      </section>
+      </section>}
 
       {/* Restul stă strâns: Azi rămâne scurt (cerut de audit: peste 20 de blocuri). */}
       {!beginner && <details className="lx-more">

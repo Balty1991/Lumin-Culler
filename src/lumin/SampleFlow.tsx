@@ -38,7 +38,9 @@ export function SampleResultCard() {
     if (!mine.length) return null;
     const real = mine.filter(p => !p.aside);
     const kept = real.filter(p => p.status === 'selected');
-    const best = [...kept].sort((a, b) => Number((b.faceCount ?? 0) > 0) - Number((a.faceCount ?? 0) > 0) || b.aiScore - a.aiScore);
+    // „Cele mai bune” înseamnă oameni: o cutie de pastile păstrată nu are ce căuta aici (raportat).
+    const withPeople = kept.filter(p => (p.faceCount ?? 0) > 0);
+    const best = [...(withPeople.length >= 2 ? withPeople : kept)].sort((a, b) => b.aiScore - a.aiScore);
     return {
       total: mine.length,
       kept: kept.length,
@@ -46,7 +48,7 @@ export function SampleResultCard() {
       blurry: selectBlurry(real).length,
       blinks: selectBlinks(real).length,
       aside: mine.length - real.length,
-      best: best.slice(0, 6)
+      best: best.slice(0, 4)
     };
   }, [result, photos]);
   if (!result || !sum || reader) return null;
@@ -106,20 +108,30 @@ export function WorkModeOverlay() {
   const setWorkMode = useLx(s => s.setWorkMode);
   const reader = useLx(s => s.reader);
   const photos = useStore(s => s.photos);
+  // Ritmul din ultimele poze (cel mult ~40), nu de la început: primele poze mergeau repede și
+  // estimarea sărea de la „~6 min” la „~2 h” (raportat cu capturi).
+  const samples = useRef<{ at: number; done: number }[]>([]);
   const started = useRef<{ at: number; done: number } | null>(null);
   const [finished, setFinished] = useState(false);
   useEffect(() => {
-    if (!open) { started.current = null; setFinished(false); return; }
+    if (!open) { started.current = null; samples.current = []; setFinished(false); return; }
     // Cât e deschis, nimeni nu atinge aplicația: analiza merge plin.
     analysisPool.setGentle(false);
     analysisPool.setBackground(false);
+    analysisPool.setFocus(true);
     return () => {
+      analysisPool.setFocus(false);
       if (useLx.getState().reader) { analysisPool.setGentle(true); analysisPool.setBackground(true); }
     };
   }, [open]);
   useEffect(() => {
     if (!open) return;
     if (reader && !started.current) started.current = { at: Date.now(), done: reader.done };
+    if (reader) {
+      const list = samples.current;
+      if (!list.length || list[list.length - 1].done !== reader.done) list.push({ at: Date.now(), done: reader.done });
+      while (list.length > 2 && list[list.length - 1].done - list[1].done >= 40) list.shift();
+    }
     if (!reader && started.current) setFinished(true);
   }, [open, reader]);
   // Ultimele poze citite, ca „orbită” în jurul inelului.
@@ -129,10 +141,15 @@ export function WorkModeOverlay() {
   const total = reader?.total ?? 0;
   const pct = finished ? 100 : total ? Math.round((done / total) * 100) : 0;
   let eta = '';
-  if (reader && started.current && done - started.current.done >= 4) {
-    const rate = (done - started.current.done) / ((Date.now() - started.current.at) / 60000);
-    const min = Math.max(1, Math.round((total - done) / Math.max(rate, 1)));
-    eta = min >= 90 ? tr('lx.work.etaH', { hours: Math.round(min / 60) }) : tr('lx.work.etaMin', { minutes: min });
+  const first = samples.current[0];
+  const last = samples.current[samples.current.length - 1];
+  if (reader && started.current && first && last && done - started.current.done >= 20 && last.at > first.at) {
+    const rate = (last.done - first.done) / ((last.at - first.at) / 60000);
+    const min = Math.max(1, Math.round((total - done) / Math.max(rate, 0.5)));
+    // Rotunjit cum vorbește un om: minute până la o oră și jumătate, apoi ore întregi.
+    eta = min >= 90 ? tr('lx.work.etaH', { hours: Math.round(min / 60) }) : tr('lx.work.etaMin', { minutes: min < 10 ? min : Math.round(min / 5) * 5 });
+  } else if (reader && !finished) {
+    eta = tr('lx.work.etaWait');
   }
   return createPortal(
     <div className="lx lx-work" role="dialog" aria-modal="true" aria-label={tr('lx.work.title')}>

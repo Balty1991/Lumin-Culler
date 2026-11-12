@@ -14,7 +14,7 @@ import type { HashInput } from '../workers/hashCompare.worker';
 import { parseExif } from './exifParser';
 import { timed, timedSync, record } from './stageTiming';
 import { parseIptc } from './iptcParser';
-import { looksManufactured } from './smartInbox';
+import { hasManufacturedTag, looksManufactured } from './smartInbox';
 import { isRawFile, decodeRawFile, RAW_EXTENSIONS } from './rawDecoder';
 import type { FileSystemFileHandleLike } from './filePicker';
 import { pickFolderSceneTag } from './sceneTagLabels';
@@ -235,8 +235,12 @@ function subjectConfirmedOutOfFocus(analysis: Pick<AnalysisRecord, 'subjectInFoc
  * Peisajele, animalele, mancarea, arhitectura nu sunt atinse: niciuna nu are
  * etichete de lucru fabricat in majoritate.
  */
-function onlyManufacturedSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags'>): boolean {
-  return analysis.faceCount === 0 && looksManufactured(analysis.sceneTags);
+function onlyManufacturedSubject(analysis: Pick<AnalysisRecord, 'faceCount' | 'sceneTags' | 'textCoverage'>): boolean {
+  if (analysis.faceCount !== 0) return false;
+  if (looksManufactured(analysis.sceneTags)) return true;
+  // Un ambalaj cu scris, fără oameni (cutia de pastile, ciocolata — raportat cu video: „poza cu
+  // pastile nu avea de ce să fie aprobată”): nu se păstrează singur, rămâne de văzut.
+  return hasManufacturedTag(analysis.sceneTags) && (analysis.textCoverage ?? 0) >= 0.02;
 }
 
 /**

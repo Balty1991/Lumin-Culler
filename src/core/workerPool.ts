@@ -508,6 +508,10 @@ export class AnalysisPool {
       // a 2 poze ocupau toate nucleele și ecranul îngheța ~1 s (raportul din 12 nov.,
       // blocajele chiar în timpul FaceMesh/ImageAnalysis/OCR). Cu ecranul stins merge plin.
       if (this.gentle) return Math.min(thermal, 1);
+      // Pe ecran, chiar „pe viteză maximă” (prima privire, „Lucrez la galeria ta”): cel mult 2.
+      // Cu 6 în lucru, ecranul nu s-a mai redesenat 52 s și chiar 128 s (raportul din 12 nov.,
+      // „zbor 6”), iar pe total nu mergea mai repede: procesorul era oricum plin.
+      if (this.focus) return Math.min(thermal, 2);
     }
     return thermal;
   }
@@ -551,6 +555,9 @@ export class AnalysisPool {
   /** Citirea galeriei din fundal e pornită (oricare ar fi viteza ei). */
   private background = false;
   setBackground(on: boolean): void { this.background = on; }
+  /** Citirea galeriei pe viteză maximă cu ecranul aprins (prima privire, „Lucrez la galeria ta”). */
+  private focus = false;
+  setFocus(on: boolean): void { this.focus = on; }
   /** Modelele unei poze, pe rând: cât citirea din fundal rulează cu aplicația pe ecran. */
   private serialWatch = setModelsSerial(() => this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible');
 

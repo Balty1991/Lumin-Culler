@@ -1094,7 +1094,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
         <div className="lx-decide-actions">
           <button className="lx-btn ghost" onClick={onClose}>{tr(nothing ? 'lx.close' : 'lx.enhance.cancel')}</button>
           {!nothing && orig && view && (
-            <button className="lx-btn ghost" onClick={() => {
+            <button className="lx-btn ghost lx-share-ba" onClick={() => {
               // Un stil Pro nu iese din aplicație nici ca imagine „înainte/după”.
               if (proPreview && useStore.getState().gatePremium('styles')) return;
               const fixes = issues.length
@@ -1109,7 +1109,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
                   if (blob) await shareCard(blob, `cherrypic-inainte-dupa-${Date.now()}.jpg`, fixes, tr('lx.share.cta'));
                 } finally { if (after) URL.revokeObjectURL(after); }
               })();
-            }}>{tr('lx.enhance.shareBA')}</button>
+            }} aria-label={tr('lx.enhance.shareBA')} title={tr('lx.enhance.shareBA')}><Icon name="share" size={20} /></button>
           )}
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr(proPreview ? 'lx.enhance.savePro' : 'lx.enhance.save')}</button>}
         </div>

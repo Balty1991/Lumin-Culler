@@ -367,6 +367,7 @@ export const dict: Record<string, string> = {
   "lx.work.starting": "Empezando…",
   "lx.work.etaMin": "Faltan ~{minutes} min",
   "lx.work.etaH": "Faltan ~{hours} h",
+  "lx.work.etaWait": "Calculando cuánto falta…",
   "lx.work.tip": "Puedes bloquear el móvil: sigo en segundo plano. Cargando es más rápido.",
   "lx.work.see": "Ver el resultado",
   "lx.work.useApp": "Usar la app mientras tanto",

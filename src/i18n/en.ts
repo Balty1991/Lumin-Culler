@@ -2402,6 +2402,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.work.starting": "Starting…",
   "lx.work.etaMin": "About {minutes} min left",
   "lx.work.etaH": "About {hours} h left",
+  "lx.work.etaWait": "Working out how long it takes…",
   "lx.work.tip": "You can lock the phone: I keep going in the background. Charging is fastest.",
   "lx.work.see": "See the result",
   "lx.work.useApp": "Use the app meanwhile",

@@ -2285,10 +2285,11 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-sample-title { font-size: 22px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; }
 .lx-sample-facts { display: flex; flex-wrap: wrap; gap: 6px; }
 .lx-sample-facts span { padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: rgb(var(--accent-rgb) / .12); color: var(--text); }
-.lx-sample-best { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.lx-sample-best button { padding: 0; border: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); }
-.lx-sample-best button:first-child { grid-row: span 2; aspect-ratio: auto; }
-.lx-sample-best .lx-thumb, .lx-sample-best img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Un singur rând de 4 pătrate (era o coloană lungă: miniaturile își luau înălțimea pozei). */
+.lx-sample-best { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lx-sample-best button { position: relative; padding: 0; border: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); }
+.lx-sample-best button > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lx-sample-best img, .lx-sample-best canvas { width: 100% !important; height: 100% !important; object-fit: cover; display: block; }
 .lx-sample-steps { display: flex; flex-direction: column; gap: 6px; }
 .lx-sample-step { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 16px; text-align: left;
   border: 1px solid var(--lx-line); background: var(--lx-glass); color: var(--text); font: inherit; }
@@ -2320,3 +2321,9 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work .lx-btn.ghost { color: #fff; border-color: rgb(255 255 255 / .3); }
 @keyframes lx-work-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lx-work-aurora, .lx-work-orbit { animation: none; } }
+
+/* Bara de jos a editorului: trimiterea e o iconiță, Renunț și Salvează au loc întreg (raportat: texte tăiate). */
+.lx-enhance .lx-decide-actions { display: flex; gap: 8px; }
+.lx-enhance .lx-decide-actions > .lx-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+.lx-enhance .lx-decide-actions > .lx-btn.primary { flex: 1.4 1 0; }
+.lx-enhance .lx-decide-actions > .lx-share-ba { flex: 0 0 52px; padding: 0; display: grid; place-items: center; }

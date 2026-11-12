@@ -279,6 +279,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       const fast = focus || readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
       analysisPool.setGentle(!fast);
       analysisPool.setBackground(!focus);
+      analysisPool.setFocus(focus);
       useLx.getState().setReader({ done, total: missing.length, fast });
       const files = await jankSpan('citire-fisiere', () => readPhotoFiles(missing.slice(i, i + size)));
       if (files.length) {
@@ -375,6 +376,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     if (holding) void releaseBackgroundAnalysis();
     analysisPool.setGentle(false);
     analysisPool.setBackground(false);
+    analysisPool.setFocus(false);
     useLx.getState().setSampling(false);
     running = false;
     useLx.getState().setReader(null);

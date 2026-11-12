@@ -2488,6 +2488,7 @@ export const ro = {
   "lx.work.starting": "Pornesc…",
   "lx.work.etaMin": "Mai durează ~{minutes} min",
   "lx.work.etaH": "Mai durează ~{hours} h",
+  "lx.work.etaWait": "Calculez cât mai durează…",
   "lx.work.tip": "Poți bloca telefonul: continui în fundal. La încărcat merg cel mai repede.",
   "lx.work.see": "Vezi rezultatul",
   "lx.work.useApp": "Folosesc aplicația între timp",
