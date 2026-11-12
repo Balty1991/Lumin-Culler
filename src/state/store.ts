@@ -1861,6 +1861,24 @@ export function settleFreeCleanup(used: boolean): void {
 }
 
 /**
+ * Ordinea în care se păstrează cadrele unei serii. La pozele de grup (2+ fețe) câștigă
+ * cadrul în care toți au ochii deschiși, apoi cel cu zâmbetul cel mai larg; scorul AI
+ * decide doar între cadre la fel de bune. Altfel (o față sau niciuna), scorul AI.
+ */
+export function seriesRank(
+  a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number },
+  b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number }
+): number {
+  if ((a.faceCount ?? 0) >= 2 && (b.faceCount ?? 0) >= 2) {
+    const eyes = Number(!!b.allEyesOpen) - Number(!!a.allEyesOpen);
+    if (eyes) return eyes;
+    const smile = (b.bestSmile ?? 0) - (a.bestSmile ?? 0);
+    if (Math.abs(smile) > 0.15) return smile;
+  }
+  return b.aiScore - a.aiScore;
+}
+
+/**
  * Statusul și seria recitite din baza de date, păstrând obiectele neschimbate.
  * Înainte, la finalul fiecărui lot, FIECARE poză devenea obiect nou: toate miniaturile și
  * toate ecranele se recalculau o dată pe lot (blocaje de ~1 s la citirea galeriei,
@@ -4368,6 +4386,7 @@ export const useStore = create<AppState>((set, get) => ({
         sharpness: view?.sharpness,
         faceCount: view?.faceCount,
         allEyesOpen: view?.allEyesOpen,
+        bestSmile: view?.bestSmile,
         priority: loved || (mode === 'parent' && (view?.faceCount ?? 0) > 0)
       };
     });
@@ -4385,7 +4404,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     for (const g of groups.values()) {
       if (g.length < 2 || g.some(p => p.locked && p.status === 'selected')) continue;
-      const kept = g.filter(p => !p.locked && p.status === 'selected' && !changes.has(p.id)).sort((a, b) => b.aiScore - a.aiScore);
+      const kept = g.filter(p => !p.locked && p.status === 'selected' && !changes.has(p.id)).sort(seriesRank);
       for (const p of kept.slice(1)) changes.set(p.id, 'rejected');
     }
     // Bonuri, foi, capturi nerecunoscute la import (calea rapidă nu citește
