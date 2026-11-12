@@ -2206,3 +2206,7 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 /* Înainte/după: imaginea „după” nu se mai poate întinde când proporțiile diferă cu o fracțiune
    (raportat: „redimensionează și distorsionează ciudat”). */
 .lx-enhance-after .lx-enhance-canvas, .lx-enhance-frame.crop-compare > .lx-enhance-canvas { object-fit: cover; }
+
+/* Colaj: modelul ales, mare, înainte de salvare sau trimitere. */
+.lx-collage-big { display: block; width: 100%; max-height: 62dvh; object-fit: contain; border-radius: 16px; margin: 4px 0 14px; }
+.lx-collage-actions { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px; }

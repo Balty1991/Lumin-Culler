@@ -387,6 +387,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     return out;
   }, [list]);
 
+  const asideCount = useMemo(() => photos.reduce((n, p) => n + (p.aside ? 1 : 0), 0), [photos]);
   const count = (f: Filter) => photos.filter(p => !p.aside && (f === 'all' || p.status === (f === 'kept' ? 'selected' : 'rejected'))).length;
   const open = (i: number, el: HTMLElement) => openWithTransition(() => setViewer({ index: i, origin: el.getBoundingClientRect() }));
   // Aceeași referință pentru toate dalele: o dală se redesenează doar când se schimbă poza ei.
@@ -497,8 +498,15 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
           </button>
         </div>
       )}
-      {plain && (issues.blinks > 0 || issues.blurry > 0) && (
+      {plain && (issues.blinks > 0 || issues.blurry > 0 || asideCount > 0) && (
         <div className="lx-chips">
+          {/* „Toate” nu numără capturile și documentele: le spunem unde sunt (raportat:
+              „De ce în Galerie apar 364, dar ele sunt 1615?”). */}
+          {asideCount > 0 && filter === 'all' && (
+            <button className="lx-chip-btn" onClick={() => useLx.getState().setGalleryView('aside')}>
+              {tr('lx.wall.asideHint')} <b>{asideCount}</b>
+            </button>
+          )}
           {issues.blinks > 0 && (
             <button className={filter === 'blinks' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f => f === 'blinks' ? 'all' : 'blinks'))}>
               {tr('lx.wall.blinks')} <b>{issues.blinks}</b>
