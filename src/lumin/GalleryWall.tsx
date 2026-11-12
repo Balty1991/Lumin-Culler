@@ -218,7 +218,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
   const setNotice = useStore(s => s.setNotice);
   const sentinel = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
-  const [cell, setCell] = useState(120);
+  const [cell, setCell] = useState(() => Math.max(40, (Math.min(window.innerWidth, 720) - 32 - GAP * (density - 1)) / density));
 
   const list = useMemo(() => {
     if (similar) {
@@ -299,7 +299,13 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const measure = () => setCell(Math.max(40, (el.clientWidth - GAP * (density - 1)) / density));
+    // Cât tabul e ascuns, lățimea e 0: rândurile ajungeau la 40 px și pozele apăreau
+    // turtite câteva secunde la intrarea în Galerie (raportat cu captură). Atunci se ia
+    // lățimea ecranului, nu zero.
+    const measure = () => {
+      const width = el.clientWidth || Math.min(window.innerWidth, 720) - 32;
+      setCell(Math.max(40, (width - GAP * (density - 1)) / density));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
