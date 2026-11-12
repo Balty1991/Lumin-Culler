@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { db } from '../core/db';
 import { RenderQueue } from './renderQueue';
+import { analysisPool } from '../core/workerPool';
 
 /**
  * lumin/sharp.ts
@@ -63,6 +64,20 @@ export async function originalUri(photoId: string): Promise<string | null> {
   return twin?.mediaUri ?? null;
 }
 
+/**
+ * Cât ecranul așteaptă poze clare, citirea galeriei din fundal stă pe loc: altfel
+ * analiza ocupa procesorul și unele dale rămâneau neclare câteva secunde (raportat
+ * cu captură, în timpul citirii). Importul cerut de om nu e afectat (vezi holdForUi).
+ */
+let sharpPending = 0;
+let releaseReader: (() => void) | null = null;
+function trackSharp(p: Promise<unknown>): void {
+  if (sharpPending++ === 0) releaseReader = analysisPool.holdForUi();
+  void p.finally(() => {
+    if (--sharpPending === 0) { releaseReader?.(); releaseReader = null; }
+  });
+}
+
 /** URL-ul pozei clare, gata decodat (null când nu se poate — rămâne miniatura). */
 export function sharpUrl(photoId: string, size: number): Promise<string | null> {
   if (!canSharpen()) return Promise.resolve(null);
@@ -84,6 +99,7 @@ export function sharpUrl(photoId: string, size: number): Promise<string | null> 
       const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
       return preload(URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' })));
     }, size >= SCREEN_SIZE).catch(() => null);
+    trackSharp(p);
     p.then(u => { if (!u) urls.delete(k); else ready.set(k, u); });
     urls.set(k, p);
   }
