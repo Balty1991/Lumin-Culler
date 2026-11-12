@@ -8,6 +8,7 @@ import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { aiCrop, frameCrop } from './instaCrop';
+import { RECIPES, resolveRecipe, type Recipe } from './editRecipes';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
@@ -623,6 +624,17 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   // „Încadrare AI”: formatul potrivit pozei, cu fețele ținute în cadru (frameCrop).
   // Proporția rămâne cea a pozei; a doua atingere revine la cadrul întreg.
   const aiFrame = () => setAspect(a => (a === 'ai' ? 'orig' : 'ai'));
+  // „Dintr-o atingere”: stil + intensitate + reglaje + cadru, deodată (vezi editRecipes.ts).
+  const [applied, setApplied] = useState<Recipe | null>(null);
+  const applyRecipe = (r0: Recipe) => {
+    const r = resolveRecipe(r0, { recommended: picked?.style ?? null, hasFace: (geo?.faces.length ?? 0) > 0, allowed: ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject) });
+    setPure(false); setStyle(r.style as EnhanceStyle); setAmount(r.amount);
+    setManual(r.manual as Partial<Record<ManualKey, number>>); setAspect(r.aspect as Aspect);
+    setApplied(r);
+    vibrate(8);
+  };
+  const recipeOn = (k: string) => !!applied && applied.key === k && !pure && style === applied.style && amount === applied.amount
+    && aspect === applied.aspect && JSON.stringify(manual) === JSON.stringify(applied.manual);
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
   const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
@@ -997,6 +1009,15 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               </button>
             )}
             {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
+            <p className="lx-recipes-title">{tr('lx.recipe.title')}</p>
+            <div className="lx-enhance-styles lx-recipes" role="group" aria-label={tr('lx.recipe.title')}>
+              {RECIPES.map(r => (
+                <button key={r.key} className={recipeOn(r.key) ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => applyRecipe(r)}>
+                  <span aria-hidden="true">{r.icon}</span> {tr(`lx.recipe.${r.key}`)}
+                  {ADVANCED.has(r.style as EnhanceStyle) && premiumLocked && <b className="lx-pro">PRO</b>}
+                </button>
+              ))}
+            </div>
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
