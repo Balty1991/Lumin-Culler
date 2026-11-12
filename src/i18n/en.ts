@@ -2649,6 +2649,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.studio.t.reel": "Reel / TikTok",
   "lx.studio.d.reel": "Your best photos of the week, vertical, with music",
   "lx.reel.needKept": "Keep a few photos first — then I can make a Reel.",
+  "lx.ask.foundApprox": "I couldn’t find exactly “{query}”. Here are {count} close matches:",
   "lx.recipe.title": "One tap",
   "lx.recipe.perfect": "Perfect",
   "lx.recipe.facebook": "Facebook",

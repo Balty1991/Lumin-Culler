@@ -614,6 +614,7 @@ export const dict: Record<string, string> = {
   "lx.studio.t.reel": "Reel / TikTok",
   "lx.studio.d.reel": "Tes meilleures photos de la semaine, en vertical, avec musique",
   "lx.reel.needKept": "Garde d’abord quelques photos, puis j’en ferai un Reel.",
+  "lx.ask.foundApprox": "Je n’ai pas trouvé exactement « {query} ». Voici {count} photos proches :",
   "lx.recipe.title": "En un geste",
   "lx.recipe.perfect": "Parfaite",
   "lx.recipe.facebook": "Facebook",

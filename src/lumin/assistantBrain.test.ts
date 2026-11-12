@@ -33,7 +33,7 @@ describe('asistentul galeriei', () => {
     expect(answer('fă-mi un film', photos).kind).toBe('studio');
   });
   it('spune cinstit când nu găsește nimic', () => {
-    expect(answer('elefant roz', photos)).toEqual({ kind: 'none', query: 'elefant roz' });
+    expect(answer('elefant roz', photos)).toMatchObject({ kind: 'none', query: 'elefant roz', partial: [] });
   });
   it('„Ce mă așteaptă?” deschide sortarea, nu o căutare', () => {
     expect(answer('Ce mă așteaptă?', []).kind).toBe('waiting');

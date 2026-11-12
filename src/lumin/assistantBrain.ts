@@ -4,13 +4,14 @@
  * aplicația (căutarea pe cuvinte, oamenii, datele, seriile). Rulează pe telefon,
  * fără server: reguli simple pentru intenții, apoi căutarea obișnuită.
  */
+import { applyFilters, fixNames, parseQuery, type ParsedQuery } from './assistantQuery';
 import type { PhotoView } from '../state/store';
 import { fold, searchPhotos } from './textSearch';
 import { photoTime } from './days';
 
 export type AssistantReply =
-  | { kind: 'results'; query: string; photos: PhotoView[]; best: boolean }
-  | { kind: 'none'; query: string }
+  | { kind: 'results'; query: string; photos: PhotoView[]; best: boolean; filters?: ParsedQuery; /** Găsite doar cu o parte din cuvinte. */ approx?: boolean }
+  | { kind: 'none'; query: string; /** Ce s-a putut găsi doar cu o parte din cuvinte: arătat abia după căutarea CLIP. */ partial?: PhotoView[]; filters?: ParsedQuery }
   | { kind: 'stats'; total: number; kept: number; waiting: number; extras: number; people: number }
   | { kind: 'cleanup'; photos: PhotoView[]; sets: number; screenshots: number }
   | { kind: 'waiting'; photos: PhotoView[] }
@@ -48,7 +49,7 @@ const isWaiting = (p: PhotoView) => !p.aside && (p.status === 'review' || p.stat
 export function answer(input: string, photos: readonly PhotoView[], now = Date.now()): AssistantReply {
   const q = fold(input).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-  if (has(q, /\b(anul meu|anul asta|anul acesta|rezumatul anului|my year|year in review|wrapped)\b/)) return { kind: 'year', year: new Date(now).getFullYear() };
+  if (has(q, /\b(anul meu|rezumatul anului|my year|year in review|wrapped)\b/) || /^(anul (asta|acesta)|this year)$/.test(q)) return { kind: 'year', year: new Date(now).getFullYear() };
   if (has(q, /\b(adauga|importa|incarca|add|import|upload)\b/)) return { kind: 'add' };
   if (has(q, /\b(antrene|invata|train|teach|gustul)\w*/)) return { kind: 'train' };
   if (has(q, /\b(cate|cati|statistic|how many|stats|numar)\w*/)) {
@@ -62,18 +63,29 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
     return { kind: 'cleanup', photos: s.extras, sets: s.sets, screenshots: photos.filter(p => p.aside === 'screenshot' && photoTime(p) < old).length };
   }
   if (has(q, /\b(astept|asteapt|nesortat|de vazut|sorteaz|waiting|unsorted|to review|sort)\w*/)) return { kind: 'waiting', photos: photos.filter(isWaiting) };
-  if (has(q, /\b(film|video|clip|colaj|collage|movie|studio)\w*/)) return { kind: 'studio' };
+  if (has(q, /\b(film|video|clip|colaj|collage|movie|studio|reel|tiktok)\w*/)) return { kind: 'studio' };
 
   const best = has(q, /\b(cele mai|cea mai|best|top|frumoas|reusit|beautiful)\w*/);
-  const terms = q.split(' ').filter(w => w.length > 1 && !FILLER.has(w) && !/^(bune|buna|frumoase|frumoasa|reusite|best|top|beautiful)$/.test(w));
-  const pool = photos.filter(p => !p.aside || /bon|document|captur|screenshot|receipt/.test(q));
+  // Când, care, câte, cine (vezi assistantQuery.ts): „pozele păstrate de ieri cu Amy”.
+  const pq = parseQuery(input, now);
+  const names = [...new Set(photos.flatMap(p => p.personNames ?? []))];
+  const rest = fixNames(pq.rest, names);
+  const terms = rest.split(' ').filter(w => w.length > 1 && !FILLER.has(w) && !/^(bune|buna|frumoase|frumoasa|reusite|best|top|beautiful)$/.test(w));
+  const filtered = !!(pq.from !== undefined || pq.status || pq.quality);
+  const pool = applyFilters(photos.filter(p => !p.aside || /bon|document|captur|screenshot|receipt/.test(q)), pq);
   let found = terms.length ? searchPhotos(pool, terms.join(' ')) : [];
-  // Niciun rezultat cu toate cuvintele: încearcă pe rând, de la cel mai lung (de obicei subiectul).
-  if (!found.length && terms.length > 1) {
-    for (const t of [...terms].sort((a, b) => b.length - a.length)) { found = searchPhotos(pool, t); if (found.length) break; }
+  if (!terms.length && (best || filtered || pq.limit)) found = best && !filtered ? pool.filter(p => p.status === 'selected') : [...pool];
+  if (!found.length) {
+    // Nimic cu toate cuvintele: întâi căutarea CLIP (în Assistant.tsx), abia apoi ce se
+    // găsește cu o parte din cuvinte — altfel „geacă roșie” devenea „geacă” și aducea orice geacă.
+    let partial: PhotoView[] = [];
+    if (terms.length > 1) {
+      for (const t of [...terms].sort((a, b) => b.length - a.length)) { partial = searchPhotos(pool, t); if (partial.length) break; }
+    }
+    return { kind: 'none', query: input.trim(), partial, filters: pq };
   }
-  if (!terms.length && best) found = photos.filter(p => p.status === 'selected' && !p.aside);
-  if (!found.length) return { kind: 'none', query: input.trim() };
   if (best) found = [...found].sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12));
-  return { kind: 'results', query: terms.join(' ') || input.trim(), photos: found, best };
+  else if (pq.newest || (!terms.length && filtered)) found = [...found].sort((a, b) => photoTime(b) - photoTime(a));
+  if (pq.limit) found = found.slice(0, pq.limit);
+  return { kind: 'results', query: terms.join(' ') || input.trim(), photos: found, best, filters: pq };
 }

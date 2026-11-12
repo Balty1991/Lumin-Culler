@@ -10,6 +10,7 @@ import { Icon } from './icons';
 import { answer, type AssistantReply } from './assistantBrain';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { clipSearch } from '../core/clip/clipSearch';
+import { applyFilters } from './assistantQuery';
 
 /**
  * lumin/Assistant.tsx
@@ -56,11 +57,20 @@ export function Assistant({ onClose }: { onClose: () => void }) {
     // pe telefon). Completarea rezultatelor existente amesteca subiectele (raportat cu captură:
     // la „pisici” apăreau câini, capturi de ecran și o fetiță).
     if (reply.kind === 'none') {
-      void clipSearch(clean).then(ids => {
+      // Căutarea CLIP primește doar subiectul („geacă roșie”), fără „ieri”, „păstrate” etc.;
+      // timpul și filtrele se aplică apoi pe rezultat.
+      const subject = reply.filters?.rest.trim() || clean;
+      const showPartial = () => {
+        if (reply.partial?.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: clean, photos: reply.partial!, best: false, approx: true } } : x));
+      };
+      void clipSearch(subject).then(ids => {
         const byId = new Map(photos.map(p => [p.id, p]));
-        const found = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside).slice(0, 30);
+        let found = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside);
+        if (reply.filters) found = applyFilters(found, reply.filters);
+        found = found.slice(0, reply.filters?.limit ?? 30);
         if (found.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: clean, photos: found, best: false } } : x));
-      }).catch(() => undefined);
+        else showPartial();
+      }).catch(showPartial);
     }
   };
   const lx = useLx.getState;
@@ -73,7 +83,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
         const ids = r.photos.map(p => p.id);
         return (
           <>
-            <p>{tr(r.best ? 'lx.ask.foundBest' : 'lx.ask.found', { count: r.photos.length, query: r.query })}</p>
+            <p>{tr(r.approx ? 'lx.ask.foundApprox' : r.best ? 'lx.ask.foundBest' : 'lx.ask.found', { count: r.photos.length, query: r.query })}</p>
             <div className="lx-ask-grid">
               {r.photos.slice(0, 9).map((p, i) => (
                 <button key={p.id} onClick={() => view(ids, i)}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></button>

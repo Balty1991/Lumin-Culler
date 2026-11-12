@@ -2735,6 +2735,7 @@ export const ro = {
   "lx.studio.t.reel": "Reel / TikTok",
   "lx.studio.d.reel": "Cele mai bune poze ale săptămânii, vertical, cu muzică",
   "lx.reel.needKept": "Păstrează întâi câteva poze — apoi fac din ele un Reel.",
+  "lx.ask.foundApprox": "N-am găsit exact „{query}”. Iată {count} poze care se apropie:",
   "lx.recipe.title": "Dintr-o atingere",
   "lx.recipe.perfect": "Perfectă",
   "lx.recipe.facebook": "Facebook",
