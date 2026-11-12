@@ -489,8 +489,10 @@ async function recognizeFaces(
         crop.close();
       }
       if (!result?.embedding.length) continue;
-      const match = matchKnownPerson(result.embedding, knownPersons);
       const face = faces[i];
+      // Ochii închiși (de obicei și cap întors, ca la un sărut) dau o amprentă nesigură:
+      // fața nu primește nume automat, dar amprenta rămâne pentru grupare (raportat cu captură).
+      const match = face.isBlinking ? { id: null, name: null, similarity: 0 } : matchKnownPerson(result.embedding, knownPersons);
       face.embedding = result.embedding;
       face.personId = match.id;
       face.personName = match.name;

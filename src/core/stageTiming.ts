@@ -1,3 +1,4 @@
+import { jankMark } from './jankLog';
 /**
  * core/stageTiming.ts
  *
@@ -180,9 +181,11 @@ export function record(stage: Stage, ms: number): void {
  */
 export async function timed<T>(stage: Stage, fn: () => Promise<T>): Promise<T> {
   const t0 = performance.now();
+  const done = jankMark(stage);
   try {
     return await fn();
   } finally {
+    done();
     record(stage, performance.now() - t0);
   }
 }
@@ -190,9 +193,11 @@ export async function timed<T>(stage: Stage, fn: () => Promise<T>): Promise<T> {
 /** Varianta sincrona, pentru etapele care nu asteapta nimic (ex. derivate). */
 export function timedSync<T>(stage: Stage, fn: () => T): T {
   const t0 = performance.now();
+  const done = jankMark(stage);
   try {
     return fn();
   } finally {
+    done();
     record(stage, performance.now() - t0);
   }
 }

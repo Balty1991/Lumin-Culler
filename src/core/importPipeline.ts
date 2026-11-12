@@ -4,6 +4,7 @@
  * -> scor ContextEngine -> persistare IndexedDB -> grupare serii (persistata).
  * Preview-ul de 2048px (standard Lightroom) este cel pe care se judeca claritatea.
  */
+import { jankSpan } from './jankLog';
 import { decodeHeicToJpegBlob, isHeicDecodingSupported } from './nativeHeicDecoder';
 import { db, type AnalysisRecord, type PhotoRecord } from './db';
 import { analysisPool, withTimeout } from './workerPool';
@@ -979,6 +980,11 @@ export function toHashInput(id: string, dHash: string, a: AnalysisRecord, captur
   };
 }
 
+/** Un „bitmap” fără pixeli: doar dimensiunile, pentru analiza care citește singură poza din galerie. */
+function sizeOnly(width: number, height: number): ImageBitmap {
+  return { width: Math.max(1, width || 1), height: Math.max(1, height || 1), close: () => {} } as unknown as ImageBitmap;
+}
+
 async function processOne(file: File, genre?: string, project?: string, handle?: FileSystemFileHandleLike, mediaUri?: string, thresholds: Thresholds = FIXED_THRESHOLDS, mediaLocation?: MediaLocation, ready?: StageOneReady, heavy = true): Promise<{ item: ImportedPhoto; persisted: Promise<void> }> {
   await analysisPool.waitWhileUiHeld();
   const prepared = ready ?? await stageOnePrepare(file, mediaUri);
@@ -993,8 +999,12 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
   let analysis: AnalysisRecord;
   if (heavy) {
     let bitmap = prepared.bitmap;
-    if (!bitmap) bitmap = await decode(file, mediaUri);
-    analysis = await analysisPool.analyze(id, bitmap, isRaw ? undefined : mediaUri);
+    // Pe telefon (adresă din galerie, analiză nativă), pixelii din pagină nu sunt folosiți:
+    // decodarea întregului fișier original, pentru fiecare poză, ținea ecranul ~1 s
+    // (raportul de blocaje de pe telefon, 12 nov.). Se trimit doar dimensiunile.
+    if (!bitmap && mediaUri && !isRaw && analysisPool.analyzesFromUri()) bitmap = sizeOnly(w, h);
+    if (!bitmap) bitmap = await jankSpan('decodare', () => decode(file, mediaUri));
+    analysis = await jankSpan('analiza-nativa', () => analysisPool.analyze(id, bitmap!, isRaw ? undefined : mediaUri));
   } else {
     try { prepared.bitmap?.close(); } catch { /* deja închis */ }
     analysis = lightAnalysis(id, { sharpness, exposure });

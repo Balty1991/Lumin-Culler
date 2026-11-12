@@ -11,7 +11,9 @@ const MIN_MS = 200;
 
 export interface JankEntry { at: number; ms: number; doing: string }
 
-const active = new Map<number, string>();
+const active = new Map<number, { label: string; start: number }>();
+/** Pașii terminați recent (ultimele ~15 s): un blocaj se atribuie pașilor care s-au suprapus cu el. */
+const recent: { label: string; start: number; end: number }[] = [];
 let seq = 0;
 let entries: JankEntry[] | null = null;
 let started = false;
@@ -26,8 +28,25 @@ function load(): JankEntry[] {
 /** Marchează un pas: `const done = jankMark('fețe'); … done();`. Pașii pot fi suprapuși. */
 export function jankMark(label: string): () => void {
   const id = ++seq;
-  active.set(id, label);
-  return () => { active.delete(id); };
+  const start = typeof performance !== 'undefined' ? performance.now() : 0;
+  active.set(id, { label, start });
+  return () => {
+    const a = active.get(id);
+    active.delete(id);
+    if (!a) return;
+    const end = typeof performance !== 'undefined' ? performance.now() : 0;
+    recent.push({ label: a.label, start: a.start, end });
+    while (recent.length && (recent.length > 400 || end - recent[0].end > 15_000)) recent.shift();
+  };
+}
+
+/** Pașii care s-au suprapus cu intervalul [start, start+ms]; cei mai scurți (cei mai precizi) primii. */
+function overlapping(start: number, ms: number): string {
+  const end = start + ms;
+  const hits = new Map<string, number>();
+  for (const s of recent) if (s.start < end && s.end > start) hits.set(s.label, Math.min(hits.get(s.label) ?? Infinity, s.end - s.start));
+  for (const a of active.values()) if (a.start < end) hits.set(a.label, Math.min(hits.get(a.label) ?? Infinity, Infinity));
+  return [...hits.entries()].sort((a, b) => a[1] - b[1]).slice(0, 3).map(e => e[0]).join('+') || '-';
 }
 
 /** Rulează `fn` sub un marcaj și îl ridică la final, orice s-ar întâmpla. */
@@ -36,10 +55,13 @@ export async function jankSpan<T>(label: string, fn: () => Promise<T>): Promise<
   try { return await fn(); } finally { done(); }
 }
 
-export function recordJank(ms: number, now = Date.now()): void {
+export function recordJank(ms: number, now = Date.now(), startedAt?: number): void {
   if (ms < MIN_MS) return;
   const list = load();
-  list.push({ at: now, ms: Math.round(ms), doing: [...new Set(active.values())].join('+') || '-' });
+  const doing = startedAt !== undefined
+    ? overlapping(startedAt, ms)
+    : [...new Set([...active.values()].map(a => a.label))].join('+') || '-';
+  list.push({ at: now, ms: Math.round(ms), doing });
   if (list.length > MAX) list.splice(0, list.length - MAX);
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* fără stocare */ }
 }
@@ -48,7 +70,7 @@ export function startJankLog(): void {
   if (started || typeof PerformanceObserver === 'undefined') return;
   started = true;
   try {
-    new PerformanceObserver(l => { for (const e of l.getEntries()) recordJank(e.duration); }).observe({ entryTypes: ['longtask'] });
+    new PerformanceObserver(l => { for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime); }).observe({ entryTypes: ['longtask'] });
   } catch { /* WebView fără „longtask”: fără jurnal */ }
 }
 

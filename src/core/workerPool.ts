@@ -663,6 +663,13 @@ export class AnalysisPool {
     if (next) { this.nativeInFlight++; next(); }
   }
 
+  /**
+   * Analiza nativă citește poza direct din galerie (adresa content://), iar fără
+   * recunoaștere de identitate în JS nu are nevoie de pixeli decodați în pagină —
+   * doar de dimensiuni. Atunci decodarea din JS se poate sări.
+   */
+  analyzesFromUri(): boolean { return this.nativeMode && !ANDROID_IDENTITY_EMBEDDINGS; }
+
   /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts. `mediaUri` (Android, poze din galerie) lasa partea nativa sa citeasca imaginea singura, fara nimic peste punte. */
   async analyze(photoId: string, bitmap: ImageBitmap, mediaUri?: string): Promise<AnalysisRecord> {
     if (this.nativeMode) {

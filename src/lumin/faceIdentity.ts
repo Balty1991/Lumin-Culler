@@ -24,6 +24,8 @@ export const MODEL = 'sface';
 export const SAME_PERSON = 0.42;
 /** Recunoașterea automată cere mai mult: un nume greșit e mai rău decât niciunul. */
 export const AUTO_NAME = 0.56;
+/** Sub atât din cadru, fața e prea mică pentru un nume pus automat. */
+const AUTO_NAME_MIN_AREA = 0.004;
 const AUTO_MARGIN = 0.08;
 /**
  * Fețe prea mici dau amprente nesigure. Coborât de la 0,004: în pozele „în larg”
@@ -46,7 +48,7 @@ function asidePhotoIds(): Set<string> {
 }
 const DAY_MS = 86_400_000;
 
-type Face = { box: [number, number, number, number]; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[]; autoNamed?: boolean; similarity?: number };
+type Face = { box: [number, number, number, number]; isBlinking?: boolean; personId: string | null; personName?: string | null; embedding?: number[]; embeddingModel?: string; notPersonIds?: string[]; autoNamed?: boolean; similarity?: number };
 
 export function canEmbedFaces(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('FaceEmbed');
@@ -59,7 +61,7 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
   return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 
-export interface FaceRef { photoId: string; faceIndex: number; box: [number, number, number, number]; embedding: number[]; notPersonIds?: string[] }
+export interface FaceRef { photoId: string; faceIndex: number; box: [number, number, number, number]; embedding: number[]; notPersonIds?: string[]; /** Ochi închiși la analiză: amprentă nesigură, fără nume automat. */ blinking?: boolean }
 
 /** Grupare simplă: fiecare față intră în grupul cu media cea mai apropiată, peste prag. */
 export function clusterFaces(faces: readonly FaceRef[], threshold = SAME_PERSON): FaceRef[][] {
@@ -108,7 +110,7 @@ export async function readSfaceFaces(): Promise<{ named: Map<string, number[][]>
         named.set(f.personId, list);
         namedPhotos.push({ personId: f.personId, photoId: a.photoId });
       } else {
-        unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding, notPersonIds: f.notPersonIds });
+        unnamed.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding, notPersonIds: f.notPersonIds, blinking: !!f.isBlinking });
       }
     });
   });
@@ -221,6 +223,9 @@ export async function autoNameFaces(): Promise<number> {
   const aside = asidePhotoIds();
   for (const f of unnamed) {
     if (aside.has(f.photoId)) continue;
+    // Fețe cu ochii închiși sau foarte mici (sub ~0,4% din cadru): amprenta e nesigură,
+    // deci nu primesc nume automat; omul le poate numi, iar gruparea le folosește în continuare.
+    if (f.blinking || f.box[2] * f.box[3] < AUTO_NAME_MIN_AREA) continue;
     const [best, second] = scoreFace(f, centroids);
     if (!best || (second && best.s - second.s < AUTO_MARGIN)) continue;
     const day = dayOf.get(f.photoId);

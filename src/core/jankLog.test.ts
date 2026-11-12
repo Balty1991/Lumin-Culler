@@ -17,4 +17,11 @@ describe('jurnalul blocajelor', () => {
   it('spune limpede când nu a fost niciun blocaj', () => {
     expect(jankSummary()).toBe('niciun blocaj peste 200 ms');
   });
+  it('atribuie blocajul pașilor care s-au suprapus în timp cu el, chiar dacă s-au terminat între timp', () => {
+    const done = jankMark('decodare');
+    const t0 = performance.now();
+    done();
+    recordJank(600, 1_800_000_002_000, t0 - 10);
+    expect(jankSummary()).toMatch(/decodare[^|]*: 1x, total 600 ms/);
+  });
 });
