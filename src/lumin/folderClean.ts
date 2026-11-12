@@ -20,8 +20,10 @@ export function summarizeFolders(folders: readonly FolderInfo[], photos: readonl
   for (const f of folders) {
     if (CAMERA.test(f.name.trim())) continue;
     const known = f.uris.map(u => byUri.get(u)).filter((p): p is PhotoView => !!p);
-    // Ce se poate scoate: tot ce nu e păstrat. Pozele cu oamenii tăi rămân de hotărât una câte una.
-    const removable = known.filter(p => p.status !== 'selected' && !(p.personNames?.length));
+    // Ce se poate scoate: tot ce nu e păstrat și n-are oameni în ea. Cerut: „la WhatsApp,
+    // curățenie doar la capturi; pozele cu persoane le păstrează” — și cele cu oameni
+    // nenumiți (familia primită de la alții), nu doar cu cei pe care i-ai numit.
+    const removable = known.filter(p => p.status !== 'selected' && !(p.personNames?.length) && !(p.faceCount > 0));
     out.push({
       id: f.id, name: f.name, inGallery: f.count, read: known.length, removable,
       bytes: removable.reduce((s, p) => s + (p.sizeBytes ?? 0), 0), received: RECEIVED.test(f.name)

@@ -2767,7 +2767,7 @@ export const ro = {
   "lx.folders.review": "Vezi și alege",
   "lx.folders.clean": "Curăță dosarul",
   "lx.folders.read": "Citește {countDe} poze",
-  "lx.folders.confirm": "Trimit în coșul galeriei {countDe} poze din „{name}”? Pozele păstrate și cele cu oamenii tăi rămân. Se pot recupera din coș.",
+  "lx.folders.confirm": "Trimit în coșul galeriei {countDe} poze din „{name}”? Doar capturi, meme și poze fără oameni. Pozele păstrate și cele cu persoane rămân. Se pot recupera din coș.",
   "lx.trialEnd.title": "Proba gratuită se termină în {count} zile",
   "lx.trialEnd.one": "Proba gratuită se termină mâine",
   "lx.trialEnd.sub": "După aceea începe abonamentul ales. Dacă nu vrei să continui, îl oprești din Google Play, oricând; ce ai sortat rămâne al tău.",

@@ -2681,7 +2681,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.folders.review": "Review",
   "lx.folders.clean": "Clean folder",
   "lx.folders.read": "Read {count} photos",
-  "lx.folders.confirm": "Move {count} photos from “{name}” to the gallery trash? Kept photos and photos of your people stay. You can restore them from the trash.",
+  "lx.folders.confirm": "Move {count} photos from “{name}” to the gallery trash? Only screenshots, memes and photos without people. Kept photos and photos with people stay. You can restore them from the trash.",
   "lx.trialEnd.title": "Your free trial ends in {count} days",
   "lx.trialEnd.one": "Your free trial ends tomorrow",
   "lx.trialEnd.sub": "After that, the plan you chose begins. If you don’t want to continue, cancel in Google Play at any time; what you’ve sorted stays yours.",
