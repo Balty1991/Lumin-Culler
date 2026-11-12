@@ -1,4 +1,5 @@
 import { usePacedPhotos } from './useLxPhotos';
+import { MUSIC_MOODS } from './storyMusic';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -179,8 +180,7 @@ export function FilmCreator({ startId, initialIds, initialTransition, onClose }:
             { value: 'bw', label: tr('lx.filmMaker.look.bw') }
           ])}
           {chips(tr('lx.filmMaker.music'), music, setMusic, [
-            { value: 'calm', label: tr('lx.filmMaker.music.calm') },
-            { value: 'happy', label: tr('lx.filmMaker.music.happy') },
+            ...MUSIC_MOODS.map(m => ({ value: m, label: tr(`lx.filmMaker.music.${m}`) })),
             { value: 'none', label: tr('lx.filmMaker.music.none') }
           ])}
           {trans === 'ai' && !sameBurst && <p className="lx-hint lx-fm-hint">{tr('lx.filmMaker.aiHint')}</p>}

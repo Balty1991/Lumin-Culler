@@ -6,7 +6,7 @@ import { Icon } from './icons';
 import { FilmSheet } from './FilmSheet';
 import type { BurstFilm } from './burstFilm';
 import { prepareLivePhoto, recordLivePhoto, type LiveMotion, type LiveRenderer } from './livePhoto';
-import type { MusicMood } from './storyMusic';
+import { MUSIC_MOODS, type MusicMood } from './storyMusic';
 import { logError } from '../core/errorLog';
 import { useHoldAnalysis } from './useHoldAnalysis';
 
@@ -78,7 +78,7 @@ export function LivePhotoSheet({ photoId, onClose }: { photoId: string; onClose:
       <div className="lx-viewer-info lx-live-opts">
         {chips(tr('lx.live.motion'), motion, setMotion, [['orbit', tr('lx.live.orbit')], ['zoom', tr('lx.live.zoom')], ['sway', tr('lx.live.sway')]])}
         {chips(tr('lx.live.strength'), strong ? 'strong' : 'soft', v => setStrong(v === 'strong'), [['soft', tr('lx.live.soft')], ['strong', tr('lx.live.strong')]])}
-        {chips(tr('lx.filmMaker.music'), music, setMusic, [['calm', tr('lx.filmMaker.music.calm')], ['happy', tr('lx.filmMaker.music.happy')], ['none', tr('lx.filmMaker.music.none')]])}
+        {chips(tr('lx.filmMaker.music'), music, setMusic, [...MUSIC_MOODS.map(m => [m, tr(`lx.filmMaker.music.${m}`)] as [MusicMood, string]), ['none', tr('lx.filmMaker.music.none')]])}
         <div className="lx-decide-actions">
           <button className={busy ? 'lx-btn primary lx-busy-btn' : 'lx-btn primary'} style={busy ? { ['--pct' as string]: `${Math.round(pct * 100)}%` } : undefined}
             disabled={!renderer || busy} onClick={() => void make()}>
