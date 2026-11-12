@@ -20,7 +20,7 @@ import { useHoldAnalysis } from './useHoldAnalysis';
  */
 type Choice<T extends string> = { value: T; label: string };
 
-export function FilmCreator({ startId, initialIds, initialTransition, onClose }: { startId: string; initialIds: string[]; initialTransition?: 'ai' | 'fade'; onClose: () => void }) {
+export function FilmCreator({ startId, initialIds, initialTransition, onClose, preset }: { startId: string; initialIds: string[]; initialTransition?: 'ai' | 'fade'; onClose: () => void; /** „reel”: gata setat pentru Reels / TikTok (9:16, alert, vii, muzică de petrecere). */ preset?: 'reel' }) {
   useHoldAnalysis();
   const tr = useTr();
   const photos = usePacedPhotos();
@@ -28,12 +28,12 @@ export function FilmCreator({ startId, initialIds, initialTransition, onClose }:
   const [ids, setIds] = useState<string[]>(() => (initialIds.length ? initialIds : [startId]).slice(0, FILM_MAX_PHOTOS));
   const [active, setActive] = useState<string | null>(null);
   const [allDays, setAllDays] = useState(false);
-  const [speed, setSpeed] = useState<NonNullable<FilmOptions['speed']>>('normal');
+  const [speed, setSpeed] = useState<NonNullable<FilmOptions['speed']>>(preset === 'reel' ? 'fast' : 'normal');
   const [transition, setTransition] = useState<NonNullable<FilmOptions['transition']> | null>(initialTransition ?? null);
-  const [loop, setLoop] = useState<NonNullable<FilmOptions['loop']>>('bounce');
-  const [format, setFormat] = useState<NonNullable<FilmOptions['format']>>('orig');
-  const [look, setLook] = useState<NonNullable<FilmOptions['look']>>('natural');
-  const [music, setMusic] = useState<NonNullable<FilmOptions['music']>>('calm');
+  const [loop, setLoop] = useState<NonNullable<FilmOptions['loop']>>(preset === 'reel' ? 'forward' : 'bounce');
+  const [format, setFormat] = useState<NonNullable<FilmOptions['format']>>(preset === 'reel' ? 'story' : 'orig');
+  const [look, setLook] = useState<NonNullable<FilmOptions['look']>>(preset === 'reel' ? 'vivid' : 'natural');
+  const [music, setMusic] = useState<NonNullable<FilmOptions['music']>>(preset === 'reel' ? 'party' : 'calm');
   const [busy, setBusy] = useState(false);
   const [pct, setPct] = useState(0);
   const [film, setFilm] = useState<BurstFilm | null>(null);

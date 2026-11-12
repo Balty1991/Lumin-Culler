@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { reelPicks } from './reelPicks';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { useTr } from './context';
@@ -31,13 +32,14 @@ import type { PhotoView } from '../state/store';
  * „ar trebui prezentare altfel, mai profesională”). Pe Azi rămâne doar o bandă
  * cu dalele, iar „Vezi tot” deschide Studio.
  */
-type ToolId = 'recaps' | 'yearMin' | 'growth' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
+type ToolId = 'recaps' | 'yearMin' | 'growth' | 'reel' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
 type Cat = 'films' | 'family' | 'memories' | 'games';
 interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
 
 const TOOLS: Tool[] = [
   { id: 'yearMin', cat: 'films', glyph: <Icon name="clock" size={26} />, films: true },
   { id: 'growth', cat: 'films', glyph: <Icon name="sprout" size={26} />, person: true, films: true },
+  { id: 'reel', cat: 'films', glyph: <Icon name="sparkle" size={26} />, films: true },
   { id: 'film', cat: 'films', glyph: <Icon name="film" size={26} />, films: true },
   { id: 'look', cat: 'family', glyph: <Icon name="faces" size={26} />, person: true },
   { id: 'firsts', cat: 'family', glyph: <Icon name="flag" size={26} />, person: true },
@@ -57,6 +59,13 @@ function useTools(): Tool[] {
   return TOOLS.filter(t => !t.films || films);
 }
 
+/** Fără poze păstrate: spune ce lipsește și închide (nu în timpul afișării). */
+function NoReel({ onClose }: { onClose: () => void }) {
+  const tr = useTr();
+  useEffect(() => { useStore.getState().setNotice(tr('lx.reel.needKept')); onClose(); }, [onClose, tr]);
+  return null;
+}
+
 /** Ce se deschide pentru o dală (cu alegerea omului înainte, unde trebuie). */
 function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
   const photos = useLxPhotos();
@@ -66,6 +75,12 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
     case 'recaps': return <RecapsSheet onClose={onClose} />;
     case 'yearMin': return <YearMinuteSheet onClose={onClose} />;
     case 'growth': return <GrowthSheet name={person!} list={photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(person!))} onClose={onClose} />;
+    case 'reel': {
+      // Reels / TikTok: cele mai bune poze ale săptămânii, gata în format vertical, cu muzică.
+      const ids = reelPicks(photos);
+      if (!ids.length) return <NoReel onClose={onClose} />;
+      return <FilmCreator startId={ids[0]} initialIds={ids} initialTransition="fade" preset="reel" onClose={onClose} />;
+    }
     case 'film': {
       const recent = [...photos].filter(p => p.status === 'selected' && !p.aside).sort((a, b) => photoTime(b) - photoTime(a));
       const start = recent[0] ?? photos[0];
@@ -181,7 +196,7 @@ export function StudioScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-const STUDIO_ORDER: ToolId[] = ['film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
+const STUDIO_ORDER: ToolId[] = ['reel', 'film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
 
 /** Tab-ul Studio: editorul, filmele și amintirile, în ordinea în care se folosesc. */
 export function StudioTab() {
