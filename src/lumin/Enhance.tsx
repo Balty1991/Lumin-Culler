@@ -8,7 +8,7 @@ import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { aiCrop, frameCrop } from './instaCrop';
-import { RECIPES, resolveRecipe, type Recipe, type RecipeKey } from './editRecipes';
+import { pickRecipeStep, RECIPE_MAX_CHANGE as RECIPE_MAX_CHANGE_UI, RECIPE_MAX_CLIP as RECIPE_MAX_CLIP_UI, RECIPE_STEPS, RECIPES, resolveRecipe, scaleRecipe, type Recipe, type RecipeKey } from './editRecipes';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
@@ -628,7 +628,12 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   // „Dintr-o atingere”: stil + intensitate + reglaje + cadru, deodată (vezi editRecipes.ts).
   const [applied, setApplied] = useState<Recipe | null>(null);
   const applyRecipe = (r0: Recipe) => {
-    const r = resolveRecipe(r0, { recommended: picked?.style ?? null, hasFace: (geo?.faces.length ?? 0) > 0, allowed: ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject) });
+    const r1 = resolveRecipe(r0, { recommended: picked?.style ?? null, hasFace: (geo?.faces.length ?? 0) > 0, allowed: ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject) });
+    // Pe măsura pozei: încercată pe miniatură, la intensitatea cea mai mare care nu arde
+    // culorile și nu schimbă poza brutal (raportat: „Perfectă” și „Facebook” ardeau roșul).
+    void (src && base ? fitRecipe(src, base, r1) : Promise.resolve(r1)).catch(() => r1).then(r => putRecipe(r));
+  };
+  const putRecipe = (r: Recipe) => {
     setPure(false); setStyle(r.style as EnhanceStyle); setAmount(r.amount);
     setManual(r.manual as Partial<Record<ManualKey, number>>); setAspect(r.aspect as Aspect);
     setApplied(r);
@@ -1169,6 +1174,42 @@ export const FIT_TARGET = 10;
 export function pickAmount(changes: readonly number[], steps: readonly number[] = FIT_STEPS, target = FIT_TARGET): number {
   const i = changes.findIndex(c => c >= target);
   return steps[i < 0 ? Math.min(changes.length, steps.length) - 1 : i];
+}
+/** Partea din poză cu un canal la maxim (culori „arse”). */
+function clipShare(d: Uint8ClampedArray): number {
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] >= 254 || d[i + 1] >= 254 || d[i + 2] >= 254) n++;
+  return n / (d.length / 4);
+}
+/** Cât din poză e deja foarte colorată (saturație mare, nu întunecată). */
+function saturatedShare(d: Uint8ClampedArray): number {
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+    if (mx > 100 && (mx - mn) / mx > 0.7) n++;
+  }
+  return n / (d.length / 4);
+}
+/** Rețeta pe măsura pozei (vezi pickRecipeStep): măsurată pe miniatura de 96 px. */
+async function fitRecipe(src: string, base: EditAdjustments, r: Recipe): Promise<Recipe> {
+  const tiny = await tinySource(src);
+  const before = tiny.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, 96, 96).data;
+  const saturated = saturatedShare(before) > 0.08;
+  const clip0 = clipShare(before);
+  const c = document.createElement('canvas');
+  c.width = 96; c.height = 96;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  const results: { change: number; clip: number }[] = [];
+  for (const k of RECIPE_STEPS) {
+    const rk = scaleRecipe(r, k, saturated);
+    const e = withManual({ ...styledEdits(base, rk.style as EnhanceStyle, rk.amount), crop: undefined, rotationDeg: 0, bokeh: 0, bokehMask: undefined, heal: undefined }, rk.manual as Partial<Record<ManualKey, number>>);
+    drawAdjusted(ctx, tiny, 96, 96, 96, 96, e);
+    const after = ctx.getImageData(0, 0, 96, 96).data;
+    const res = { change: visibleChange(before, after), clip: Math.max(0, clipShare(after) - clip0) };
+    results.push(res);
+    if (res.change <= RECIPE_MAX_CHANGE_UI && res.clip <= RECIPE_MAX_CLIP_UI) break;
+  }
+  return scaleRecipe(r, pickRecipeStep(results), saturated);
 }
 async function fitAmount(src: string, base: EditAdjustments, style: EnhanceStyle = 'natural'): Promise<number> {
   // Măsurat pe stilul care chiar se aplică. „Vie” e deja tare: nu urcă peste 65%.

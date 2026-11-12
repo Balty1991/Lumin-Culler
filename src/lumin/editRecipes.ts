@@ -20,9 +20,10 @@ export interface Recipe {
 export const RECIPES: readonly Recipe[] = [
   // „Perfectă”: nu Natural cu două reglaje (raportat: „să nu aibă treabă cu Natural, să fie wow”).
   // Culori vii, lumină pe fețe, umbrele deschise, luminile ținute, detaliu și cadru pe subiect.
-  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.6, manual: { relight: 18, shadows: 12, highlights: -14, contrast: 8, saturation: 6, clarity: 10, sharpen: 14 }, aspect: 'ai' },
+  // Fără saturație și contrast în plus: pe pozele deja colorate ardeau roșul (raportat cu capturi).
+  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 16, shadows: 10, highlights: -12, clarity: 6, sharpen: 10 }, aspect: 'ai' },
   { key: 'insta', icon: '📸', style: 'vivid', amount: 0.6, manual: { sharpen: 10, clarity: 6 }, aspect: '4:5' },
-  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.55, manual: { shadows: 8, sharpen: 10 }, aspect: '4:5' },
+  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.45, manual: { shadows: 8, sharpen: 8 }, aspect: '4:5' },
   { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.7, manual: { contrast: 10, saturation: 10, clarity: 8, sharpen: 12 }, aspect: '9:16' },
   { key: 'story', icon: '📱', style: 'vivid', amount: 0.6, manual: { sharpen: 8 }, aspect: '9:16' },
   { key: 'sunset', icon: '🌅', style: 'warm', amount: 0.8, manual: { saturation: 8, highlights: -10 }, aspect: 'orig' },
@@ -46,4 +47,27 @@ export function resolveRecipe(r: Recipe, opts: { recommended?: RecipeStyle | nul
   // Lumina pe fețe, doar unde sunt fețe.
   const manual = opts.hasFace ? r.manual : Object.fromEntries(Object.entries(r.manual).filter(([k]) => k !== 'relight'));
   return { ...r, style, aspect, manual };
+}
+
+/** Treptele încercate pentru o rețetă pe o poză anume (din plin, apoi tot mai blând). */
+export const RECIPE_STEPS = [1, 0.75, 0.55, 0.4];
+/** Cât poate schimba o rețetă poza (diferența medie pe pixel) și cât din poză poate „arde”. */
+export const RECIPE_MAX_CHANGE = 16;
+export const RECIPE_MAX_CLIP = 0.015;
+
+/** Rețeta la intensitatea `k`: stilul și reglajele de mână, toate scalate. */
+export function scaleRecipe(r: Recipe, k: number, saturated: boolean): Recipe {
+  const manual: Record<string, number> = {};
+  for (const [key, v] of Object.entries(r.manual)) {
+    // Pe o poză deja foarte colorată, culoarea nu mai urcă.
+    if (saturated && (key === 'saturation' || key === 'contrast') && v > 0) continue;
+    manual[key] = Math.round(v * k);
+  }
+  return { ...r, amount: Math.round(r.amount * k * 100) / 100, manual };
+}
+
+/** Prima treaptă care rămâne sub ambele praguri; cea mai blândă dacă niciuna. */
+export function pickRecipeStep(results: readonly { change: number; clip: number }[], steps: readonly number[] = RECIPE_STEPS): number {
+  const i = results.findIndex(x => x.change <= RECIPE_MAX_CHANGE && x.clip <= RECIPE_MAX_CLIP);
+  return steps[i < 0 ? Math.min(results.length, steps.length) - 1 : i];
 }
