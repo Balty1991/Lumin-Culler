@@ -108,9 +108,21 @@ export async function downloadAllEngines(): Promise<boolean> {
   while (state.busy) await new Promise(r => setTimeout(r, 400));
   const locale = (await import('../state/store')).useStore.getState().locale;
   const weak = await weakDevice();
-  for (const e of enginesFor(locale)) {
-    if (engineReady(e) || engineSkipped(e.id, weak)) continue;
-    await downloadEngine(e.id);
+  const list = enginesFor(locale).filter(e => !engineReady(e) && !engineSkipped(e.id, weak));
+  // Cu ecranul stins, Android îngheța aplicația și descărcarea stătea (raportat: „am blocat
+  // ecranul și nu mai mergea”). Serviciul de fundal (cu notificare) o ține vie până la capăt.
+  const bg = await import('../core/backgroundAnalysis');
+  const { t } = await import('../i18n');
+  const all = enginesFor(locale).length;
+  const text = () => t(locale, 'lx.enginesWait.title', { done: enginesFor(locale).filter(e => engineReady(e)).length, total: all });
+  if (list.length) await bg.holdBackgroundAnalysis(all, text());
+  try {
+    for (const e of list) {
+      await downloadEngine(e.id);
+      if (list.length) void bg.updateHeldBackground(enginesFor(locale).filter(e => engineReady(e)).length, all, text());
+    }
+  } finally {
+    if (list.length) await bg.releaseBackgroundAnalysis();
   }
   const ready = await enginesReadyForGallery();
   if (ready) notifyEnginesReady();
@@ -130,11 +142,22 @@ export async function autoFetchEngines(): Promise<boolean> {
   // Pe telefoanele slabe, descrierea și Guma HD nu rulează oricum: nu le descărcăm singure.
   const weak = await weakDevice();
   const locale = (await import('../state/store')).useStore.getState().locale;
-  for (const e of enginesFor(locale)) {
-    if (engineReady(e) || engineSkipped(e.id, weak)) continue;
-    // „Doar pe Wi-Fi”: pe date mobile, descărcarea automată așteaptă (butoanele din Setări merg oricum).
-    if (!(await syncDownloadGate())) { autoDone = false; return got; }
-    if ((await downloadEngine(e.id)) || (await downloadEngine(e.id))) got = true; // o reîncercare
+  const todo = enginesFor(locale).filter(e => !engineReady(e) && !engineSkipped(e.id, weak));
+  // Și cu ecranul stins: serviciul de fundal ține aplicația vie cât descarcă (vezi downloadAllEngines).
+  const bg = await import('../core/backgroundAnalysis');
+  const { t } = await import('../i18n');
+  const all = enginesFor(locale).length;
+  const text = () => t(locale, 'lx.enginesWait.title', { done: enginesFor(locale).filter(e => engineReady(e)).length, total: all });
+  if (todo.length) await bg.holdBackgroundAnalysis(all, text());
+  try {
+    for (const e of todo) {
+      // „Doar pe Wi-Fi”: pe date mobile, descărcarea automată așteaptă (butoanele din Setări merg oricum).
+      if (!(await syncDownloadGate())) { autoDone = false; return got; }
+      if ((await downloadEngine(e.id)) || (await downloadEngine(e.id))) got = true; // o reîncercare
+      void bg.updateHeldBackground(enginesFor(locale).filter(x => engineReady(x)).length, all, text());
+    }
+  } finally {
+    if (todo.length) await bg.releaseBackgroundAnalysis();
   }
   if (await enginesReadyForGallery()) notifyEnginesReady();
   return got;
