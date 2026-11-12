@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { appCaption } from './shareCards';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
 import { useTr } from './context';
@@ -98,7 +99,7 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
     try {
       const title = tr('lx.family.favTitle', { name });
       const blob = await makeCollage(ids.slice(0, 9), title, '');
-      if (blob) await shareCollage(blob, `cherrypic-preferatele-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, title);
+      if (blob) await shareCollage(blob, `cherrypic-preferatele-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, appCaption(title, tr('lx.share.cta')));
     } finally { setBusy(false); }
   };
   const share = async () => {
@@ -107,7 +108,7 @@ export function FamilyPickSheet({ onClose }: { onClose: () => void }) {
     try {
       const title = tr('lx.family.favTitle', { name: who ?? '' });
       const blob = await makeCollage(liked.slice(0, 9).map(p => p.id), title, '');
-      if (blob) await shareCollage(blob, `cherrypic-preferatele-${(who ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, title);
+      if (blob) await shareCollage(blob, `cherrypic-preferatele-${(who ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, appCaption(title, tr('lx.share.cta')));
     } finally { setBusy(false); }
   };
 

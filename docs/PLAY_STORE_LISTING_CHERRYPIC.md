@@ -54,7 +54,12 @@ Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeri
 • Fundal alb pentru Vinted/OLX și Claritate pentru pozele mici sau mișcate
 • Stiluri gratuite: Natural, Vie, Caldă — sau pornești de la original și reglezi tu
 • Cu Pro: Portret (fundal estompat), Clară, Film, Alb-negru, Dramatică
-• Film scurt pentru story din pozele zilei
+• Perfectă, Instagram, Facebook, TikTok: rețete dintr-o atingere, fără să strice culorile
+
+★ REEL ȘI TIKTOK DIN POZELE TALE
+• Reel/TikTok 9:16 gata de postat: AI-ul alege cele mai bune poze, sau le alegi tu
+• 8 melodii gratuite, fără drepturi de autor: calmă, veselă, petrecere, vară, copii, romantică, lo-fi, cinematică
+• Colaje în 3 modele (grilă, polaroid), le vezi mari, le salvezi sau le trimiți
 
 ★ AMINTIRI ȘI FAMILIE
 • Acum un an, în ziua asta: amintirile te găsesc singure
@@ -116,6 +121,12 @@ Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, pi
 • Free styles: Natural, Vivid, Warm — or start from the original and adjust yourself
 • With Pro: Portrait (background blur), Clear, Film, B&W, Dramatic
 • Short story video from the day's photos
+• Perfect, Instagram, Facebook, TikTok: one-tap recipes that never wreck the colors
+
+★ REELS AND TIKTOKS FROM YOUR PHOTOS
+• Ready-to-post 9:16 Reel/TikTok: the AI picks the best shots, or you pick them
+• 8 free, royalty-free tracks: calm, happy, party, summer, kids, romantic, lo-fi, cinematic
+• Collages in 3 layouts (grid, polaroid): preview big, save or send
 
 ★ MEMORIES AND FAMILY
 • One year ago, on this day: your memories find you

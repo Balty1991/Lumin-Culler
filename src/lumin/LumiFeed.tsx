@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { appCaption } from './shareCards';
 import { countLessons } from './trainingGate';
 import { useLxPhotos } from './useLxPhotos';
 import { formatBytes } from '../core/freedSpace';
@@ -215,7 +216,7 @@ export function LumiFeed() {
         run: async () => {
           const title = tr('lx.birthday.collageTitle', { name });
           const blob = await makeCollage(pick.map(p => p.id), title, tr('lx.birthday.collageSub'));
-          if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, title);
+          if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`, appCaption(title, tr('lx.share.cta')));
         }
       });
     }

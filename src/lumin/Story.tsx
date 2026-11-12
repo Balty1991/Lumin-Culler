@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { appCaption } from './shareCards';
 import { createPortal } from 'react-dom';
 import { isRecapVideoSupported } from '../core/recapVideoRender';
 import { useStore } from '../state/store';
@@ -97,7 +98,7 @@ function StoryPreview({ ids, title, subtitle, onClose }: { ids: string[]; title:
           ) : (
             <>
               <button className="lx-btn ghost" disabled={phase === 'replay' || busy} onClick={() => void replay()}>↻ {tr('lx.story.again')}</button>
-              <button className="lx-btn ghost" disabled={!film || busy} onClick={() => film && void shareFilm(film.blob, film.ext, base, title)}>↗ {tr('lx.wall.share')}</button>
+              <button className="lx-btn ghost" disabled={!film || busy} onClick={() => film && void shareFilm(film.blob, film.ext, base, appCaption(title, tr('lx.share.cta')))}>↗ {tr('lx.wall.share')}</button>
               <button className="lx-btn primary" disabled={!film || busy} onClick={() => void save()}>{tr('lx.burstFilm.save')}</button>
             </>
           )}

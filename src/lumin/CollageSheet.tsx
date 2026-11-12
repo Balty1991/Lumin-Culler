@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { appCaption } from './shareCards';
 import { createPortal } from 'react-dom';
 import type { PhotoView } from '../state/store';
 import { makeLayoutCollage, shareCollage, type CollageLayout } from './collage';
@@ -52,7 +53,7 @@ export function CollageSheet({ photos, title, subtitle, onClose }: { photos: Pho
     try {
       const blob = await make(m);
       if (!blob) return;
-      await shareCollage(blob, `cherrypic-colaj-${Date.now()}.jpg`, title);
+      await shareCollage(blob, `cherrypic-colaj-${Date.now()}.jpg`, appCaption(title, tr('lx.share.cta')));
       void learnFromShare(best.slice(0, m.count));
     } finally { setBusy(false); }
   };

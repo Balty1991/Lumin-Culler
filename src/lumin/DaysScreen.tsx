@@ -1,4 +1,5 @@
 import { ConnectionsButton } from './Connections';
+import { appCaption } from './shareCards';
 import { GrowthButton } from './GrowthButton';
 import { LookalikeSheet } from './Lookalike';
 import { FirstsSheet } from './Moments';
@@ -285,7 +286,7 @@ function PersonTimeButtons({ name, list }: { name: string; list: PhotoView[] }) 
     try {
       const thenLabel = yearAgo.length ? tr('lx.pair.yearAgo') : String(new Date(then.capturedAt!).getFullYear());
       const blob = await makeLayoutCollage([then.id, now.id], 'pair', name, tr('lx.pair.sub'), [thenLabel, tr('lx.pair.now')]);
-      if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-atunci-azi.jpg`, name);
+      if (blob) await shareCollage(blob, `cherrypic-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-atunci-azi.jpg`, appCaption(name, tr('lx.share.cta')));
     } finally { setBusy(false); }
   };
   const journal = async () => {

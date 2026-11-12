@@ -14,7 +14,15 @@ export const STORY_H = 1920;
 export const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.luminculler.app';
 
 export function shareCaption(line: string, cta: string): string {
-  return `${line}\n${cta}\n${PLAY_URL}`;
+  return [line, cta, PLAY_URL].filter(Boolean).join('\n');
+}
+
+/**
+ * Textul care însoțește un colaj sau un film trimis: pentru contul gratuit, cu linkul
+ * aplicației dedesubt (cine îl primește pe WhatsApp află de unde vine); Pro, doar titlul.
+ */
+export function appCaption(line: string, cta: string): string {
+  return isPremium() ? line : shareCaption(line, cta);
 }
 
 function canvas(w: number, h: number): { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {

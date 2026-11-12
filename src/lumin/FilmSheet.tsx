@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { appCaption } from './shareCards';
 import type { BurstFilm } from './burstFilm';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
@@ -52,7 +53,7 @@ export function FilmSheet({ film, onClose }: { film: BurstFilm; onClose: () => v
       </div>
       <div className="lx-viewer-info">
         <div className="lx-decide-actions">
-          <button className="lx-btn ghost" disabled={busy} onClick={() => void shareCollage(film.blob, name, '')}>↗ {tr('lx.wall.share')}</button>
+          <button className="lx-btn ghost" disabled={busy} onClick={() => void shareCollage(film.blob, name, appCaption('', tr('lx.share.cta')))}>↗ {tr('lx.wall.share')}</button>
           <button className="lx-btn primary" disabled={busy} onClick={() => void save()}>{tr('lx.burstFilm.save')}</button>
         </div>
       </div>
