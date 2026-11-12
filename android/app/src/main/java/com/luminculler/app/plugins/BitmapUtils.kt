@@ -342,7 +342,7 @@ fun sharpPreview(context: Context, uri: Uri, longSide: Int): Bitmap? {
                 val w = info.size.width
                 val h = info.size.height
                 val scale = kotlin.math.min(1f, longSide.toFloat() / kotlin.math.max(w, h))
-                decoder.setTargetSize(kotlin.math.max(1, kotlin.math.round(w * scale)), kotlin.math.max(1, kotlin.math.round(h * scale)))
+                decoder.setTargetSize(kotlin.math.max(1, (w * scale).toInt()), kotlin.math.max(1, (h * scale).toInt()))
                 decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
             }
         }.getOrNull()?.let { return it }
