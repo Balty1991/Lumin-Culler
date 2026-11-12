@@ -52,17 +52,14 @@ export function Assistant({ onClose }: { onClose: () => void }) {
     const reply = answer(clean, photos);
     setMsgs(m => [...m, { id: a, me: clean }, { id: b, reply }]);
     setText('');
-    // Cuvintele au găsit puțin sau nimic: caută și după ce se vede în poze (motorul vizual,
-    // tot pe telefon) și adaugă ce lipsea. Raportat: „poze cu pisici” întorcea o singură poză.
-    const few = reply.kind === 'none' || (reply.kind === 'results' && reply.photos.length < 6);
-    if (few) {
-      const visualQuery = reply.kind === 'results' ? reply.query : clean;
-      void clipSearch(visualQuery).then(ids => {
+    // Doar când cuvintele n-au găsit nimic, caută după ce se vede în poze (motorul vizual, tot
+    // pe telefon). Completarea rezultatelor existente amesteca subiectele (raportat cu captură:
+    // la „pisici” apăreau câini, capturi de ecran și o fetiță).
+    if (reply.kind === 'none') {
+      void clipSearch(clean).then(ids => {
         const byId = new Map(photos.map(p => [p.id, p]));
-        const had = reply.kind === 'results' ? reply.photos : [];
-        const have = new Set(had.map(p => p.id));
-        const extra = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside && !have.has(p.id)).slice(0, 30);
-        if (extra.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: visualQuery, photos: [...had, ...extra], best: reply.kind === 'results' && reply.best } } : x));
+        const found = ids.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p && !p.aside).slice(0, 30);
+        if (found.length) setMsgs(m => m.map(x => x.id === b ? { id: b, reply: { kind: 'results', query: clean, photos: found, best: false } } : x));
       }).catch(() => undefined);
     }
   };

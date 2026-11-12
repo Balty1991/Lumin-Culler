@@ -36,9 +36,10 @@ const SYNONYMS: Record<string, string[]> = {
   mancare: ['food', 'dish', 'meal', 'cuisine', 'pizza', 'cake'],
   tort: ['cake', 'dessert'],
   masina: ['car', 'vehicle'],
-  caine: ['dog', 'pet'],
-  pisica: ['cat', 'pet'],
-  animal: ['dog', 'cat', 'pet', 'bird', 'horse'],
+  // Fără „pet”: aducea și pisicile la câini și invers (raportat cu captură).
+  caine: ['dog', 'puppy'],
+  pisica: ['cat', 'kitten'],
+  animal: ['dog', 'cat', 'pet', 'bird', 'horse', 'kitten', 'puppy'],
   bon: ['receipt', 'paper', 'text', 'document'],
   document: ['document', 'paper', 'text', 'receipt'],
   acte: ['document', 'paper', 'text'],

@@ -57,3 +57,12 @@ describe('căutarea după ce se vede', () => {
     expect(searchPhotos([cat, bon], 'whiskas').map(x => x.id)).toEqual(['bon']);
   });
 });
+
+describe('pisicile nu aduc câinii', () => {
+  it('„pisici” nu găsește un câine etichetat și „pet”', () => {
+    const dog = p('caine', { sceneTags: ['dog', 'pet'], capturedAt: Date.UTC(2026, 4, 1) });
+    const cat = p('pisica', { sceneTags: ['cat', 'pet'], capturedAt: Date.UTC(2026, 4, 2) });
+    expect(searchPhotos([dog, cat], 'pisici').map(x => x.id)).toEqual(['pisica']);
+    expect(searchPhotos([dog, cat], 'caini').map(x => x.id)).toEqual(['caine']);
+  });
+});
