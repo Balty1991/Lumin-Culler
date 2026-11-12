@@ -25,3 +25,13 @@ describe('jurnalul blocajelor', () => {
     expect(jankSummary()).toMatch(/decodare[^|]*: 1x, total 600 ms/);
   });
 });
+
+describe('detaliul din Long Animation Frames', () => {
+  it('scrie scripturile cele mai lungi și desenul', async () => {
+    const { loafDetail } = await import('./jankLog');
+    const d = loafDetail({ startTime: 0, duration: 900, renderStart: 700, styleAndLayoutStart: 750,
+      scripts: [{ duration: 600, invoker: 'IDBRequest.onsuccess', sourceFunctionName: 'put', sourceURL: 'https://x/assets/db-AbC123xy.js' }] } as never);
+    expect(d).toContain('IDBRequest.onsuccess→put@db.js 600ms');
+    expect(d).toContain('desen 200ms');
+  });
+});

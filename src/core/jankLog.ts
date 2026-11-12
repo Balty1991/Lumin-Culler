@@ -55,13 +55,13 @@ export async function jankSpan<T>(label: string, fn: () => Promise<T>): Promise<
   try { return await fn(); } finally { done(); }
 }
 
-export function recordJank(ms: number, now = Date.now(), startedAt?: number): void {
+export function recordJank(ms: number, now = Date.now(), startedAt?: number, detail?: string): void {
   if (ms < MIN_MS) return;
   const list = load();
   const doing = startedAt !== undefined
     ? overlapping(startedAt, ms)
     : [...new Set([...active.values()].map(a => a.label))].join('+') || '-';
-  list.push({ at: now, ms: Math.round(ms), doing });
+  list.push({ at: now, ms: Math.round(ms), doing: detail ? `${doing} [${detail}]` : doing });
   if (list.length > MAX) list.splice(0, list.length - MAX);
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* fără stocare */ }
 }
@@ -69,8 +69,23 @@ export function recordJank(ms: number, now = Date.now(), startedAt?: number): vo
 export function startJankLog(): void {
   if (started || typeof PerformanceObserver === 'undefined') return;
   started = true;
+  // Cât aplicația stă în fundal, „blocajul” e doar timpul cât a fost înghețată de Android
+  // (raportul din 12 nov.: „max 67948 ms”) — nu se numără.
+  const hidden = () => typeof document !== 'undefined' && document.visibilityState !== 'visible';
+  // Long Animation Frames (Chrome 123+): cine a rulat în cadrul blocat — funcția, fișierul,
+  // cine a chemat-o (timer, promisiune, eveniment) — și cât a ținut desenarea. Fără el,
+  // blocajele se puteau doar lega de pașii care rulau atunci.
   try {
-    new PerformanceObserver(l => { for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime); }).observe({ entryTypes: ['longtask'] });
+    if ((PerformanceObserver.supportedEntryTypes ?? []).includes('long-animation-frame')) {
+      new PerformanceObserver(l => {
+        if (hidden()) return;
+        for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime, loafDetail(e as LoafEntry));
+      }).observe({ type: 'long-animation-frame', buffered: false });
+      return;
+    }
+  } catch { /* cade pe „longtask” */ }
+  try {
+    new PerformanceObserver(l => { if (hidden()) return; for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime); }).observe({ entryTypes: ['longtask'] });
   } catch { /* WebView fără „longtask”: fără jurnal */ }
 }
 
@@ -78,14 +93,43 @@ export function startJankLog(): void {
 export function jankSummary(list: readonly JankEntry[] = load()): string {
   if (!list.length) return 'niciun blocaj peste 200 ms';
   const by = new Map<string, { n: number; total: number; max: number }>();
-  for (const e of list) { const b = by.get(e.doing) ?? { n: 0, total: 0, max: 0 }; b.n++; b.total += e.ms; b.max = Math.max(b.max, e.ms); by.set(e.doing, b); }
+  for (const e of list) { const k = e.doing.replace(/ \[.*\]$/, ''); const b = by.get(k) ?? { n: 0, total: 0, max: 0 }; b.n++; b.total += e.ms; b.max = Math.max(b.max, e.ms); by.set(k, b); }
+  // Cine a rulat în blocaje (Long Animation Frames): funcțiile cele mai des întâlnite.
+  const who = new Map<string, { n: number; total: number }>();
+  for (const e of list) {
+    const m = e.doing.match(/\[(.*)\]$/);
+    if (!m) continue;
+    for (const part of m[1].split('; ')) {
+      const k = part.replace(/ \d+ms.*$/, '').replace(/^desen.*/, 'desen');
+      const ms = Number(part.match(/(\d+)ms/)?.[1] ?? 0);
+      const w = who.get(k) ?? { n: 0, total: 0 }; w.n++; w.total += ms; who.set(k, w);
+    }
+  }
+  const whoText = [...who.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 8).map(([k, v]) => `${k}: ${v.n}x ${v.total}ms`).join(' | ');
   const top = [...by.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 10)
     .map(([k, v]) => `${k}: ${v.n}x, total ${v.total} ms, max ${v.max} ms`).join(' | ');
   const last = list.slice(-12).map(e => `${new Date(e.at).toISOString().slice(11, 19)} ${e.ms}ms ${e.doing}`).join(' ; ');
-  return `${top} || ultimele: ${last}`;
+  return `${top}${whoText ? ` || cine: ${whoText}` : ''} || ultimele: ${last}`;
 }
 
 export function clearJankLog(): void {
   entries = [];
   try { localStorage.removeItem(KEY); } catch { /* fără stocare */ }
+}
+
+interface LoafScript { duration: number; invoker?: string; invokerType?: string; sourceURL?: string; sourceFunctionName?: string; forcedStyleAndLayoutDuration?: number }
+interface LoafEntry extends PerformanceEntry { renderStart?: number; styleAndLayoutStart?: number; blockingDuration?: number; scripts?: LoafScript[] }
+
+/** „2 scripturi cele mai lungi + cât a ținut desenarea”, scurt, pentru raport. */
+export function loafDetail(e: LoafEntry): string {
+  const file = (u?: string) => (u ?? '').split('?')[0].split('/').pop()?.replace(/-[A-Za-z0-9_]{6,}\.js$/, '.js') || '?';
+  const scripts = [...(e.scripts ?? [])].sort((a, b) => b.duration - a.duration).slice(0, 2)
+    .map(sc => `${sc.invoker || sc.invokerType || '?'}→${sc.sourceFunctionName || '?'}@${file(sc.sourceURL)} ${Math.round(sc.duration)}ms${sc.forcedStyleAndLayoutDuration && sc.forcedStyleAndLayoutDuration > 20 ? ` (layout forțat ${Math.round(sc.forcedStyleAndLayoutDuration)}ms)` : ''}`);
+  const end = e.startTime + e.duration;
+  const render = e.renderStart ? Math.round(end - e.renderStart) : 0;
+  const layout = e.styleAndLayoutStart ? Math.round(end - e.styleAndLayoutStart) : 0;
+  const parts = [...scripts];
+  if (render > 30) parts.push(`desen ${render}ms` + (layout > 30 ? ` (stil+layout ${layout}ms)` : ''));
+  if (!scripts.length && !render) parts.push('fără script (GC/sistem)');
+  return parts.join('; ');
 }

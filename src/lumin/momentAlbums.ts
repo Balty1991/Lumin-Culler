@@ -112,6 +112,13 @@ export function orthodoxEaster(year: number): Date {
   return new Date(year, month - 1, day + 13);
 }
 
+const formats = new Map<boolean, Intl.DateTimeFormat>();
+function dateFormat(ro: boolean): Intl.DateTimeFormat {
+  let f = formats.get(ro);
+  if (!f) { f = new Intl.DateTimeFormat(ro ? 'ro-RO' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); formats.set(ro, f); }
+  return f;
+}
+
 const BIRTHDAY_TAGS = new Set(['birthday', 'cake', 'candle', 'balloon', 'gift', 'confetti']);
 const PARTY_TAGS = new Set(['party', 'wedding', 'celebration', 'ceremony', 'festival', 'fireworks']);
 const TRIP_TAGS = new Set(['beach', 'sea', 'ocean', 'mountain', 'travel', 'holiday', 'pool', 'lake', 'hotel', 'airport', 'island', 'snow']);
@@ -165,7 +172,11 @@ export function buildEvents<P extends AlbumPhoto>(photos: readonly P[], locale: 
     if (used.has(d) || list.length < 4) continue;
     const bday = list.filter(p => p.sceneTags?.some(t => BIRTHDAY_TAGS.has(t.toLowerCase()))).length;
     const party = list.filter(p => p.sceneTags?.some(t => PARTY_TAGS.has(t.toLowerCase()))).length;
-    const date = new Date(d).toLocaleDateString(ro ? 'ro-RO' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (bday < 2 && party < 2) continue;
+    // Data scrisă doar pentru zilele care chiar devin album: formatarea pentru fiecare zi,
+    // la fiecare lot de poze citite, era cel mai scump pas din recalcularea ecranelor
+    // (profilul din 12 nov.: ~70% din timp, pe o galerie de 1500 de poze).
+    const date = dateFormat(ro).format(new Date(d));
     if (bday >= 2) {
       const who = topName(list);
       used.add(d);

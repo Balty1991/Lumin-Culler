@@ -56,7 +56,9 @@ export function TasteQuiz() {
   const analysing = !!progress && progress.phase !== 'finalizat';
   // Doar amintiri: fără bonuri, documente, capturi (raportat: testul întreba
   // „care bon păstrezi?”). Întâi pozele în care AI-ul a recunoscut ceva.
-  const candidates = useMemo(() => {
+  // Calculat doar la deschidere, nu la fiecare lot de poze citite: recalcularea perechilor
+  // costa la fiecare lot, cât antrenamentul stătea închis (profilul din 12 nov.).
+  const makeCandidates = () => {
     const all = photos.map(p => {
       const kind = classifyPhoto({
         id: p.id, fileName: p.fileName, faceCount: p.faceCount,
@@ -72,10 +74,10 @@ export function TasteQuiz() {
     });
     const strict = all.filter(c => c.recognized);
     return buildTastePairs(strict).length >= 6 ? strict : all;
-  }, [photos]);
+  };
 
   const start = () => {
-    const next = buildTastePairs(candidates);
+    const next = buildTastePairs(makeCandidates());
     // Prea puține poze pentru perechi: spunem ce lipsește, nu rămâne butonul mut (raportat).
     if (!next.length) { useStore.getState().setNotice(t(locale, 'quiz.needMore')); return; }
     setFirstRun(!readTasteQuizDone());
