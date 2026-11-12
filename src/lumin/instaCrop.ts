@@ -60,11 +60,11 @@ export function frameCrop(width: number, height: number, ratio: number, faces?: 
 /**
  * „Încadrare AI”: aceeași proporție ca poza (raportat: „sare numai la 1:1”), doar
  * strânsă pe subiect. Cu fețe, cadrul se apropie până când grupul de fețe ocupă cam
- * jumătate din lățime (între 72% și 92% din poză); fără fețe, o strângere ușoară.
+ * jumătate din lățime (între 72% și 92% din poză); fără fețe, 88% din poză, centrat.
  */
 export function aiCrop(width: number, height: number, faces?: readonly { box: Box }[]): CropRect {
   const boxes = (faces ?? []).map(f => f.box).filter(b => b[2] > 0 && b[3] > 0);
-  let scale = 0.92;
+  let scale = 0.88;
   if (boxes.length) {
     const gw = Math.max(...boxes.map(b => b[0] + b[2])) - Math.min(...boxes.map(b => b[0]));
     const gh = Math.max(...boxes.map(b => b[1] + b[3])) - Math.min(...boxes.map(b => b[1]));

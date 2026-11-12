@@ -206,7 +206,7 @@ export function SettingsScreen() {
         <span className="lx-chev" aria-hidden="true">›</span>
       </button>
 
-      <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__}</p>
+      <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__} · {__BUILD_ID__}</p>
     </div>
   );
 }
@@ -238,6 +238,7 @@ async function sendReport(): Promise<void> {
   const s = useStore.getState();
   const text = buildErrorReport({
     versiune: __APP_VERSION__,
+    build: __BUILD_ID__,
     poze: s.photos.length,
     persoane: s.persons.length,
     limba: s.locale,

@@ -964,7 +964,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
-                  <button role="radio" aria-checked={aspect === 'ai'} className={aspect === 'ai' ? 'lx-chip-btn on' : 'lx-chip-btn'} disabled={!geo} onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
+                  <button role="radio" aria-checked={aspect === 'ai'} className={aspect === 'ai' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
                   {(Object.keys(ASPECTS) as Exclude<Aspect, 'ai'>[]).map(a => (
                     <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
                       {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
