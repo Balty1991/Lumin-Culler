@@ -53,8 +53,18 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
     void (async () => {
       if (kind !== 'retouch') {
         // Pe telefon, gratuit: claritate (Real-ESRGAN) sau decupaj pe fundal alb (U²-Net).
+        if (kind === 'clarity') {
+          // Direct din galerie: fără copie mică, fără drum dus-întors ca text.
+          const uri = await originalUri(photo.id).catch(() => null);
+          if (uri) {
+            setState('work');
+            const out = await clarityOnDevice(null, 2048, uri);
+            if (!alive) return;
+            if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
+          }
+        }
         if (!srcBlob.current) {
-          const url = (canSharpen() ? await sharpUrl(photo.id, kind === 'clarity' ? 1024 : 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(photo.id);
+          const url = (canSharpen() ? await sharpUrl(photo.id, kind === 'clarity' ? 2048 : 1600).catch(() => null) : null) ?? await getCachedPreviewUrl(photo.id);
           srcBlob.current = url ? await fetch(url).then(x => x.blob()).catch(() => null) : null;
         }
         const src = srcBlob.current;

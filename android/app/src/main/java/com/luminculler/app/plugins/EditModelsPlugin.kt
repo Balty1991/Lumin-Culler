@@ -52,6 +52,9 @@ private const val MODELS_URL = "https://balty1991.github.io/Lumin-Culler/models"
 @CapacitorPlugin(name = "EditModels")
 class EditModelsPlugin : Plugin() {
     private val executor = pluginExecutor("EditModels")
+    /** Sub atâtea px pe latura mare poza e „mică” și primește Real-ESRGAN. */
+    private val SMALL_PHOTO = 1200
+    private val ESRGAN_MIX = 0.6f
     /** Descărcarea mare stă pe firul ei, ca guma să meargă între timp. */
     private val downloader = pluginExecutor("EditModels-dl")
     private var ortEnv: ai.onnxruntime.OrtEnvironment? = null
@@ -338,60 +341,145 @@ class EditModelsPlugin : Plugin() {
     @PluginMethod
     fun clarity(call: PluginCall) {
         val img64 = call.getString("imageBase64")
-        if (img64.isNullOrEmpty()) { call.reject("imageBase64 is required"); return }
+        val uri = call.getString("imageUri")
+        if (img64.isNullOrEmpty() && uri.isNullOrEmpty()) { call.reject("imageBase64 or imageUri is required"); return }
         val inSide = (call.getInt("inSide") ?: 640).coerceIn(128, 900)
         val outSide = (call.getInt("outSide") ?: 2048).coerceIn(256, 3200)
         executor.ruleaza(call, "Clarity failed") {
-            val full = decode(img64)
-            val k = min(1f, inSide.toFloat() / max(full.width, full.height))
-            val w = max(16, (full.width * k).toInt()); val h = max(16, (full.height * k).toInt())
-            val src = Bitmap.createScaledBitmap(full, w, h, true)
-            val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
-            val ow = w * 4; val oh = h * 4
-            val outPx = IntArray(ow * oh)
-            val T = 128; val PAD = 8; val core = T - 2 * PAD
-            val input = ByteBuffer.allocateDirect(4 * T * T * 3).order(ByteOrder.nativeOrder())
-            val output = ByteBuffer.allocateDirect(4 * 3 * 512 * 512).order(ByteOrder.nativeOrder())
-            val fi = input.asFloatBuffer()
-            esrgan.use { model ->
-                var ty = 0
-                while (ty < h) {
-                    var tx = 0
-                    while (tx < w) {
-                        val x0 = tx - PAD; val y0 = ty - PAD
-                        for (yy in 0 until T) for (xx in 0 until T) {
-                            val sx = (x0 + xx).coerceIn(0, w - 1); val sy = (y0 + yy).coerceIn(0, h - 1)
-                            val p = sp[sy * w + sx]; val o = (yy * T + xx) * 3
-                            fi.put(o, ((p shr 16) and 0xFF) / 255f); fi.put(o + 1, ((p shr 8) and 0xFF) / 255f); fi.put(o + 2, (p and 0xFF) / 255f)
-                        }
-                        output.rewind()
-                        model.run(input, output)
-                        output.rewind()
-                        val fo = output.asFloatBuffer()
-                        val plane = 512 * 512
-                        for (yy in PAD * 4 until (PAD + core) * 4) {
-                            val oy = (ty - PAD) * 4 + yy; if (oy < 0 || oy >= oh) continue
-                            for (xx in PAD * 4 until (PAD + core) * 4) {
-                                val ox = (tx - PAD) * 4 + xx; if (ox < 0 || ox >= ow) continue
-                                val i = yy * 512 + xx
-                                val r = (fo.get(i).coerceIn(0f, 1f) * 255f).toInt()
-                                val g = (fo.get(plane + i).coerceIn(0f, 1f) * 255f).toInt()
-                                val b = (fo.get(2 * plane + i).coerceIn(0f, 1f) * 255f).toInt()
-                                outPx[oy * ow + ox] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-                            }
-                        }
-                        tx += core
-                    }
-                    ty += core
-                }
-            }
-            val big = Bitmap.createBitmap(outPx, ow, oh, Bitmap.Config.ARGB_8888)
-            val f = min(1f, outSide.toFloat() / max(ow, oh))
-            val result = if (f < 1f) Bitmap.createScaledBitmap(big, (ow * f).toInt(), (oh * f).toInt(), true) else big
+            // Originalul direct din galerie, nu o copie mică trimisă ca text.
+            if (!uri.isNullOrEmpty() && call.getInt("maxSide") == null) call.data.put("maxSide", outSide)
+            val full = if (!uri.isNullOrEmpty()) (resolveInputBitmap(context, call) ?: return@ruleaza) else decode(img64!!)
+            // Raportat: „prea glow, fața și dinții par sparți”. Real-ESRGAN pe o copie de
+            // 640 px inventa detaliul (piele de ceară, dinți rupți) și dura câteva secunde.
+            // O poză de telefon are deja detaliul: îl scoatem la iveală, nu-l inventăm.
+            // Modelul rămâne doar pentru pozele mici (WhatsApp, capturi vechi).
+            val big = max(full.width, full.height)
+            val result = if (big >= SMALL_PHOTO) detailClarity(full, outSide) else esrganClarity(full, inSide, outSide)
             val o = JSObject()
             o.put("imageBase64", encode(result))
             call.resolve(o)
         }
+    }
+
+    /** Claritate fidelă: detaliul fin (cu prag peste zgomot) + contrast local în tonurile medii. */
+    private fun detailClarity(src: Bitmap, outSide: Int): Bitmap {
+        val k = min(1f, outSide.toFloat() / max(src.width, src.height))
+        val b = if (k < 1f) Bitmap.createScaledBitmap(src, max(1, (src.width * k).toInt()), max(1, (src.height * k).toInt()), true) else src
+        val w = b.width; val h = b.height; val n = w * h
+        val px = IntArray(n); b.getPixels(px, 0, w, 0, 0, w, h)
+        val y = FloatArray(n)
+        for (i in 0 until n) {
+            val p = px[i]
+            y[i] = 0.299f * ((p shr 16) and 0xFF) + 0.587f * ((p shr 8) and 0xFF) + 0.114f * (p and 0xFF)
+        }
+        val side = max(w, h)
+        val fine = boxBlur(y, w, h, max(1, side / 700))
+        val wide = boxBlur(y, w, h, max(4, side / 50))
+        for (i in 0 until n) {
+            val yi = y[i]
+            val d = yi - fine[i]
+            // Sub ~1,5 nivele e zgomot de senzor: nu-l ascuțim.
+            val gate = ((kotlin.math.abs(d) - 1.5f) / 3f).coerceIn(0f, 1f)
+            val dFine = (d * gate * 0.9f).coerceIn(-12f, 12f)
+            // Contrast local doar în tonurile medii: luminile și umbrele rămân curate (fără „glow”).
+            val t = (yi - 128f) / 128f
+            val dWide = (yi - wide[i]).coerceIn(-30f, 30f) * 0.18f * (1f - t * t)
+            val dy = dFine + dWide
+            val p = px[i]
+            val r = (((p shr 16) and 0xFF) + dy).toInt().coerceIn(0, 255)
+            val g = (((p shr 8) and 0xFF) + dy).toInt().coerceIn(0, 255)
+            val bl = ((p and 0xFF) + dy).toInt().coerceIn(0, 255)
+            px[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+        }
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /** Estompare cutie în două treceri pe fiecare axă (aproape gaussiană), O(n). */
+    private fun boxBlur(src: FloatArray, w: Int, h: Int, r: Int): FloatArray {
+        var a = src.copyOf(); var tmp = FloatArray(src.size)
+        repeat(2) {
+            boxPass(a, tmp, w, h, r, true); boxPass(tmp, a, w, h, r, false)
+        }
+        return a
+    }
+
+    private fun boxPass(inp: FloatArray, out: FloatArray, w: Int, h: Int, r: Int, horizontal: Boolean) {
+        val len = if (horizontal) w else h
+        val lines = if (horizontal) h else w
+        val step = if (horizontal) 1 else w
+        val inv = 1f / (2 * r + 1)
+        for (l in 0 until lines) {
+            val base = if (horizontal) l * w else l
+            var sum = 0f
+            for (j in -r..r) sum += inp[base + j.coerceIn(0, len - 1) * step]
+            for (i in 0 until len) {
+                out[base + i * step] = sum * inv
+                val add = (i + r + 1).coerceAtMost(len - 1)
+                val sub = (i - r).coerceAtLeast(0)
+                sum += inp[base + add * step] - inp[base + sub * step]
+            }
+        }
+    }
+
+    /** Poze mici: Real-ESRGAN ×4, amestecat cu mărirea clasică ca să nu inventeze prea mult. */
+    private fun esrganClarity(full: Bitmap, inSide: Int, outSide: Int): Bitmap {
+        val k = min(1f, inSide.toFloat() / max(full.width, full.height))
+        val w = max(16, (full.width * k).toInt()); val h = max(16, (full.height * k).toInt())
+        val src = Bitmap.createScaledBitmap(full, w, h, true)
+        val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
+        val ow = w * 4; val oh = h * 4
+        val outPx = IntArray(ow * oh)
+        val T = 128; val PAD = 8; val core = T - 2 * PAD
+        val input = ByteBuffer.allocateDirect(4 * T * T * 3).order(ByteOrder.nativeOrder())
+        val output = ByteBuffer.allocateDirect(4 * 3 * 512 * 512).order(ByteOrder.nativeOrder())
+        val fi = input.asFloatBuffer()
+        esrgan.use { model ->
+            var ty = 0
+            while (ty < h) {
+                var tx = 0
+                while (tx < w) {
+                    val x0 = tx - PAD; val y0 = ty - PAD
+                    for (yy in 0 until T) for (xx in 0 until T) {
+                        val sx = (x0 + xx).coerceIn(0, w - 1); val sy = (y0 + yy).coerceIn(0, h - 1)
+                        val p = sp[sy * w + sx]; val o = (yy * T + xx) * 3
+                        fi.put(o, ((p shr 16) and 0xFF) / 255f); fi.put(o + 1, ((p shr 8) and 0xFF) / 255f); fi.put(o + 2, (p and 0xFF) / 255f)
+                    }
+                    output.rewind()
+                    model.run(input, output)
+                    output.rewind()
+                    val fo = output.asFloatBuffer()
+                    val plane = 512 * 512
+                    for (yy in PAD * 4 until (PAD + core) * 4) {
+                        val oy = (ty - PAD) * 4 + yy; if (oy < 0 || oy >= oh) continue
+                        for (xx in PAD * 4 until (PAD + core) * 4) {
+                            val ox = (tx - PAD) * 4 + xx; if (ox < 0 || ox >= ow) continue
+                            val i = yy * 512 + xx
+                            val r = (fo.get(i).coerceIn(0f, 1f) * 255f).toInt()
+                            val g = (fo.get(plane + i).coerceIn(0f, 1f) * 255f).toInt()
+                            val b = (fo.get(2 * plane + i).coerceIn(0f, 1f) * 255f).toInt()
+                            outPx[oy * ow + ox] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                        }
+                    }
+                    tx += core
+                }
+                ty += core
+            }
+        }
+        val big = Bitmap.createBitmap(outPx, ow, oh, Bitmap.Config.ARGB_8888)
+        val f = min(1f, outSide.toFloat() / max(ow, oh))
+        val fw = max(1, (ow * f).toInt()); val fh = max(1, (oh * f).toInt())
+        val model = if (f < 1f) Bitmap.createScaledBitmap(big, fw, fh, true) else big
+        val plain = Bitmap.createScaledBitmap(full, fw, fh, true)
+        val a = IntArray(fw * fh); model.getPixels(a, 0, fw, 0, 0, fw, fh)
+        val c = IntArray(fw * fh); plain.getPixels(c, 0, fw, 0, 0, fw, fh)
+        for (i in a.indices) {
+            val p = a[i]; val q = c[i]
+            val r = (((p shr 16) and 0xFF) * ESRGAN_MIX + ((q shr 16) and 0xFF) * (1 - ESRGAN_MIX)).toInt()
+            val g = (((p shr 8) and 0xFF) * ESRGAN_MIX + ((q shr 8) and 0xFF) * (1 - ESRGAN_MIX)).toInt()
+            val b = ((p and 0xFF) * ESRGAN_MIX + (q and 0xFF) * (1 - ESRGAN_MIX)).toInt()
+            a[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        }
+        return Bitmap.createBitmap(a, fw, fh, Bitmap.Config.ARGB_8888)
     }
 
     /**
