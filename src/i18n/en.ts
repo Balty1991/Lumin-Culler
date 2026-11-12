@@ -2642,6 +2642,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.minute.go": "Start",
   "lx.recipe.title": "One tap",
   "lx.recipe.perfect": "Perfect",
+  "lx.recipe.facebook": "Facebook",
+  "lx.recipe.tiktok": "TikTok",
   "lx.recipe.insta": "Instagram",
   "lx.recipe.story": "Story",
   "lx.recipe.sunset": "Sunset",

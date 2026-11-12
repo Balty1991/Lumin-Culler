@@ -607,6 +607,8 @@ export const dict: Record<string, string> = {
   "lx.minute.go": "Commencer",
   "lx.recipe.title": "En un geste",
   "lx.recipe.perfect": "Parfaite",
+  "lx.recipe.facebook": "Facebook",
+  "lx.recipe.tiktok": "TikTok",
   "lx.recipe.insta": "Instagram",
   "lx.recipe.story": "Story",
   "lx.recipe.sunset": "Coucher de soleil",

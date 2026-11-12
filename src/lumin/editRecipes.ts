@@ -6,7 +6,7 @@
  */
 export type RecipeStyle = 'natural' | 'vivid' | 'warm' | 'clear' | 'film' | 'bw' | 'drama' | 'portrait' | 'retouch';
 export type RecipeAspect = 'orig' | 'ai' | '4:5' | '1:1' | '9:16' | '16:9';
-export type RecipeKey = 'perfect' | 'insta' | 'story' | 'sunset' | 'food' | 'landscape' | 'night' | 'document' | 'retro' | 'mono';
+export type RecipeKey = 'perfect' | 'insta' | 'facebook' | 'tiktok' | 'story' | 'sunset' | 'food' | 'landscape' | 'night' | 'document' | 'retro' | 'mono';
 
 export interface Recipe {
   key: RecipeKey;
@@ -18,8 +18,12 @@ export interface Recipe {
 }
 
 export const RECIPES: readonly Recipe[] = [
-  { key: 'perfect', icon: '✨', style: 'natural', amount: 0.65, manual: { sharpen: 12, clarity: 6 }, aspect: 'ai' },
+  // „Perfectă”: nu Natural cu două reglaje (raportat: „să nu aibă treabă cu Natural, să fie wow”).
+  // Culori vii, lumină pe fețe, umbrele deschise, luminile ținute, detaliu și cadru pe subiect.
+  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.6, manual: { relight: 18, shadows: 12, highlights: -14, contrast: 8, saturation: 6, clarity: 10, sharpen: 14 }, aspect: 'ai' },
   { key: 'insta', icon: '📸', style: 'vivid', amount: 0.6, manual: { sharpen: 10, clarity: 6 }, aspect: '4:5' },
+  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.55, manual: { shadows: 8, sharpen: 10 }, aspect: '4:5' },
+  { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.7, manual: { contrast: 10, saturation: 10, clarity: 8, sharpen: 12 }, aspect: '9:16' },
   { key: 'story', icon: '📱', style: 'vivid', amount: 0.6, manual: { sharpen: 8 }, aspect: '9:16' },
   { key: 'sunset', icon: '🌅', style: 'warm', amount: 0.8, manual: { saturation: 8, highlights: -10 }, aspect: 'orig' },
   { key: 'food', icon: '🍕', style: 'vivid', amount: 0.7, manual: { temperature: 6, sharpen: 14, clarity: 8 }, aspect: '1:1' },
@@ -35,8 +39,11 @@ export const RECIPES: readonly Recipe[] = [
  * iar stilurile care cer o față cad pe „Natural” când poza n-are una.
  */
 export function resolveRecipe(r: Recipe, opts: { recommended?: RecipeStyle | null; hasFace: boolean; allowed: readonly string[] }): Recipe {
-  let style: RecipeStyle = r.key === 'perfect' && opts.recommended ? opts.recommended : r.style;
+  // „Perfectă” ia stilul recomandat pentru poză doar dacă e mai mult decât Natural.
+  let style: RecipeStyle = r.key === 'perfect' && opts.recommended && opts.recommended !== 'natural' ? opts.recommended : r.style;
   if (!opts.allowed.includes(style)) style = 'natural';
   const aspect: RecipeAspect = r.aspect === 'ai' && !opts.hasFace ? 'orig' : r.aspect;
-  return { ...r, style, aspect };
+  // Lumina pe fețe, doar unde sunt fețe.
+  const manual = opts.hasFace ? r.manual : Object.fromEntries(Object.entries(r.manual).filter(([k]) => k !== 'relight'));
+  return { ...r, style, aspect, manual };
 }

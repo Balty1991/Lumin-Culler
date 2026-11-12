@@ -56,9 +56,9 @@ class PoseDetectionPlugin : Plugin() {
         return PoseLandmarker.createFromOptions(context, options)
     }
 
-    /** Placa video întâi (ca la FaceMesh); fără delegat GPU, crearea aruncă și rămâne procesorul. */
     private val poseLandmarkerHolder = ReleasableModel<PoseLandmarker>({
-        try { createPose(Delegate.GPU) } catch (_: Exception) { createPose(Delegate.CPU) }
+        // Procesorul, nu placa video (vezi FaceMeshPlugin): placa desenează ecranul.
+        createPose(Delegate.CPU)
     }, { it.close() })
 
     @PluginMethod

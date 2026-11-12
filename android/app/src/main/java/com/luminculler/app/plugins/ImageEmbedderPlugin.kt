@@ -58,13 +58,12 @@ class ImageEmbedderPlugin : Plugin() {
     }
 
     /**
-     * Placa video întâi: amprenta vizuală se calculează pentru fiecare poză din
-     * galerie, deci aici câștigul de viteză contează cel mai mult. Fără delegat
-     * GPU, crearea aruncă și rămâne procesorul. Diferențele de calcul între cele
-     * două sunt de ordinul miimilor — căutarea după asemănare nu le simte.
+     * Pe procesor. Amprenta e aceeași (diferențele GPU/CPU sunt de ordinul miimilor),
+     * iar placa video rămâne liberă pentru ecran.
      */
     private val imageEmbedderHolder = ReleasableModel<ImageEmbedder>({
-        try { createEmbedder(Delegate.GPU) } catch (_: Exception) { createEmbedder(Delegate.CPU) }
+        // Procesorul, nu placa video (vezi FaceMeshPlugin): placa desenează ecranul.
+        createEmbedder(Delegate.CPU)
     }, { it.close() })
 
     @PluginMethod

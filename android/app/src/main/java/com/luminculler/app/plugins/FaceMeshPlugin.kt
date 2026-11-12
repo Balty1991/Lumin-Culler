@@ -59,17 +59,11 @@ class FaceMeshPlugin : Plugin() {
         return FaceLandmarker.createFromOptions(context, options)
     }
 
-    /**
-     * GPU întâi. Pe telefoanele fără delegat GPU, crearea aruncă — atunci
-     * rămâne CPU, aceleași semnale, doar mai lent. Nu se inventează o a treia cale.
-     */
-    private val faceLandmarkerHolder = ReleasableModel<FaceLandmarker>({
-        try {
-            createLandmarker(Delegate.GPU)
-        } catch (_: Exception) {
-            createLandmarker(Delegate.CPU)
-        }
-    }, { it.close() })
+    // Procesorul, nu placa video: aceeași placă desenează și ecranul aplicației. Raportul de
+    // blocaje din 12 nov. (cu Long Animation Frames) arăta cadre de ~900 ms în care codul
+    // aplicației rula doar ~90 ms — ecranul aștepta după placa video, ocupată de modele.
+    // Modelele sunt mici și rulează oricum cu prioritate de fundal.
+    private val faceLandmarkerHolder = ReleasableModel<FaceLandmarker>({ createLandmarker(Delegate.CPU) }, { it.close() })
 
     @PluginMethod
     fun analyzeFaceMesh(call: PluginCall) {

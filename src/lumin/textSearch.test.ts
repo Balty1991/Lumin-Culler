@@ -60,3 +60,15 @@ describe('căutări raportate', () => {
     expect(ids('Sau cu Fes pe fap')).toEqual(expect.arrayContaining(['a', 'b']));
   });
 });
+
+describe('culori', () => {
+  const p = (id: string, tags: string[], colors: string[]) => ({ id, importedAt: 0, personNames: [], faceCount: 1, sceneTags: tags, dominantColors: colors }) as never;
+  const photos = [p('rosie', ['Jacket'], ['#e0245e', '#d8d8d8']), p('albastra', ['Jacket'], ['#7f9fe8']), p('neagra', ['Jacket'], ['#111111'])];
+  const ids = (q: string) => searchPhotos(photos, q).map((x: { id: string }) => x.id);
+  it('„geacă roșie” aduce doar geaca roșie', () => {
+    expect(ids('geaca rosie')).toEqual(['rosie']);
+  });
+  it('o culoare care nu apare nu se aruncă', () => {
+    expect(ids('geaca verde')).toEqual([]);
+  });
+});

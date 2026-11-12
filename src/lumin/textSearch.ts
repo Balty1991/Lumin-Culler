@@ -20,6 +20,8 @@ export interface SearchablePhoto {
   petNames?: string[];
   aside?: string;
   faceCount: number;
+  /** Cele mai frecvente 3 culori din cadru (hex), din analiza de la import. */
+  dominantColors?: string[];
 }
 
 /** Cuvinte pe care oamenii le caută, legate de etichetele modelului. */
@@ -178,9 +180,40 @@ function words(s: string): string[] {
   return fold(s).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !STOP.has(w));
 }
 
+/** Numele culorilor (ro + en, toate formele), după nuanța unei culori hex. */
+export function colorWords(hex: string): string[] {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return [];
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d) h = max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  if (h < 0) h += 360;
+  const RED = ['rosu', 'rosie', 'rosii', 'red'], PINK = ['roz', 'pink'];
+  if (l < 0.13) return ['negru', 'neagra', 'negre', 'black'];
+  if (l > 0.88 && sat < 0.25) return ['alb', 'alba', 'albe', 'white'];
+  if (sat < 0.15) return ['gri', 'gray', 'grey'];
+  if (h < 15 || h >= 345) return RED;
+  if (h >= 320) return [...PINK, ...RED];
+  if (h < 40) return l < 0.4 ? ['maro', 'brown'] : ['portocaliu', 'portocalie', 'orange'];
+  if (h < 70) return ['galben', 'galbena', 'galbene', 'yellow'];
+  if (h < 170) return ['verde', 'verzi', 'green'];
+  if (h < 255) return ['albastru', 'albastra', 'albastre', 'blue'];
+  if (h < 290) return ['mov', 'violet', 'purple'];
+  return l > 0.55 ? PINK : ['mov', 'roz', 'purple', 'pink'];
+}
+const COLOR_TERMS = new Set(['rosu', 'rosie', 'rosii', 'red', 'roz', 'pink', 'negru', 'neagra', 'negre', 'black', 'alb', 'alba', 'albe', 'white',
+  'gri', 'gray', 'grey', 'maro', 'brown', 'portocaliu', 'portocalie', 'orange', 'galben', 'galbena', 'galbene', 'yellow', 'verde', 'verzi', 'green',
+  'albastru', 'albastra', 'albastre', 'blue', 'mov', 'violet', 'purple']);
+
 /** Textul în care se caută, pentru o poză. */
 export function searchText(p: SearchablePhoto, withOcr = true): string {
-  const tags = (p.sceneTags ?? []).flatMap(t => [t, translateSceneTag(t, 'ro')]);
+  const tags = [
+    ...(p.sceneTags ?? []).flatMap(t => [t, translateSceneTag(t, 'ro')]),
+    ...(p.dominantColors ?? []).flatMap(colorWords)
+  ];
   const when = new Date(p.capturedAt ?? p.importedAt);
   const parts = [
     ...tags,
@@ -209,6 +242,9 @@ export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], qu
   // „fes pe fap”) nu mai blochează restul. Raportat: „nu a găsit, deși erau”.
   const texts = photos.map(p => ' ' + searchText(p).replace(/[^a-z0-9]+/g, ' '));
   const known = terms.filter(term => termOptions(term).some(o => texts.some(t => t.includes(' ' + fold(o)))));
+  // O culoare nu se aruncă: „geacă roșie” fără nimic roșu nu întoarce toate gecile (raportat:
+  // aducea și geaca albastră). Fără rezultat, asistentul trece la căutarea CLIP.
+  if (terms.some(term => COLOR_TERMS.has(term) && !known.includes(term))) return [];
   return known.length && known.length < terms.length ? searchTerms(photos, known) : [];
 }
 

@@ -582,6 +582,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
     const e = manual.relight && geo?.faces.length && !e0.faceBoxes?.length ? { ...e0, faceBoxes: geo.faces } : e0;
     return style === 'portrait' && personMask ? { ...e, bokehMask: personMask.image, ...(personMask.focusY !== null ? { bokehFocusY: personMask.focusY } : {}) } : e;
   }, [base, style, amount, rotation, crop, manual, personMask, pure, geo]);
+  const beforeEdits = useMemo<EditAdjustments | null>(() => edits?.crop ? { ...NEUTRAL_ADJUSTMENTS, crop: edits.crop, rotationDeg: edits.rotationDeg ?? 0 } : null, [edits?.crop, edits?.rotationDeg]);
   // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
   const view = pure ? (orig ?? src) : src;
   // Anulare pas cu pas: fiecare stare la care te-ai oprit (stil, intensitate, reglaje).
@@ -650,6 +651,8 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   }, [base, geo]);
   const recipeOn = (k: string) => !!applied && applied.key === k && !pure && style === applied.style && amount === applied.amount
     && aspect === applied.aspect && JSON.stringify(manual) === JSON.stringify(applied.manual);
+  // O rețetă activă nu arată și un stil ales dedesubt (raportat: „Perfectă” aprindea „Natural”).
+  const recipeActive = !!applied && RECIPES.some(r => recipeOn(r.key));
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
   const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
@@ -927,13 +930,17 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
         {!src && !failed && <div className="lx-enhance-wait"><span className="lx-spinner" />{tr('lx.enhance.working')}</div>}
         {failed && <p className="lx-empty">{tr('lx.enhance.failed')}</p>}
         <div className="lx-enhance-zoom" ref={zoomBox}>
-        {src && edits && (edits.crop || panel === 'frame') ? (
+        {src && edits && panel === 'frame' ? (
           <div className="lx-enhance-frame cropped">
             <LivePreview src={view!} edits={edits} />
           </div>
         ) : src && edits && (
-          <div className="lx-enhance-frame">
-            <img src={orig ?? src} alt="" draggable={false} />
+          <div className={edits.crop ? 'lx-enhance-frame crop-compare' : 'lx-enhance-frame'}>
+            {/* Cu decupaj (de ex. „Perfectă” cu încadrare AI), „înainte” e originalul decupat la
+                același cadru: altfel cele două jumătăți aveau forme diferite și linia lipsea. */}
+            {edits.crop && beforeEdits
+              ? <LivePreview src={orig ?? src} edits={beforeEdits} />
+              : <img src={orig ?? src} alt="" draggable={false} />}
             <div ref={compareAfter} className="lx-enhance-after" style={{ transform: `translate3d(${split}%,0,0)` }}>
               <div ref={compareInner} className="lx-enhance-after-inner" style={{ transform: `translate3d(${-split}%,0,0)` }}>
                 <LivePreview src={view!} edits={edits} />
@@ -1035,7 +1042,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
             </div>
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
-                <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
+                <button key={st} role="radio" aria-checked={!pure && style === st && !recipeActive} className={!pure && style === st && !recipeActive ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
                   {view && base && <StyleThumb src={view} edits={styledEdits(base, st, Math.max(0.6, amount))} />}
                   <span>{(mine?.style === st || (!mine && picked?.style === st)) && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
                   {ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}

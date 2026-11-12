@@ -10,9 +10,11 @@ describe('rețete dintr-o atingere', () => {
   });
   it('„Perfectă” ia stilul recomandat, iar fără față nu strânge cadrul', () => {
     const perfect = RECIPES.find(r => r.key === 'perfect')!;
-    const r = resolveRecipe(perfect, { recommended: 'vivid', hasFace: false, allowed: all });
-    expect(r.style).toBe('vivid');
+    const r = resolveRecipe(perfect, { recommended: 'warm', hasFace: false, allowed: all });
+    expect(r.style).toBe('warm');
     expect(r.aspect).toBe('orig');
+    expect(r.manual.relight).toBeUndefined();
+    expect(resolveRecipe(perfect, { recommended: 'natural', hasFace: true, allowed: all }).style).not.toBe('natural');
     expect(resolveRecipe(perfect, { recommended: null, hasFace: true, allowed: all }).aspect).toBe('ai');
   });
   it('un stil indisponibil cade pe Natural', () => {

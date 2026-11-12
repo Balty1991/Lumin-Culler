@@ -2728,6 +2728,8 @@ export const ro = {
   "lx.minute.go": "Începe",
   "lx.recipe.title": "Dintr-o atingere",
   "lx.recipe.perfect": "Perfectă",
+  "lx.recipe.facebook": "Facebook",
+  "lx.recipe.tiktok": "TikTok",
   "lx.recipe.insta": "Instagram",
   "lx.recipe.story": "Story",
   "lx.recipe.sunset": "Apus",
