@@ -15,7 +15,8 @@ vi.mock('@capacitor/core', () => ({
 
 const analyzeNativeMock = vi.fn();
 vi.mock('./nativeAnalysis', () => ({
-  analyzeNative: (...args: unknown[]) => analyzeNativeMock(...args)
+  analyzeNative: (...args: unknown[]) => analyzeNativeMock(...args),
+  setModelsSerial: () => undefined
 }));
 
 vi.mock('./performanceSettings', () => ({

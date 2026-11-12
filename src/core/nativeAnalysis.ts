@@ -592,16 +592,25 @@ export async function analyzeNative(
     : timed('mFaceDetect', () => detectFacesNative(source)).then(r => fromMlKit(r, imageWidth, imageHeight));
 
   record('nativePrep', performance.now() - bodyStart);
-  const labelsPromise = timed('mLabels', () => labelImageNative(source));
+  // Cu aplicația pe ecran (citirea din fundal), modelele unei poze rulează PE RÂND, nu
+  // deodată: 3–4 modele în paralel, fiecare cu firele lui, sufocau procesorul și ecranul
+  // îngheța ~1 s, în rafale (raportul de blocaje, 12 nov.: câte 5–7 blocaje în aceeași
+  // secundă, toate peste FaceMesh+Labels+ImageAnalysis+OCR+Pose). Cu ecranul stins, în paralel.
+  const serial = modelsSerial();
+  const labelsFn = () => timed('mLabels', () => labelImageNative(source));
+  const labelsPromise = serial ? null : labelsFn();
   // CLIP NU mai rulează aici: concura cu modelele importului pe procesor și
   // încetinea importul. Trece imediat după import, în fundal (lumin/clipBackfill.ts).
   const clipPromise = Promise.resolve(null as Awaited<ReturnType<typeof clipAnalyze>>);
   const detected = await faceProbe;
   const boxes = detected.faces.map(f => ({ x: f.box[0], y: f.box[1], w: f.box[2], h: f.box[3] }));
-  const [imageAnalysis, labelResult] = await timed('nativeModels', () => Promise.all([
-    timed('mImageAnalysis', () => analyzeImageNative(source, boxes)),
-    labelsPromise
-  ]));
+  const [imageAnalysis, labelResult] = await timed('nativeModels', async () => {
+    if (!labelsPromise) {
+      const ia = await timed('mImageAnalysis', () => analyzeImageNative(source, boxes));
+      return [ia, await labelsFn()] as [typeof ia, Awaited<ReturnType<typeof labelsFn>>];
+    }
+    return Promise.all([timed('mImageAnalysis', () => analyzeImageNative(source, boxes)), labelsPromise]);
+  });
 
   const faces = detected.faces;
   // Acelasi tipar de deduplicare ca faceAnalysis.worker.ts: [...new Set(...)].
@@ -697,7 +706,7 @@ export async function analyzeNative(
   // ...si cu un plafon al lui, sub cel al pozei. Vezi NATIVE_OCR_TIMEOUT_MS:
   // fara el, o singura citire de text lunga trecea poza intreaga peste
   // ANALYZE_TIMEOUT_MS si o pierdea cu tot ce se calculase deja.
-  const ocrPromise = faces.length === 0
+  const ocrFn = () => faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
     ? cuPlafon(
         timed('mOcr', async () => detectTextNative(
@@ -708,18 +717,18 @@ export async function analyzeNative(
         NATIVE_OCR_TIMEOUT_MS
       )
     : Promise.resolve(undefined);
+  const ocrPromise = serial ? null : ocrFn();
 
   // Peretele acopera acum si OCR-ul, fiindca ruleaza in acelasi timp cu valul
   // 2 — o suma i-ar numara de doua ori suprapunerea.
-  const [[meshStats, imageEmbedding, bodyCroppedAtEdge], ocr] = await timed('nativeModels', () => Promise.all([
-    Promise.all([
+  const stage2 = () => [
     // FaceMesh e sarit complet cand nu exista fete — nu are ce agrega, si evita
     // un apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
     // Pe calea 'landmarker' statisticile de grup vin din ACELASI rezultat, deci
     // nu se mai cheama nimic aici. Pe calea ML Kit, FaceMesh ramane al doilea
     // model, sarit complet cand nu exista fete — n-are ce agrega, si evita un
     // apel MediaPipe intreg (cel mai greu dintre cele 5) fara niciun beneficiu.
-    detected.meshStats !== null
+    () => detected.meshStats !== null
       ? Promise.resolve(detected.meshStats)
       : faces.length > 0
         ? timed('mFaceMesh', () => analyzeFaceMeshNative(source)).then(r => faceMeshGroupStats(r.faces))
@@ -752,17 +761,23 @@ export async function analyzeNative(
     // unde "aceeasi scena" CHIAR e intrebarea corecta. Pentru pozele cu fete,
     // raspunsul e semnalul de identitate, nu unul de continut — si acela e o
     // discutie separata, cu alt cost.
-    faces.length === 0
+    () => faces.length === 0
       ? timed('mEmbed', () => embedImageNative(source)).then(r => r.embedding)
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
     // (postura n-are subiect de verificat pe un peisaj/obiect).
-    faces.length > 0
+    () => faces.length > 0
       ? timed('mPose', () => detectPoseNative(source)).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
-    ]),
-    ocrPromise
-  ]));
+  ] as const;
+  const [[meshStats, imageEmbedding, bodyCroppedAtEdge], ocr] = await timed('nativeModels', async () => {
+    const [mesh, embed, pose] = stage2();
+    if (!ocrPromise) {
+      const a = await mesh(); const b = await embed(); const c = await pose();
+      return [[a, b, c], await ocrFn()] as const;
+    }
+    return Promise.all([Promise.all([mesh(), embed(), pose()]), ocrPromise]);
+  });
 
   const textCoverage = ocr?.textCoverage;
   const ocrText = ocr ? photoTextFromBlocks(ocr.blocks) : undefined;
@@ -807,3 +822,11 @@ export async function analyzeNative(
   record('nativeAssemble', performance.now() - assembleStart);
   return inregistrare;
 }
+
+/**
+ * Cine decide dacă modelele unei poze rulează pe rând (vezi `serial` în analiză). Pus de
+ * workerPool.ts: pe rând cât citirea din fundal rulează cu aplicația pe ecran.
+ */
+let serialDecider: () => boolean = () => false;
+export function setModelsSerial(fn: () => boolean): void { serialDecider = fn; }
+function modelsSerial(): boolean { try { return serialDecider(); } catch { return false; } }

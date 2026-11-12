@@ -20,7 +20,7 @@ import { record } from './stageTiming';
 import { ANDROID_IDENTITY_EMBEDDINGS } from './faceEngine';
 import { selectActivePersons } from './activePersons';
 import { writeLastModelLoadMs } from './modelLoadTiming';
-import { analyzeNative } from './nativeAnalysis';
+import { analyzeNative, setModelsSerial } from './nativeAnalysis';
 import { watchThermalStatus, thermalConcurrencyCap } from './thermalStatus';
 import { setUiHeldProbe } from './userIdle';
 
@@ -530,6 +530,8 @@ export class AnalysisPool {
   /** Pornit de citirea galeriei în fundal (galleryReader): importurile cerute de om merg cu tot plafonul. */
   private gentle = false;
   setGentle(on: boolean): void { this.gentle = on; }
+  /** Modelele unei poze, pe rând: cât citirea din fundal rulează cu aplicația pe ecran. */
+  private serialWatch = setModelsSerial(() => this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible');
 
   /** Ecranele grele (editorul) opresc analiza din fundal cât sunt deschise; vezi effectiveNativeLimit. */
   private uiHolds = 0;
