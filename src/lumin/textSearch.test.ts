@@ -47,3 +47,16 @@ describe('potriviri doar din textul citit', () => {
     expect(isTextOnlyMatch({ ...base, aside: 'document' }, 'bon')).toBe(true);
   });
 });
+
+describe('căutări raportate', () => {
+  const p = (id: string, tags: string[]) => ({ id, importedAt: 0, personNames: [], faceCount: 1, sceneTags: tags }) as never;
+  const photos = [p('a', ['Hat', 'Child']), p('b', ['Cap']), p('c', ['Food'])];
+  const ids = (q: string) => searchPhotos(photos, q).map((x: { id: string }) => x.id);
+  it('„poze cu căciula” găsește căciulile, nu mâncarea din aceeași lună', () => {
+    expect(ids('Poze cu căciula')).toEqual(expect.arrayContaining(['a', 'b']));
+    expect(ids('Poze cu căciula')).not.toContain('c');
+  });
+  it('un cuvânt greșit nu blochează restul', () => {
+    expect(ids('Sau cu Fes pe fap')).toEqual(expect.arrayContaining(['a', 'b']));
+  });
+});

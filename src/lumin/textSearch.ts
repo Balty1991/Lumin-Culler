@@ -109,11 +109,38 @@ const SYNONYMS: Record<string, string[]> = {
   avion: ['airplane', 'aircraft', 'airport'],
   tren: ['train', 'railway', 'station'],
   barca: ['boat', 'ship', 'water'],
-  vacanta: ['beach', 'sea', 'mountain', 'pool', 'travel', 'vara']
+  vacanta: ['beach', 'sea', 'mountain', 'pool', 'travel', 'vara'],
+  // Îmbrăcăminte și accesorii (raportat: „poze cu căciula” / „cu fes” nu găsea nimic).
+  caciula: ['hat', 'cap', 'beanie', 'headwear', 'knit cap'],
+  fes: ['hat', 'cap', 'beanie', 'headwear', 'knit cap'],
+  palarie: ['hat', 'sun hat', 'headwear', 'cap'],
+  sapca: ['cap', 'hat', 'baseball cap', 'headwear'],
+  ochelari: ['glasses', 'sunglasses', 'eyewear', 'goggles'],
+  geaca: ['jacket', 'coat', 'outerwear', 'clothing'],
+  scurta: ['jacket', 'coat', 'outerwear'],
+  palton: ['coat', 'jacket', 'outerwear'],
+  fular: ['scarf', 'clothing'],
+  manusi: ['glove', 'gloves', 'mitten'],
+  cizme: ['boot', 'boots', 'footwear'],
+  adidasi: ['sneakers', 'shoe', 'footwear'],
+  tricou: ['shirt', 't-shirt', 'clothing'],
+  pijama: ['pajamas', 'clothing', 'bed'],
+  umbrela: ['umbrella', 'rain'],
+  trotineta: ['scooter', 'kick scooter', 'vehicle'],
+  leagan: ['swing', 'playground', 'park'],
+  tobogan: ['slide', 'playground', 'park'],
+  papusa: ['doll', 'toy'],
+  ursulet: ['teddy bear', 'toy', 'stuffed toy'],
+  unicorn: ['unicorn', 'toy', 'horse'],
+  balon: ['balloon', 'party'],
+  baloane: ['balloon', 'party'],
+  brad: ['christmas tree', 'tree', 'christmas'],
 };
 
 /** Cuvintele de legătură nu se caută: „copil pe plajă la apus” = copil + plajă + apus. */
 const STOP = new Set(['pe', 'la', 'in', 'cu', 'de', 'si', 'din', 'un', 'o', 'cel', 'cea', 'lui', 'ei', 'al', 'ale', 'sau',
+  // Cererea în sine, nu ce se caută: „poze cu …”, „arată-mi toate …”, „fes pe cap”.
+  'poze', 'poza', 'pozele', 'fotografii', 'fotografia', 'imagini', 'arata', 'aratami', 'gaseste', 'cauta', 'vreau', 'toate', 'mele', 'meu', 'mea', 'cap',
   'the', 'a', 'an', 'at', 'on', 'with', 'of', 'and', 'or', 'by', 'my']);
 
 const SEASONS_RO = ['iarna', 'iarna', 'primavara', 'primavara', 'primavara', 'vara', 'vara', 'vara', 'toamna', 'toamna', 'toamna', 'iarna'];
@@ -176,6 +203,16 @@ export function searchText(p: SearchablePhoto, withOcr = true): string {
 export function searchPhotos<P extends SearchablePhoto>(photos: readonly P[], query: string): P[] {
   const terms = words(query);
   if (!terms.length) return [];
+  const strict = searchTerms(photos, terms);
+  if (strict.length || terms.length < 2) return strict;
+  // Nimic cu toate cuvintele: cele care nu apar nicăieri în galerie (greșeli de scriere,
+  // „fes pe fap”) nu mai blochează restul. Raportat: „nu a găsit, deși erau”.
+  const texts = photos.map(p => ' ' + searchText(p).replace(/[^a-z0-9]+/g, ' '));
+  const known = terms.filter(term => termOptions(term).some(o => texts.some(t => t.includes(' ' + fold(o)))));
+  return known.length && known.length < terms.length ? searchTerms(photos, known) : [];
+}
+
+function searchTerms<P extends SearchablePhoto>(photos: readonly P[], terms: string[]): P[] {
   const scored: { p: P; score: number; t: number; seen: boolean }[] = [];
   for (const p of photos) {
     // Potrivire de la începutul cuvântului: „Ana” nu mai găsește „banana”, „Ioana”,
