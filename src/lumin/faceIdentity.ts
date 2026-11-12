@@ -273,3 +273,36 @@ export function unlikeReference(ref: readonly number[], byPhoto: ReadonlyMap<str
   }
   return out;
 }
+
+/** O față numită de aplicație, de confirmat de om („E Ami?”). */
+export interface UnsureFace { photoId: string; faceIndex: number; box: [number, number, number, number]; similarity: number }
+
+/**
+ * Fețele pe care aplicația le-a numit singură cu `personName`, cele mai nesigure întâi.
+ * Raportat: „încă încurcă persoanele”. O confirmare (Da) face fața reper pentru
+ * recunoaștere; un Nu o scoate din album și n-o mai pune la omul ăsta.
+ */
+export async function unsureFaces(personName: string, limit = 20): Promise<UnsureFace[]> {
+  const out: UnsureFace[] = [];
+  const key = personName.trim().toLowerCase();
+  await db.analyses.each(a => {
+    a.faces.forEach((f, faceIndex) => {
+      const auto = (f as { autoNamed?: boolean }).autoNamed;
+      if (!auto || (f.personName ?? '').trim().toLowerCase() !== key) return;
+      out.push({ photoId: a.photoId, faceIndex, box: f.box, similarity: typeof f.similarity === 'number' ? f.similarity : 1 });
+    });
+  });
+  return out.sort((a, b) => a.similarity - b.similarity).slice(0, limit);
+}
+
+/** „Da, e el/ea”: fața devine numită de om (și reper pentru recunoaștere). */
+export async function confirmFace(photoId: string, faceIndex: number): Promise<void> {
+  await db.transaction('rw', db.analyses, async () => {
+    const a = await db.analyses.get(photoId);
+    const f = a?.faces[faceIndex] as ({ autoNamed?: boolean; similarity?: number } | undefined);
+    if (!a || !f) return;
+    delete f.autoNamed;
+    delete f.similarity;
+    await db.analyses.put(a);
+  });
+}

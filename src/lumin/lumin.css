@@ -2148,3 +2148,9 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-recipes-title { margin: 2px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim, rgb(255 255 255 / .6)); }
 .lx-recipes .lx-chip-btn { flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 .lx-recipes .lx-chip-btn .lx-pro { position: static; margin-left: 2px; font-size: 9px; padding: 1px 5px; }
+
+/* Albumul persoanei: „E Ami?” (FaceCheck.tsx) */
+.lx-facecheck { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px; border-radius: 20px; background: var(--surface-2, rgb(255 255 255 / .05)); margin-bottom: 12px; }
+.lx-facecheck-img { width: 160px; height: 160px; border-radius: 50%; object-fit: cover; background: var(--surface-3, rgb(255 255 255 / .08)); display: block; }
+.lx-facecheck-q { margin: 0; font-size: 20px; font-weight: 700; }
+.lx-facecheck .lx-decide-actions { width: 100%; }

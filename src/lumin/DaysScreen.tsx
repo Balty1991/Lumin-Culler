@@ -13,6 +13,7 @@ import { buildCoverage, useGalleryMonths } from './coverage';
 import { capitalizeFirst, dayLabel, daySummary, monthLabel } from './format';
 import { ageAt, formatBirthday, parseBirthday, readBirthdays, writeBirthday, type Birthday } from './birthdays';
 import { useLx, type GalleryView } from './lxStore';
+import { FaceCheckButton } from './FaceCheck';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
@@ -433,6 +434,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       {!editing && <BirthdayRow name={name} />}
       {!editing && <GroupRow name={name} />}
       {!editing && <PersonTimeButtons name={name} list={list} />}
+      {!editing && <FaceCheckButton name={name} />}
       {!editing && <FindPersonButton name={name} count={list.length} />}
       {!editing && <EnhanceAllButton ids={list.filter(p => p.status === 'selected' && !p.edits).map(p => p.id)} />}
       {!editing && <SharePersonButton name={name} list={list} />}
