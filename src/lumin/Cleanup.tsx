@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { autopilotKeeps } from '../state/batchOps';
 import { haptic } from '../core/device';
 import { useStore, type PhotoView } from '../state/store';
 import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
@@ -21,7 +22,9 @@ export function CleanupCard({ photos, compact = false }: { photos: readonly Phot
   const [done, setDone] = useState<number | null>(null);
   const [freedLabel, setFreedLabel] = useState<string | null>(null);
   const locale = useStore(s => s.locale);
-  const rejected = photos.filter(p => p.status === 'rejected' && p.mediaUri);
+  // Doar ce pleacă de fapt: în bloc, pozele cu familia respinse de AI și documentele rămân
+  // (autopilotKeeps), așa că nici nu le numărăm la spațiul eliberat.
+  const rejected = photos.filter(p => p.status === 'rejected' && p.mediaUri && (autopilotKeeps(p) === null));
   const bytes = rejected.reduce((sum, p) => sum + (p.sizeBytes ?? 0), 0);
   if (!isNativeMediaLibraryAvailable() || (rejected.length === 0 && done === null)) return null;
 

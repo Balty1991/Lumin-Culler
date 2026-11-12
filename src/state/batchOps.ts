@@ -95,7 +95,11 @@ export interface DeletableRejectedResult {
  * Autopilotul nu șterge în bloc familia și nu aruncă documentele sau capturile.
  * O ștergere de o singură poză, din vizualizare, nu trece pe aici.
  */
-export function autopilotKeeps(p: { personNames?: readonly string[] | null; aside?: string | null }): 'family' | 'aside' | null {
+export function autopilotKeeps(p: { personNames?: readonly string[] | null; aside?: string | null; aiDecided?: boolean }): 'family' | 'aside' | null {
+  // Ce a respins omul însuși („Nu azi” apăsat de el) e alegerea lui: se șterge și în bloc.
+  // Altfel, după ce își numea copilul, cele 40 de cadre aproape identice nu mai plecau
+  // niciodată, iar cardul de curățenie revenea mereu (auditul pe persoane).
+  if (p.aiDecided === false) return null;
   if ((p.personNames?.length ?? 0) > 0) return 'family';
   if (p.aside === 'document' || p.aside === 'screenshot') return 'aside';
   return null;

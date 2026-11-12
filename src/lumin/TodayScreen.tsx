@@ -96,7 +96,8 @@ export function TodayScreen() {
     if (!readOffer || !readerResult || reader || readerResult.total < 100) return;
     try { if (localStorage.getItem('cherrypic.readOffer.shown') === '1') return; } catch { return; }
     const timer = window.setTimeout(() => {
-      if (!useStore.getState().premiumLocked || !claimPaywall()) return;
+      // Cât e începător, oferta stă doar pe card (înainte/după); nu se deschide singură.
+      if (!useStore.getState().premiumLocked || isBeginner(useStore.getState().photos) || !claimPaywall()) return;
       try { localStorage.setItem('cherrypic.readOffer.shown', '1'); } catch { /* fără stocare */ }
       setPaywallContext(readOffer.text);
       useStore.getState().gatePremium('acceptAll');

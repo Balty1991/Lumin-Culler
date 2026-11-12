@@ -13,7 +13,7 @@ import { markTourDone } from './tour';
  */
 interface Step {
   key: string;
-  /** Al câtelea buton din bara de jos se luminează (0 Azi, 1 Galerie, 2 +, 3 AI, 4 Setări). */
+  /** Al câtelea buton din bara de jos se luminează (0 Azi, 1 Galerie, 2 ✦ AI, 3 Curățenie, 4 Studio). */
   dock?: number;
   /** Ecranul arătat dedesubt cât ține pasul. */
   tab?: LxTab;
@@ -25,9 +25,10 @@ const STEPS: Step[] = [
   { key: 'today', dock: 0, tab: 'today' },
   { key: 'swipe', tab: 'today', swipe: true },
   { key: 'gallery', dock: 1, tab: 'days' },
-  { key: 'add', dock: 2 },
-  { key: 'brain', dock: 3, tab: 'brain' },
-  { key: 'settings', dock: 4, tab: 'settings' }
+  { key: 'ask', dock: 2 },
+  { key: 'clean', dock: 3, tab: 'clean' },
+  { key: 'brain', dock: 4, tab: 'brain' },
+  { key: 'settings', tab: 'settings' }
 ];
 
 export function AppTour({ onClose }: { onClose: () => void }) {

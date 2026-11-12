@@ -1,4 +1,5 @@
 import { usePacedPhotos } from './useLxPhotos';
+import { isBeginner } from './beginner';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useStore } from '../state/store';
 import { RitualDone } from '../ui/RitualDone';
@@ -94,7 +95,8 @@ export function SwipeSort() {
     if (current || decisions < 7 || !useStore.getState().premiumLocked) return;
     const timer = window.setTimeout(() => {
       const st = useStore.getState();
-      if (!st.premiumLocked || !claimPaywall()) return;
+      // Nu în primele zile: omul încă învață aplicația (auditul pe persoane).
+      if (!st.premiumLocked || isBeginner(st.photos) || !claimPaywall()) return;
       const percent = readTwin().percent;
       setPaywallContext(percent === null
         ? t(st.locale, 'lx.paywall.afterSortPlain', { count: decisions })
