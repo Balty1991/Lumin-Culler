@@ -55,13 +55,22 @@ export async function jankSpan<T>(label: string, fn: () => Promise<T>): Promise<
   try { return await fn(); } finally { done(); }
 }
 
+/**
+ * Starea în clipa blocajului (câte poze în lucru, de când n-a mai atins omul ecranul, modul
+ * citirii). Fără ea nu se putea spune dacă omul a simțit blocajul sau a fost cu ecranul neatins.
+ */
+let contextOf: (() => string) | null = null;
+export function setJankContext(fn: () => string): void { contextOf = fn; }
+
 export function recordJank(ms: number, now = Date.now(), startedAt?: number, detail?: string): void {
   if (ms < MIN_MS) return;
   const list = load();
   const doing = startedAt !== undefined
     ? overlapping(startedAt, ms)
     : [...new Set([...active.values()].map(a => a.label))].join('+') || '-';
-  list.push({ at: now, ms: Math.round(ms), doing: detail ? `${doing} [${detail}]` : doing });
+  let ctx = '';
+  try { ctx = contextOf ? ` {${contextOf()}}` : ''; } catch { /* fără context */ }
+  list.push({ at: now, ms: Math.round(ms), doing: (detail ? `${doing} [${detail}]` : doing) + ctx });
   if (list.length > MAX) list.splice(0, list.length - MAX);
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* fără stocare */ }
 }
@@ -93,11 +102,12 @@ export function startJankLog(): void {
 export function jankSummary(list: readonly JankEntry[] = load()): string {
   if (!list.length) return 'niciun blocaj peste 200 ms';
   const by = new Map<string, { n: number; total: number; max: number }>();
-  for (const e of list) { const k = e.doing.replace(/ \[.*\]$/, ''); const b = by.get(k) ?? { n: 0, total: 0, max: 0 }; b.n++; b.total += e.ms; b.max = Math.max(b.max, e.ms); by.set(k, b); }
+  const bare = (d: string) => d.replace(/ \{[^{}]*\}$/, '');
+  for (const e of list) { const k = bare(e.doing).replace(/ \[.*\]$/, ''); const b = by.get(k) ?? { n: 0, total: 0, max: 0 }; b.n++; b.total += e.ms; b.max = Math.max(b.max, e.ms); by.set(k, b); }
   // Cine a rulat în blocaje (Long Animation Frames): funcțiile cele mai des întâlnite.
   const who = new Map<string, { n: number; total: number }>();
   for (const e of list) {
-    const m = e.doing.match(/\[(.*)\]$/);
+    const m = bare(e.doing).match(/\[(.*)\]$/);
     if (!m) continue;
     for (const part of m[1].split('; ')) {
       const k = part.replace(/ \d+ms.*$/, '').replace(/^desen.*/, 'desen');
@@ -109,7 +119,12 @@ export function jankSummary(list: readonly JankEntry[] = load()): string {
   const top = [...by.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 10)
     .map(([k, v]) => `${k}: ${v.n}x, total ${v.total} ms, max ${v.max} ms`).join(' | ');
   const last = list.slice(-12).map(e => `${new Date(e.at).toISOString().slice(11, 19)} ${e.ms}ms ${e.doing}`).join(' ; ');
-  return `${top}${whoText ? ` || cine: ${whoText}` : ''} || ultimele: ${last}`;
+  // „Simțite”: blocajele din cele 2 secunde de după o atingere — pe ele le vede omul.
+  const felt = list.filter(e => { const m = e.doing.match(/atins acum (\d+)s/); return !!m && Number(m[1]) <= 2; });
+  const feltText = list.some(e => /atins acum/.test(e.doing))
+    ? ` || simtite (la atingere): ${felt.length} din ${list.length}${felt.length ? `, max ${Math.max(...felt.map(e => e.ms))} ms` : ''}`
+    : '';
+  return `${top}${whoText ? ` || cine: ${whoText}` : ''}${feltText} || ultimele: ${last}`;
 }
 
 export function clearJankLog(): void {

@@ -12,6 +12,7 @@
  * inca pe native) — porneste UN worker real, lazy, doar la prima folosire.
  */
 import * as Comlink from 'comlink';
+import { setJankContext } from './jankLog';
 import { Capacitor } from '@capacitor/core';
 import type { FaceAnalysisAPI, LeanFaceMode } from '../workers/faceAnalysis.worker';
 import type { AnalysisRecord, KnownPerson } from './db';
@@ -511,6 +512,10 @@ export class AnalysisPool {
     return thermal;
   }
 
+  // Raportul de blocaje: câte poze în lucru, de când nu s-a atins ecranul, modul citirii.
+  private jankCtx = typeof window !== 'undefined'
+    ? (setJankContext(() => `zbor ${this.nativeInFlight} · atins acum ${Math.min(99, Math.round((Date.now() - this.lastTouch) / 1000))}s${this.gentle ? ' · bland' : ''}${this.background ? ' · fundal' : ''}`), true)
+    : false;
   /** Ultima atingere / derulare / tastă — vezi effectiveNativeLimit. */
   private lastTouch = 0;
   /** Cât a trecut de la ultima atingere sau derulare (ms). */
