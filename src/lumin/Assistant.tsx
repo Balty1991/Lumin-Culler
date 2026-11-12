@@ -1,4 +1,5 @@
 import { useStore } from '../state/store';
+import { CollageButton } from './CollageSheet';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLxPhotos } from './useLxPhotos';
@@ -121,6 +122,14 @@ export function Assistant({ onClose }: { onClose: () => void }) {
           <button className="lx-btn primary small" onClick={() => setReel(r.ids)}>{tr('lx.ask.reelGo')}</button>
         </>
       ) : <p>{tr('lx.ask.reelNone', { query: r.query })}</p>;
+      case 'cleanFolders': return (<><p>{tr('lx.ask.cleanFolders')}</p><button className="lx-btn primary small" onClick={() => { onClose(); lx().setTab('clean'); }}>{tr('lx.ask.openClean')}</button></>);
+      case 'collage': return r.photos.length >= 3 ? (
+        <>
+          <p>{tr('lx.ask.collage', { count: r.photos.length })}</p>
+          <div className="lx-ask-grid">{r.photos.slice(0, 6).map(p => <span key={p.id}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></span>)}</div>
+          <CollageButton photos={r.photos} title={r.query || tr('lx.collage.title')} subtitle="" className="lx-btn primary small" />
+        </>
+      ) : <p>{tr('lx.ask.collageNone')}</p>;
       case 'add': return (<><p>{tr('lx.ask.add')}</p><button className="lx-btn primary small" onClick={() => { onClose(); actions.pick(); }}>{tr('lx.addPhotos')}</button></>);
     }
   };

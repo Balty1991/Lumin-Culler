@@ -46,8 +46,11 @@ export function FolderClean() {
 
   const clean = async (f: FolderSummary) => {
     const st = useStore.getState();
+    // Întâi oferta (dacă s-a folosit curățenia gratuită), apoi confirmarea: altfel omul
+    // confirma ștergerea și abia apoi afla că nu se poate (auditul pe persoane).
+    if (st.gatePremium('cleanup')) return;
     const ok = await st.askConfirm(tr('lx.folders.confirm', { count: f.removable.length, name: f.name }), { confirmLabel: tr('lx.folders.clean') });
-    if (!ok || st.gatePremium('cleanup')) return;
+    if (!ok) { settleFreeCleanup(false); return; }
     setBusy(f.id);
     try {
       const r = await st.trashPhotos(f.removable.map(p => p.id));

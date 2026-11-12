@@ -20,7 +20,11 @@ export type AssistantReply =
   | { kind: 'studio' }
   | { kind: 'add' }
   | { kind: 'year'; year: number }
-  | { kind: 'reel'; query: string; ids: string[] };
+  | { kind: 'reel'; query: string; ids: string[] }
+  /** „Șterge pozele de pe WhatsApp”: duce la curățenia pe dosare (FolderClean). */
+  | { kind: 'cleanFolders' }
+  /** „Fă-mi un colaj cu Sofia”: pozele găsite, gata de colaj. */
+  | { kind: 'collage'; query: string; photos: PhotoView[] };
 
 /** Cuvinte de umplutură din întrebări: nu se caută. */
 const FILLER = new Set(('arata arati mi imi vreau sa vad vezi gaseste cauta da poze pozele poza fotografii fotografiile cu de la din pe in si unde e este sunt toate ale lui ei cele mai ' +
@@ -59,6 +63,8 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
     for (const p of photos) for (const n of p.personNames ?? []) names.add(n);
     return { kind: 'stats', total: photos.length, kept: photos.filter(p => p.status === 'selected').length, waiting: photos.filter(isWaiting).length, extras: seriesExtras(photos).extras.length, people: names.size };
   }
+  // WhatsApp și alte dosare primite au curățenia lor (doar capturi, pozele cu oameni rămân).
+  if (has(q, /\b(whatsapp|whats app|primite|descarcat|download|telegram|messenger)\w*/) && has(q, /\b(curat|sterge|elibere|scap|clean|delete|remove)\w*/)) return { kind: 'cleanFolders' };
   if (has(q, /\b(curat|sterge|duplicat|dubluri|serii|spatiu|elibere|clean|delete|duplicate|bursts?|free up|space)\w*/)) {
     const s = seriesExtras(photos);
     const old = now - 30 * 86_400_000;
@@ -73,7 +79,21 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
     if (inner.kind === 'results') return { kind: 'reel', query: subject, ids: bestForReel(inner.photos) };
     return { kind: 'reel', query: subject, ids: [] };
   }
-  if (has(q, /\b(colaj|collage|studio)\w*/)) return { kind: 'studio' };
+  if (has(q, /\b(colaj|collage)\w*/)) {
+    const subject = q.replace(/\b(fa|faci|fami|fa mi|creeaza|creaza|vreau|un|o|niste|mi|imi|make|me|a|colaj\w*|collage\w*|din|cu|with|from|of)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!subject) return { kind: 'collage', query: '', photos: photos.filter(p => p.status === 'selected' && !p.aside).sort((a, b) => photoTime(b) - photoTime(a)).slice(0, 12) };
+    const inner = answer(subject, photos, now);
+    return { kind: 'collage', query: subject, photos: inner.kind === 'results' ? inner.photos.slice(0, 12) : [] };
+  }
+  if (has(q, /\bstudio\b/)) return { kind: 'studio' };
+  // „bonurile”, „facturi”, „acte mașina”: documentele puse deoparte, fără să ghicească forma cuvântului.
+  if (has(q, /\b(bon|bonuri|bonurile|bonul|factur|chitant|acte|actele|document|receipt|invoice)\w*/)) {
+    const docs = photos.filter(p => p.aside === 'document').sort((a, b) => photoTime(b) - photoTime(a));
+    const extra = q.replace(/\b(arata\w*|mi|imi|toate|pozele|poze|cu|de|la|bon\w*|factur\w*|chitant\w*|acte\w*|document\w*|receipts?|invoices?)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    const narrowed = extra ? searchPhotos(docs, extra) : docs;
+    if (narrowed.length) return { kind: 'results', query: input.trim(), photos: narrowed, best: false };
+    if (docs.length && !extra) return { kind: 'results', query: input.trim(), photos: docs, best: false };
+  }
 
   const best = has(q, /\b(cele mai|cea mai|best|top|frumoas|reusit|beautiful)\w*/);
   // Când, care, câte, cine (vezi assistantQuery.ts): „pozele păstrate de ieri cu Amy”.

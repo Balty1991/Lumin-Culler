@@ -31,7 +31,8 @@ describe('asistentul galeriei', () => {
     expect(answer('antrenează-te', photos).kind).toBe('train');
     expect(answer('adaugă poze', photos).kind).toBe('add');
     expect(answer('fă-mi un film', photos).kind).toBe('reel');
-    expect(answer('fă-mi un colaj', photos).kind).toBe('studio');
+    expect(answer('fă-mi un colaj', photos).kind).toBe('collage');
+    expect(answer('deschide studio', photos).kind).toBe('studio');
   });
   it('spune cinstit când nu găsește nimic', () => {
     expect(answer('elefant roz', photos)).toMatchObject({ kind: 'none', query: 'elefant roz', partial: [] });
@@ -65,5 +66,20 @@ describe('pisicile nu aduc câinii', () => {
     const cat = p('pisica', { sceneTags: ['cat', 'pet'], capturedAt: Date.UTC(2026, 4, 2) });
     expect(searchPhotos([dog, cat], 'pisici').map(x => x.id)).toEqual(['pisica']);
     expect(searchPhotos([dog, cat], 'caini').map(x => x.id)).toEqual(['caine']);
+  });
+});
+
+describe('asistentul: cereri noi din auditul pe persoane', () => {
+  it('„șterge pozele de pe WhatsApp” duce la curățenia pe dosare, nu la serii', () => {
+    expect(answer('șterge pozele de pe WhatsApp', photos).kind).toBe('cleanFolders');
+  });
+  it('„fă-mi un colaj cu Mia” pregătește pozele ei pentru colaj', () => {
+    const r = answer('fă-mi un colaj cu Mia', photos);
+    expect(r.kind === 'collage' && r.photos.map(x => x.id).sort()).toEqual(['mare', 'mia2']);
+  });
+  it('„bonurile” arată documentele puse deoparte', () => {
+    const docs = [...photos, p('bon1', { aside: 'document' as PhotoView['aside'], capturedAt: 5 })];
+    const r = answer('arată-mi bonurile', docs);
+    expect(r.kind === 'results' && r.photos.map(x => x.id)).toEqual(['bon1']);
   });
 });
