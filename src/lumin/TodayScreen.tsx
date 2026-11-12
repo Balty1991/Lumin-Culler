@@ -36,6 +36,7 @@ import { photoTime } from './days';
  */
 import { EnginesIntro } from './EnginesIntro';
 import { minuteBatch } from './minuteBatch';
+import { isBeginner } from './beginner';
 import { FilmCreator } from './FilmCreator';
 import { RephotoSheet, canRephoto } from './Rephoto';
 import { CapsuleCard } from './Capsule';
@@ -105,6 +106,8 @@ export function TodayScreen() {
   const busy = (!reader || reader.paused === 'import') && (importing || (!!progress && progress.phase !== 'finalizat'));
   // „Un minut azi”: 10 poze vechi nehotărâte pe zi, ca galeria să nu se mai adune.
   const minute = useMemo(() => minuteBatch(photos), [photos]);
+  // Modul de început: doar esențialul până la primele decizii (vezi beginner.ts).
+  const beginner = useMemo(() => isBeginner(photos), [photos]);
   const sortingActive = busy || !!(reader && reader.paused !== 'import' && reader.paused !== 'training');
 
   const [inGallery, setInGallery] = useState<number | null>(null);
@@ -314,17 +317,17 @@ export function TodayScreen() {
         </section>
       )}
 
-      {!sortingActive && (
+      {!sortingActive && !beginner && (
         <>
           <WhoIsThis />
           <IsItThem />
           <LumiFeed />
         </>
       )}
-      <StudioStrip />
+      {!beginner && <StudioStrip />}
       {/* Amintirea de azi și poza uitată sunt deja în poveștile de sus. */}
-      {!showStories && <ForgottenCard />}
-      {!showStories && <OnThisDay heroCoversFirst={!busy} />}
+      {!showStories && !beginner && <ForgottenCard />}
+      {!showStories && !beginner && <OnThisDay heroCoversFirst={!busy} />}
 
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
       <section className="lx-section">
@@ -344,7 +347,7 @@ export function TodayScreen() {
       </section>
 
       {/* Restul stă strâns: Azi rămâne scurt (cerut de audit: peste 20 de blocuri). */}
-      <details className="lx-more">
+      {!beginner && <details className="lx-more">
         <summary>{tr('lx.today.more')}</summary>
         <WeekVote />
         <BeenHereCard />
@@ -374,7 +377,7 @@ export function TodayScreen() {
           </div>
         </section>
       )}
-      </details>
+      </details>}
     </div>
   );
 }
