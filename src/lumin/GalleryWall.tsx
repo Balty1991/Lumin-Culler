@@ -866,7 +866,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
 
   return createPortal(
     <div className="lx lx-viewer" ref={rootRef} role="dialog" aria-modal="true">
-      <div className="lx-viewer-bg" aria-hidden="true" />
+      {/* Fundal „ambient”: culorile pozei, din miniatura ei mică (deja în memorie, fără filtru). */}
+      <div className="lx-viewer-bg" aria-hidden="true" style={p.lqip ? { backgroundImage: `linear-gradient(rgb(4 5 10 / .28), rgb(4 5 10 / .78)), url("${p.lqip}")` } : undefined} />
       <header className="lx-viewer-top">
         <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
         <span className="lx-viewer-date">{date}</span>

@@ -177,6 +177,7 @@ export function SwipeSort() {
 
   return (
     <div className="lx-sort" role="dialog" aria-modal="true" aria-label={title ?? tr('lx.sort.title')}>
+      {shown?.lqip && <div className="lx-sort-ambient" aria-hidden="true" style={{ backgroundImage: `linear-gradient(rgb(4 5 10 / .35), rgb(4 5 10 / .84)), url("${shown.lqip}")` }} />}
       <header className="lx-sort-top">
         <button className="lx-icon-btn" onClick={close} aria-label={tr('lx.close')}>✕</button>
         <div className="lx-sort-title">

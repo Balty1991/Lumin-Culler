@@ -2131,3 +2131,11 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 
 .lx-enhance-clip { display: flex; gap: 18px; justify-content: center; margin: 2px 0 6px; }
 .lx-enhance-zone span { color: rgb(var(--accent-rgb)); }
+
+/* Fundal ambient: poza își dă culorile ecranului (vizualizator, sortare) */
+.lx.lx-viewer > .lx-viewer-bg { position: fixed !important; inset: 0; z-index: 0 !important; width: auto; height: auto; max-width: none; background-size: cover; background-position: center; transition: background-image .35s ease; }
+.lx-sort-ambient { position: fixed; inset: 0; width: auto; max-width: none; z-index: 0; background-size: cover; background-position: center; pointer-events: none; }
+.lx-sort > *:not(.lx-sort-ambient) { position: relative; z-index: 1; }
+:root[data-theme="light"] .lx-sort-ambient, :root[data-theme="light"] .lx-viewer-bg { background-image: none !important; }
+.lx-viewer-top .lx-viewer-date, .lx-viewer-top .lx-viewer-count { color: #fff; text-shadow: 0 1px 6px rgb(0 0 0 / .6); }
+.lx-viewer-photo:not(.zoomed) img, .lx-viewer-photo:not(.zoomed) canvas { border-radius: 18px; box-shadow: 0 24px 60px -20px rgb(0 0 0 / .7); }
