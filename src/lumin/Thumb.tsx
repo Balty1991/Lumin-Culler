@@ -62,10 +62,15 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
 
   // Varianta clară a dalei: doar când dala ajunge (aproape) pe ecran — altfel
   // zeci de poze mari stau în memoria grafică degeaba.
+  // Elementul ca stare, nu ca ref: dala apare întâi goală (<span>) și devine <img> când vine
+  // miniatura. Cu ref, observatorul rămânea pe <span>-ul scos din pagină și poza clară nu se
+  // mai cerea niciodată — exact pozele noi din timpul citirii (raportat: „poze neclarificate”).
+  const [node, setNode] = useState<HTMLElement | null>(null);
   const box = useRef<HTMLElement | null>(null);
+  box.current = node;
   useEffect(() => {
     if (!sharp || full || !canSharpen()) return;
-    const el = box.current;
+    const el = node;
     let alive = true;
     const load = () => {
       let size = typeof sharp === 'number' ? sharp : TILE_SIZE;
@@ -83,10 +88,10 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
     }, { rootMargin: '300px' });
     io.observe(el);
     return () => { alive = false; io.disconnect(); };
-  }, [id, full, sharp]);
+  }, [id, full, sharp, node]);
   const shown = src ?? lqip;
   if (src && edits && !isNeutral(edits)) return <AdjustedImage className={className} src={src} edits={edits} alt={alt} />;
   return shown
-    ? <img ref={el => { box.current = el; }} className={className} src={shown} alt={alt} draggable={false} data-photo-id={full ? undefined : id} />
-    : <span ref={el => { box.current = el; }} className={className ? `${className} lx-thumb-empty` : 'lx-thumb-empty'} aria-hidden="true" data-photo-id={full ? undefined : id} />;
+    ? <img ref={setNode} className={className} src={shown} alt={alt} draggable={false} data-photo-id={full ? undefined : id} />
+    : <span ref={setNode} className={className ? `${className} lx-thumb-empty` : 'lx-thumb-empty'} aria-hidden="true" data-photo-id={full ? undefined : id} />;
 }
