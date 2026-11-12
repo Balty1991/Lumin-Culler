@@ -4,6 +4,9 @@ import { registerSW } from 'virtual:pwa-register';
 import { Capacitor } from '@capacitor/core';
 import { LazyMotion, domAnimation } from 'framer-motion';
 import { LuminApp } from './lumin/LuminApp';
+import { applyTextScale } from './lumin/textSize';
+
+applyTextScale();
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import './styles.css';
 // Stratul vizual de concept, dupa foaia de baza — aceeasi ordine ca in

@@ -38,7 +38,8 @@ import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
 import { intlTag, plural } from '../i18n';
 
-const VIEWS: GalleryView[] = ['wall', 'moments', 'people', 'days', 'aside', 'months', 'map'];
+const MAIN_VIEWS: GalleryView[] = ['wall', 'moments', 'people', 'days'];
+const MORE_VIEWS: GalleryView[] = ['aside', 'months', 'map'];
 // Harta (MapLibre) e mare: se încarcă doar când o deschizi.
 const PhotoMap = lazy(() => import('./PhotoMap').then(m => ({ default: m.PhotoMap })));
 
@@ -130,14 +131,31 @@ function GalleryFilters() {
   const tr = useTr();
   const view = useLx(s => s.galleryView);
   const setView = useLx(s => s.setGalleryView);
+  const [more, setMore] = useState(false);
+  // Patru file la vedere, restul sub „⋯” (auditul de interfață: 7 file, ultimele ascunse).
+  const inMore = MORE_VIEWS.includes(view);
   return (
-    <div className="lx-seg scroll" role="tablist">
-      {VIEWS.map(v => (
-        <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
-          onClick={() => setView(v)}>
-          {tr(`lx.days.view.${v}`)}
+    <div className="lx-gal-tabs">
+      <div className="lx-seg scroll" role="tablist">
+        {MAIN_VIEWS.map(v => (
+          <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''}
+            onClick={() => { setMore(false); setView(v); }}>
+            {tr(`lx.days.view.${v}`)}
+          </button>
+        ))}
+        <button role="tab" aria-selected={inMore} aria-expanded={more} className={inMore ? 'on' : ''} onClick={() => setMore(m => !m)}>
+          {inMore ? tr(`lx.days.view.${view}`) : '⋯'}
         </button>
-      ))}
+      </div>
+      {more && (
+        <div className="lx-gal-more" role="menu">
+          {MORE_VIEWS.map(v => (
+            <button key={v} role="menuitem" className={view === v ? 'on' : ''} onClick={() => { setMore(false); setView(v); }}>
+              {tr(`lx.days.view.${v}`)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

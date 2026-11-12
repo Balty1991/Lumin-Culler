@@ -2225,3 +2225,33 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 :root[data-theme="light"] .lx-studio-tile::after { opacity: .35; }
 /* Ținte de atingere de cel puțin 44 px. */
 .lx-enhance-tabs button, .lx-pure-btn { min-height: 44px; }
+
+/* Selecția multiplă din Galerie */
+.lx-tile.picked { outline: 3px solid var(--accent, #ff4f7f); outline-offset: -3px; }
+.lx-tile.picked .lx-thumb, .lx-tile.picked img { transform: scale(.92); transition: transform .15s var(--lx-ease); }
+.lx-tile-check { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid #fff; background: rgb(0 0 0 / .35); color: #fff; font-size: 14px; font-weight: 800; z-index: 2; }
+.lx-tile-check.on { background: var(--lx-grad); border-color: transparent; color: #1a0d14; }
+.lx-select-bar { position: fixed; left: 12px; right: 12px; bottom: calc(96px + var(--safe-bottom, 0px)); z-index: 60;
+  display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--lx-line);
+  box-shadow: 0 12px 30px -12px rgb(0 0 0 / .5); backdrop-filter: blur(16px); }
+.lx-select-bar b { flex: 1; font-size: 14px; white-space: nowrap; }
+.lx-select-bar button { min-height: 44px; padding: 0 10px; border-radius: 14px; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+.lx-select-bar button:disabled { opacity: .4; }
+.lx-select-bar .lx-select-x { width: 44px; padding: 0; justify-content: center; font-size: 16px; }
+
+/* Butonul din mijloc are și nume, ca restul barei (auditul pe persoane: nimeni nu știa ce face ✦). */
+.lx-dock-add.ask { position: relative; overflow: visible; }
+.lx-dock-add-label { position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%);
+  font-size: 11px; font-weight: 600; color: var(--text-faint); white-space: nowrap; pointer-events: none; }
+
+/* Galerie: 4 file + „⋯” cu Deoparte, Luni, Hartă */
+.lx-gal-tabs { position: relative; }
+.lx-gal-more { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 170px; padding: 6px;
+  display: flex; flex-direction: column; border-radius: 16px; border: 1px solid var(--lx-line);
+  background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: 0 16px 36px -14px rgb(0 0 0 / .55); backdrop-filter: blur(16px); }
+.lx-gal-more button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: transparent; color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 600; text-align: left; }
+.lx-gal-more button.on { background: rgb(var(--accent-rgb) / .14); color: var(--accent); }

@@ -217,7 +217,7 @@ export function TodayScreen() {
           <div className="lx-reader-head">
             <div>
               <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
-              <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
+              <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : reader.paused === 'charging' ? 'lx.reader.waitCharge' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
             </div>
             {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
             <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>

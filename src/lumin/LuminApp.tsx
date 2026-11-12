@@ -356,7 +356,7 @@ export function LuminApp() {
   const importDone = !progress || progress.phase === 'finalizat';
   // Cât se citește galeria, fețele așteaptă: rulau după fiecare pachet, în paralel
   // cu analiza următorului, și încetineau amândouă.
-  const readingGallery = useLx(s => !!s.reader && s.reader.paused !== 'battery');
+  const readingGallery = useLx(s => !!s.reader && s.reader.paused !== 'battery' && s.reader.paused !== 'charging');
   useEffect(() => {
     if (!booted || !importDone || readingGallery || !canEmbedFaces()) return;
     let alive = true;
@@ -490,6 +490,7 @@ export function LuminApp() {
           {/* Mijlocul barei e AI-ul tău: îl întrebi sau îi ceri ceva (și adăugarea de poze e acolo). */}
           <button className="lx-dock-add ask" onClick={() => { haptic('tick'); setAskOpen(true); }} aria-label={tr('lx.ask.title')}>
             <span><Icon name="sparkle" size={26} /></span>
+            <small className="lx-dock-add-label">{tr('lx.nav.ask')}</small>
           </button>
           {tabs.slice(2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>

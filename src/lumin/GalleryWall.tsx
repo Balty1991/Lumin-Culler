@@ -35,6 +35,8 @@ import { Icon } from './icons';
 import { planBestTake, renderBestTake, type BestTakeFix } from './bestTake';
 import { burstFilmAvailable } from './burstFilm';
 import { FilmCreator } from './FilmCreator';
+import { useSelection } from './selection';
+import { CollageSheet } from './CollageSheet';
 import { CapsuleCreator } from './Capsule';
 import { useShieldedShare } from './ShareShield';
 import { LivePhotoSheet } from './LivePhoto';
@@ -558,6 +560,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
           </section>
         );
       })}
+      <SelectionBar />
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
       {allMonths.length > 2 && <TimeRail months={allMonths} locale={locale} onPick={start => {
         // Lunile încă neîncărcate: încarcă până la ea, apoi sari.
@@ -581,11 +584,17 @@ const Tile = memo(function Tile({ p, index, span, delay, sharp, reveal, onOpen }
   onOpen: { current: (i: number, el: HTMLElement) => void };
 }) {
   const tr = useTr();
+  const picked = useSelection(s => s.ids.includes(p.id));
+  const selecting = useSelection(s => s.active);
   return (
-    <button ref={reveal} data-reveal-id={p.id} className={`lx-tile ${p.status} ${span}${revealed.has(p.id) ? ' in' : ''}`}
+    <button ref={reveal} data-reveal-id={p.id} className={`lx-tile ${p.status} ${span}${revealed.has(p.id) ? ' in' : ''}${picked ? ' picked' : ''}`}
       style={{ ['--d' as string]: `${delay}ms` } as CSSProperties}
-      onClick={e => onOpen.current(index, e.currentTarget)}>
+      aria-pressed={selecting ? picked : undefined}
+      // Ții apăsat: începe selecția multiplă; apoi o atingere bifează / debifează.
+      onContextMenu={e => { e.preventDefault(); haptic('tick'); if (selecting) useSelection.getState().toggle(p.id); else useSelection.getState().start(p.id); }}
+      onClick={e => { if (selecting) { haptic('tick'); useSelection.getState().toggle(p.id); } else onOpen.current(index, e.currentTarget); }}>
       <Thumb id={p.id} lqip={p.lqip} edits={p.edits} sharp={sharp} />
+      {selecting && <span className={`lx-tile-check${picked ? ' on' : ''}`} aria-hidden="true">{picked ? '✓' : ''}</span>}
       {p.status === 'selected' && <span className="lx-tile-star">★</span>}
       {p.status === 'rejected' && <span className="lx-tile-dot" title={tr('lx.wall.state.notToday')} />}
     </button>
@@ -1010,5 +1019,40 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
       {texting && <TextSheet photo={p} onClose={() => setTexting(false)} />}
     </div>,
     document.body
+  );
+}
+
+/**
+ * Bara selecției multiple, deasupra barei de jos: câte poze, Trimite, Colaj, Reel.
+ */
+function SelectionBar() {
+  const tr = useTr();
+  const ids = useSelection(s => s.ids);
+  const active = useSelection(s => s.active);
+  const clear = useSelection(s => s.clear);
+  const photos = useLxPhotos();
+  const [sheet, setSheet] = useState<'collage' | 'reel' | null>(null);
+  const paneActive = useContext(PaneActive);
+  // Altă filă: selecția nu rămâne agățată.
+  useEffect(() => { if (!paneActive) clear(); }, [paneActive, clear]);
+  useEffect(() => () => clear(), [clear]);
+  if (!active && !sheet) return null;
+  const chosen = ids.map(id => photos.find(p => p.id === id)).filter((p): p is PhotoView => !!p);
+  const send = () => { void useStore.getState().exportSelection('apps', ids).then(() => learnFromShare(chosen)); };
+  return (
+    <>
+      {active && createPortal(
+        <div className="lx lx-select-bar" role="toolbar" aria-label={tr('lx.select.count', { count: ids.length })}>
+          <button className="lx-select-x" onClick={clear} aria-label={tr('lx.close')}>✕</button>
+          <b>{tr('lx.select.count', { count: ids.length })}</b>
+          <button onClick={send}><Icon name="share" size={18} />{tr('lx.select.send')}</button>
+          <button disabled={ids.length < 3} onClick={() => setSheet('collage')}>🧩 {tr('lx.select.collage')}</button>
+          <button disabled={ids.length < 2} onClick={() => setSheet('reel')}>🎬 {tr('lx.select.reel')}</button>
+        </div>,
+        document.body
+      )}
+      {sheet === 'collage' && <CollageSheet photos={chosen} title={tr('lx.collage.title')} subtitle="" onClose={() => { setSheet(null); clear(); }} />}
+      {sheet === 'reel' && chosen.length > 0 && <FilmCreator startId={chosen[0].id} initialIds={chosen.map(p => p.id)} initialTransition="fade" preset="reel" onClose={() => { setSheet(null); clear(); }} />}
+    </>
   );
 }

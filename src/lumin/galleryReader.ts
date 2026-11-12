@@ -130,6 +130,15 @@ async function lowBattery(): Promise<boolean> {
  * atingere de 20 s), analiza merge la viteză maximă; altfel lasă loc ecranului.
  * Așa galeria mare se termină peste noapte, iar ziua telefonul rămâne fluid.
  */
+/**
+ * Telefon modest sau galerie foarte mare: întâi ultimul an, restul doar la încărcat
+ * (auditul pe persoane: pe 2–3 GB RAM, 15.000 de poze însemnau ~10 ore de procesor
+ * în mijlocul zilei). Pozele noi și ultimul an se citesc ca înainte.
+ */
+export function oldPhoneMode(memoryGb: number, missing: number): boolean {
+  return memoryGb <= 2 || missing >= 10_000;
+}
+
 export function readerPace(s: { charging: boolean; visible: boolean; active: boolean }): 'full' | 'gentle' {
   return s.charging && (!s.visible || !s.active) ? 'full' : 'gentle';
 }
@@ -190,6 +199,11 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     let done = 0;
     let lastNotified = 0;
     let recentAnnounced = false;
+    // Fără informații despre baterie n-avem cum aștepta încărcatul: citește ca până acum.
+    const hasBattery = typeof (navigator as unknown as { getBattery?: unknown }).getBattery === 'function';
+    const slowPhone = hasBattery && !ignoreBattery && oldPhoneMode(MEMORY_GB, missing.length);
+    const yearAgo = Date.now() - 365 * 86_400_000;
+    let yearAnnounced = false;
     lx.setReader({ done, total: missing.length });
     for (let i = 0; i < missing.length; i += chunkSizeAt(i)) {
       const size = chunkSizeAt(i);
@@ -206,6 +220,17 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         await sleep(4000);
       }
       if (stopRequested) break;
+      if (slowPhone && missing[i].capturedAt < yearAgo) {
+        if (!yearAnnounced) {
+          yearAnnounced = true;
+          useStore.getState().setNotice(t(useStore.getState().locale, 'lx.reader.yearDone', { left: missing.length - i }));
+        }
+        while (!stopRequested && !(await isCharging())) {
+          useLx.getState().setReader({ done, total: missing.length, paused: 'charging' });
+          await sleep(15_000);
+        }
+        if (stopRequested) break;
+      }
       const fast = readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
       analysisPool.setGentle(!fast);
       useLx.getState().setReader({ done, total: missing.length, fast });

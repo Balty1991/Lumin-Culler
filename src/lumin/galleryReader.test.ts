@@ -25,3 +25,12 @@ describe('ritmul citirii', () => {
     expect(readerPace({ charging: false, visible: false, active: false })).toBe('gentle');
   });
 });
+
+import { oldPhoneMode } from './galleryReader';
+describe('oldPhoneMode', () => {
+  it('telefoanele cu 2 GB sau galeriile uriașe citesc restul doar la încărcat', () => {
+    expect(oldPhoneMode(2, 500)).toBe(true);
+    expect(oldPhoneMode(8, 12_000)).toBe(true);
+    expect(oldPhoneMode(4, 3_000)).toBe(false);
+  });
+});

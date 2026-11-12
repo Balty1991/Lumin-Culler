@@ -1,4 +1,5 @@
 import { jankSummary } from '../core/jankLog';
+import { readTextScale, setTextScale, TEXT_SCALES, type TextScale } from './textSize';
 import { usePacedPhotos } from './useLxPhotos';
 import { DEV_UNLIMITED_KEY, devUnlimited, devUnlimitedAvailable } from '../core/entitlement';
 import { Capacitor } from '@capacitor/core';
@@ -141,6 +142,7 @@ export function SettingsScreen() {
           </div>
         </div>
         <PaletteRow />
+        <TextSizeRow />
         <HapticsRow />
         {devUnlimitedAvailable && <DevUnlimitedRow />}
         <button className="lx-row button" onClick={() => useLx.getState().setTourOpen(true)}>
@@ -293,6 +295,24 @@ function PaletteRow() {
           <b>{tr(`lx.palette.${p}`)}</b>
         </button>
       ))}
+    </div>
+  );
+}
+
+function TextSizeRow() {
+  const tr = useTr();
+  const [scale, setScale] = useState<TextScale>(readTextScale);
+  const pick = (v: TextScale) => { setTextScale(v); setScale(v); };
+  return (
+    <div className="lx-row">
+      <span><b>{tr('lx.textSize.title')}</b><small>{tr('lx.textSize.sub')}</small></span>
+      <div className="lx-seg small" role="radiogroup" aria-label={tr('lx.textSize.title')}>
+        {TEXT_SCALES.map(v => (
+          <button key={v} role="radio" aria-checked={scale === v} className={scale === v ? 'on' : ''} onClick={() => pick(v)}>
+            <span style={{ fontSize: `${Math.round(13 * v)}px` }}>A</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

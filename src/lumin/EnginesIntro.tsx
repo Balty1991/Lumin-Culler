@@ -35,10 +35,9 @@ export function EnginesIntro() {
         <p>{tr('lx.intro.body', { mb: Math.round(mb / 10) * 10 })}</p>
         <ul>{perks.map(k => <li key={k}>{tr(k)}</li>)}</ul>
         <div className="lx-perm-actions">
-          {/* Wi-Fi e alegerea implicită: ~1 GB pe date mobile e mult pentru cine a instalat
-              aplicația ca să-și elibereze spațiu (auditul pe persoane). */}
-          <button className="lx-btn primary" onClick={() => pick('wifi')}>{tr('lx.intro.wifi')}</button>
-          <button className="lx-btn ghost" onClick={() => pick('any')}>{tr('lx.intro.any')}</button>
+          {/* „Acum” rămâne prima alegere: nu toată lumea are Wi-Fi (cerut de om). */}
+          <button className="lx-btn primary" onClick={() => pick('any')}>{tr('lx.intro.any')}</button>
+          <button className="lx-btn ghost" onClick={() => pick('wifi')}>{tr('lx.intro.wifi')}</button>
           <button className="lx-link" onClick={() => { laterThisRun = true; deferEnginesPrompt(); setLater(true); window.dispatchEvent(new Event(ENGINES_READY_EVENT)); }}>{tr('lx.intro.later')}</button>
         </div>
       </div>
