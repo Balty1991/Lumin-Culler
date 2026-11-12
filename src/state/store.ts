@@ -89,7 +89,7 @@ import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
 import { createStallTracker, type StallTracker, type StallTally } from '../core/stallTally';
-import { maybeAskForReview } from './reviewPrompt';
+import { maybeAskForReview, maybeAskForReviewAfterWin } from './reviewPrompt';
 import { passTrashGuard, setLastTrash } from './lastTrash';
 import {
   startBackgroundAnalysis, updateBackgroundAnalysis, stopBackgroundAnalysis,
@@ -4905,6 +4905,9 @@ export const useStore = create<AppState>((set, get) => ({
     const set_ = new Set(targets);
     set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'rejected' as const } : p)) }));
     const r = await get().deleteRejectedPhotos(targets);
+    // Chiar după o curățenie reușită (nu la o pornire oarecare): momentul în care omul
+    // tocmai a văzut ce face aplicația. O singură dată, vezi reviewPrompt.ts.
+    if (!r.cancelled) maybeAskForReviewAfterWin({ cleaned: r.deleted });
     return { deleted: r.deleted, cancelled: r.cancelled };
   },
 

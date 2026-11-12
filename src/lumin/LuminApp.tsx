@@ -274,7 +274,8 @@ export function LuminApp() {
           : t(locale, 'lx.widget.kept', { count: day.kept.length });
       // Cererea de recenzie, o singură dată, după un câștig vizibil (1 GB eliberat sau 100 de poze hotărâte).
       const all = visiblePhotos();
-      maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => p.status === 'selected' || p.status === 'rejected').length });
+      // Doar deciziile omului: cele ale AI-ului vin singure la prima citire, înainte ca omul să fi văzut ceva.
+      maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => (p.status === 'selected' || p.status === 'rejected') && !p.aiDecided).length });
       // Fără poză bună azi: widgetul nu rămâne gol, ci arată o amintire din aceeași zi
       // a anilor trecuți, altfel una dintre cele mai bune poze din ultima lună (alta în fiecare zi).
       if (best?.mediaUri) {

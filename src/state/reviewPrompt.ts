@@ -94,8 +94,10 @@ export function maybeAskForReview(exported: number, now: number = Date.now()): v
  */
 export const REVIEW_FREED_BYTES = 1024 * 1024 * 1024;
 export const REVIEW_DECIDED = 100;
-export function maybeAskForReviewAfterWin(win: { freedBytes?: number; decided?: number }, now: number = Date.now()): void {
-  const earned = (win.freedBytes ?? 0) >= REVIEW_FREED_BYTES || (win.decided ?? 0) >= REVIEW_DECIDED;
+/** O curățenie făcută acum, cu cel puțin atâtea poze scoase, e un moment bun de cerut recenzia. */
+export const REVIEW_CLEANED = 20;
+export function maybeAskForReviewAfterWin(win: { freedBytes?: number; decided?: number; cleaned?: number }, now: number = Date.now()): void {
+  const earned = (win.freedBytes ?? 0) >= REVIEW_FREED_BYTES || (win.decided ?? 0) >= REVIEW_DECIDED || (win.cleaned ?? 0) >= REVIEW_CLEANED;
   if (!earned || !isInAppReviewAvailable() || readReviewAsked()) return;
   markReviewAsked(now);
   laUrmatoareaVedere(() => { void requestInAppReview(); });

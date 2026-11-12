@@ -105,3 +105,10 @@ describe('maybeAskForReview', () => {
     expect(readReviewAsked()).toBe(false);
   });
 });
+
+describe('recenzia după o curățenie', () => {
+  it('pragul de curățenie e o curățenie reală, nu o poză', async () => {
+    const { REVIEW_CLEANED } = await import('./reviewPrompt');
+    expect(REVIEW_CLEANED).toBeGreaterThanOrEqual(10);
+  });
+});
