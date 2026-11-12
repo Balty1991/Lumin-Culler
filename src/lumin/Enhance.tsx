@@ -14,7 +14,7 @@ import { AiRetouch, type ToolKind } from './AiRetouch';
 import { portraitAvailable } from '../core/portraitEdit';
 import { Icon } from './icons';
 import { learnLook, readMyLook } from './myLook';
-import { canRenderOff, renderOff } from './editRender';
+import { canRenderOff, renderBlobOff, renderOff } from './editRender';
 import { MagicSheet } from './MagicSheet';
 import { lowLightOnDevice, onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { analysisPool } from '../core/workerPool';
@@ -841,29 +841,29 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       // trimiterea ei dădea eroare, fiindcă nu avea fișier.
       if ((style === 'portrait' && edits.bokehMask && !pure) || useLit || canSharpen()) {
         const url = useLit ? src : (canSharpen() ? await sharpUrl(photo.id, 3000).catch(() => null) : null) ?? src;
-        const img = url ? await createImageBitmap(await (await fetch(url)).blob()) : null;
-        if (img) {
+        const file = url ? await (await fetch(url)).blob() : null;
+        // Desenul mare și codarea JPEG, întregi pe worker: ecranul nu îngheață la salvare.
+        let blob: Blob | null = null;
+        if (file && canRenderOff(edits)) {
+          blob = await createImageBitmap(file).then(b => renderBlobOff(b, edits, 0.94)).catch(() => null);
+        }
+        if (!blob && file) {
+          const img = await createImageBitmap(file);
           const o = outputSize(img.width, img.height, edits);
           const c = document.createElement('canvas');
           c.width = o.width; c.height = o.height;
           const ctx = c.getContext('2d');
           if (ctx) {
-            // Desenul mare, în afara firului principal când se poate: ecranul nu îngheață la salvare.
-            let drawn = false;
-            if (canRenderOff(edits)) {
-              const source = document.createElement('canvas');
-              source.width = img.width; source.height = img.height;
-              source.getContext('2d')?.drawImage(img, 0, 0);
-              const out = await renderOff(source, edits).catch(() => null);
-              if (out) { ctx.drawImage(out, 0, 0, o.width, o.height); out.close(); drawn = true; }
-            }
-            if (!drawn) drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
-            const blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
-            const ok = blob ? await saveEditedBlob(blob, useLit ? 'lumina' : style === 'portrait' ? 'portret' : 'editat') : false;
-            if (ok) vibrate(12);
-            useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
-            if (ok) { onClose(); return; }
+            drawAdjusted(ctx, img, img.width, img.height, o.width, o.height, edits);
+            blob = await new Promise<Blob | null>(r => c.toBlob(r, 'image/jpeg', 0.94));
           }
+          img.close();
+        }
+        if (blob) {
+          const ok = await saveEditedBlob(blob, useLit ? 'lumina' : style === 'portrait' ? 'portret' : 'editat');
+          if (ok) vibrate(12);
+          useStore.getState().setNotice(tr(ok ? 'lx.magic.saved' : 'lx.magic.failed'));
+          if (ok) { onClose(); return; }
         }
       }
       vibrate(12);

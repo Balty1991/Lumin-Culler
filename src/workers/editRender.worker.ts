@@ -8,7 +8,8 @@ import { drawAdjusted, outputSize, type EditAdjustments } from '../core/imageAdj
 
 type In =
   | { type: 'load'; key: number; bitmap: ImageBitmap }
-  | { type: 'draw'; key: number; id: number; edits: EditAdjustments };
+  | { type: 'draw'; key: number; id: number; edits: EditAdjustments }
+  | { type: 'blob'; id: number; bitmap: ImageBitmap; edits: EditAdjustments; quality: number };
 
 let held: { key: number; bitmap: ImageBitmap } | null = null;
 let canvas: OffscreenCanvas | null = null;
@@ -21,6 +22,26 @@ self.onmessage = (e: MessageEvent<In>) => {
     return;
   }
   const post = (self as unknown as { postMessage: (msg: unknown, transfer?: Transferable[]) => void }).postMessage.bind(self);
+  if (m.type === 'blob') {
+    // Salvarea întreagă aici: desen la rezoluție mare + codare JPEG, nimic pe firul principal.
+    void (async () => {
+      try {
+        const { bitmap } = m;
+        const o = outputSize(bitmap.width, bitmap.height, m.edits);
+        const c = new OffscreenCanvas(o.width, o.height);
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('fără context');
+        drawAdjusted(ctx as unknown as CanvasRenderingContext2D, bitmap, bitmap.width, bitmap.height, o.width, o.height, m.edits);
+        bitmap.close();
+        const blob = await c.convertToBlob({ type: 'image/jpeg', quality: m.quality });
+        post({ id: m.id, blob });
+      } catch (err) {
+        try { m.bitmap.close(); } catch { /* deja închis */ }
+        post({ id: m.id, error: String(err) });
+      }
+    })();
+    return;
+  }
   try {
     if (!held || held.key !== m.key) throw new Error('fără sursă');
     const { bitmap } = held;

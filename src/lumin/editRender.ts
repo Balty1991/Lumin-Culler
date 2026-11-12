@@ -15,12 +15,19 @@ let worker: Worker | null | undefined;
 let seq = 0;
 let loaded: { source: CanvasImageSource; key: number } | null = null;
 const waiters = new Map<number, { resolve: (b: ImageBitmap) => void; reject: (e: unknown) => void }>();
+const blobWaiters = new Map<number, { resolve: (b: Blob) => void; reject: (e: unknown) => void }>();
 
 function get(): Worker | null {
   if (worker !== undefined) return worker;
   try {
     worker = new Worker(new URL('../workers/editRender.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (e: MessageEvent<{ id: number; bitmap?: ImageBitmap; error?: string }>) => {
+    worker.onmessage = (e: MessageEvent<{ id: number; bitmap?: ImageBitmap; blob?: Blob; error?: string }>) => {
+      const bw = blobWaiters.get(e.data.id);
+      if (bw) {
+        blobWaiters.delete(e.data.id);
+        if (e.data.blob) bw.resolve(e.data.blob); else bw.reject(new Error(e.data.error));
+        return;
+      }
       const w = waiters.get(e.data.id);
       if (!w) { e.data.bitmap?.close(); return; }
       waiters.delete(e.data.id);
@@ -28,7 +35,8 @@ function get(): Worker | null {
     };
     worker.onerror = () => {
       for (const w of waiters.values()) w.reject(new Error('worker'));
-      waiters.clear(); worker = null; loaded = null;
+      for (const w of blobWaiters.values()) w.reject(new Error('worker'));
+      waiters.clear(); blobWaiters.clear(); worker = null; loaded = null;
     };
   } catch { worker = null; }
   return worker;
@@ -49,5 +57,19 @@ export async function renderOff(source: HTMLCanvasElement | HTMLImageElement, ed
   return new Promise<ImageBitmap>((resolve, reject) => {
     waiters.set(id, { resolve, reject });
     w.postMessage({ type: 'draw', key, id, edits });
+  });
+}
+
+/**
+ * Poza finală (desen + JPEG) în întregime pe worker; `bitmap` se predă (nu mai e
+ * folosibil după apel). Respinge dacă nu se poate: apelantul desenează el.
+ */
+export async function renderBlobOff(bitmap: ImageBitmap, edits: EditAdjustments, quality = 0.94): Promise<Blob> {
+  const w = get();
+  if (!w) throw new Error('fără worker');
+  const id = ++seq;
+  return new Promise<Blob>((resolve, reject) => {
+    blobWaiters.set(id, { resolve, reject });
+    w.postMessage({ type: 'blob', id, bitmap, edits, quality }, [bitmap]);
   });
 }

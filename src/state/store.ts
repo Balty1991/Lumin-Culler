@@ -1860,6 +1860,25 @@ export function settleFreeCleanup(used: boolean): void {
   try { localStorage.setItem(FREE_CLEANUP_KEY, `${now.getFullYear()}-${now.getMonth() + 1}`); } catch { /* fără stocare */ }
 }
 
+/**
+ * Statusul și seria recitite din baza de date, păstrând obiectele neschimbate.
+ * Înainte, la finalul fiecărui lot, FIECARE poză devenea obiect nou: toate miniaturile și
+ * toate ecranele se recalculau o dată pe lot (blocaje de ~1 s la citirea galeriei,
+ * raportul de pe telefon din 12 nov.). Fără nicio schimbare, rămâne chiar aceeași listă.
+ */
+export function mergeStatusGroup<P extends { id: string; status: unknown; groupId?: string }>(
+  photos: P[], byId: Map<string, { status: unknown; groupId?: string }>
+): P[] {
+  let changed = false;
+  const next = photos.map(p => {
+    const rec = byId.get(p.id);
+    if (!rec || (rec.status === p.status && rec.groupId === p.groupId)) return p;
+    changed = true;
+    return { ...p, status: rec.status, groupId: rec.groupId };
+  });
+  return changed ? next : photos;
+}
+
 export const useStore = create<AppState>((set, get) => ({
   photos: [],
   persons: [],
@@ -3408,10 +3427,7 @@ export const useStore = create<AppState>((set, get) => ({
         : state.lastImportStats,
       sessionOutcome,
       monthlyUsage,
-      photos: state.photos.map(p => {
-        const rec = byId.get(p.id);
-        return rec ? { ...p, status: rec.status, groupId: rec.groupId } : p;
-      })
+      photos: mergeStatusGroup(state.photos, byId)
     }));
     // "Mod Zen": rezolva automat grupurile clare dupa import, in loc sa astepte
     // un click pe "Rezolva toate seriile" — vezi runZenResolve/zenResolve.ts
