@@ -31,9 +31,16 @@ import java.util.concurrent.Executors
  * Firele sunt "daemon": nu tin procesul viu daca aplicatia se inchide cu o
  * inferenta in curs.
  */
-fun pluginExecutor(nume: String): ExecutorService =
+fun pluginExecutor(nume: String, fundal: Boolean = false): ExecutorService =
     Executors.newSingleThreadExecutor { r ->
-        Thread(r, "Lumin-$nume").apply { isDaemon = true }
+        // Analiza galeriei rulează cu prioritate de fundal: raportul de blocaje (12 nov.)
+        // arăta ecranul înghețat ~1 s exact cât rulau modelele (FaceMesh, ImageAnalysis,
+        // OCR) — concurau de la egal la egal cu firul care desenează. Firele create de
+        // modele din firul ăsta (XNNPACK, MediaPipe) moștenesc aceeași prioritate.
+        Thread({
+            if (fundal) android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            r.run()
+        }, "Lumin-$nume").apply { isDaemon = true }
     }
 
 /**

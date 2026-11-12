@@ -35,7 +35,7 @@ class PoseDetectionPlugin : Plugin() {
      * plugin treceau printr-un singur fir al Capacitor, si de acolo venea
      * paralelismul efectiv de 1,4 din 4 masurat pe telefon.
      */
-    private val executor = pluginExecutor("PoseDetection")
+    private val executor = pluginExecutor("PoseDetection", fundal = true)
 
     override fun handleOnDestroy() {
         executor.shutdown()

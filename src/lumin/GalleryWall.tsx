@@ -1,11 +1,11 @@
 import { useHoldAnalysis } from './useHoldAnalysis';
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
 import { useLx } from './lxStore';
 import { closeWithTransition, openWithTransition } from './viewTransition';
-import { useLxPhotos } from './useLxPhotos';
+import { PaneActive, useLxPhotos } from './useLxPhotos';
 import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
 import { useStore, type PhotoView } from '../state/store';
@@ -218,6 +218,8 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
   const setNotice = useStore(s => s.setNotice);
   const sentinel = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  // La revenirea în tab, încă o măsurare (lățimea era 0 cât a stat ascuns).
+  const paneActive = useContext(PaneActive);
   const [cell, setCell] = useState(() => Math.max(40, (Math.min(window.innerWidth, 720) - 32 - GAP * (density - 1)) / density));
 
   const list = useMemo(() => {
@@ -310,7 +312,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [density]);
+  }, [density, paneActive]);
 
   // Zoom cu două degete: depărtat = mai puține coloane, apropiat = mai multe.
   const pinch = useRef<{ d: number; done: boolean } | null>(null);

@@ -44,7 +44,7 @@ private val STD = floatArrayOf(0.26862954f, 0.26130258f, 0.27577711f)
  */
 @CapacitorPlugin(name = "Clip")
 class ClipPlugin : Plugin() {
-    private val executor = pluginExecutor("Clip")
+    private val executor = pluginExecutor("Clip", fundal = true)
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
     private var textSession: OrtSession? = null

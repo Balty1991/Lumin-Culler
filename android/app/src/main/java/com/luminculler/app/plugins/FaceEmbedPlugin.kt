@@ -40,7 +40,7 @@ private const val DECODE_SMALL_FACE_MAX_SIDE = 3200
  */
 @CapacitorPlugin(name = "FaceEmbed")
 class FaceEmbedPlugin : Plugin() {
-    private val executor = pluginExecutor("FaceEmbed")
+    private val executor = pluginExecutor("FaceEmbed", fundal = true)
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
 

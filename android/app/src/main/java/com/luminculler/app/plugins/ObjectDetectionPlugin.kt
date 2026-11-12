@@ -25,7 +25,7 @@ private const val MAX_RETURNED = 8
  */
 @CapacitorPlugin(name = "ObjectDetection")
 class ObjectDetectionPlugin : Plugin() {
-    private val executor = pluginExecutor("ObjectDetection")
+    private val executor = pluginExecutor("ObjectDetection", fundal = true)
 
     override fun handleOnDestroy() {
         executor.shutdown()

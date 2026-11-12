@@ -29,7 +29,7 @@ private const val FER_SIDE = 64
  */
 @CapacitorPlugin(name = "Emotion")
 class EmotionPlugin : Plugin() {
-    private val executor = pluginExecutor("Emotion")
+    private val executor = pluginExecutor("Emotion", fundal = true)
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
 

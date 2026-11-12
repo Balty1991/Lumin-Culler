@@ -34,7 +34,7 @@ import kotlin.math.sqrt
  */
 @CapacitorPlugin(name = "StageOne")
 class StageOnePlugin : Plugin() {
-    private val executor = pluginExecutor("StageOne")
+    private val executor = pluginExecutor("StageOne", fundal = true)
     private val pool = Executors.newFixedThreadPool(4) { runnable ->
         Thread(runnable, "Lumin-StageOne-batch").apply { isDaemon = true }
     }

@@ -490,7 +490,10 @@ export class AnalysisPool {
       // Citirea din fundal (gentle) stă de tot cât derulezi: dalele clare ale galeriei au
       // nevoie de procesor (raportat cu înregistrare: poze neclare la derulare, în timpul citirii).
       if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return this.gentle ? 0 : 1;
-      if (this.gentle) return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
+      // Cu aplicația pe ecran, citirea din fundal: o singură poză odată. Cu două, modelele
+      // a 2 poze ocupau toate nucleele și ecranul îngheța ~1 s (raportul din 12 nov.,
+      // blocajele chiar în timpul FaceMesh/ImageAnalysis/OCR). Cu ecranul stins merge plin.
+      if (this.gentle) return Math.min(thermal, 1);
     }
     return thermal;
   }
