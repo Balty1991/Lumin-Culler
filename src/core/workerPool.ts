@@ -684,8 +684,8 @@ export class AnalysisPool {
       const queueStart = performance.now();
       await this.acquireNativePermit();
       record('queue', performance.now() - queueStart);
+      const bodyStart = performance.now();
       try {
-        const bodyStart = performance.now();
         return await withTimeout(
           analyzeNative(
             photoId,
@@ -710,6 +710,12 @@ export class AnalysisPool {
           'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'
         ).finally(() => record('nativeBody', performance.now() - bodyStart));
       } finally {
+        // În pulsuri, cu aplicația pe ecran: după fiecare poză, procesorul stă liber cam cât
+        // a lucrat (cel mult 1,5 s). Rapoartele cu Long Animation Frames (12 nov.) arătau
+        // cadre de ~900 ms cu doar ~90 ms de cod: ecranul aștepta procesorul ocupat de
+        // modele, nu codul aplicației. Cu ecranul stins, fără pauză.
+        const rest = restAfterPhoto(this.gentle, performance.now() - bodyStart);
+        if (rest > 0) await new Promise(r => setTimeout(r, rest));
         this.releaseNativePermit();
       }
     }
@@ -846,3 +852,9 @@ export class AnalysisPool {
 
 export const analysisPool = new AnalysisPool();
 setUiHeldProbe(() => analysisPool.uiHeld());
+
+/** Pauza după o poză, la citirea din fundal cu aplicația pe ecran (vezi analyze). */
+export function restAfterPhoto(gentle: boolean, workedMs: number, visible = typeof document !== 'undefined' && document.visibilityState === 'visible'): number {
+  if (!gentle || !visible) return 0;
+  return Math.min(1500, Math.max(0, Math.round(workedMs)));
+}

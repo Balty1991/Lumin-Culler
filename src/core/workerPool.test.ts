@@ -491,3 +491,13 @@ describe('withTimeout — timpul in care aplicatia a stat inghetata nu se numara
     expect(respins).not.toHaveBeenCalled();
   });
 });
+
+describe('citirea în pulsuri', () => {
+  it('pauză cât a lucrat, cel mult 1,5 s, doar la citirea din fundal cu ecranul aprins', async () => {
+    const { restAfterPhoto } = await import('./workerPool');
+    expect(restAfterPhoto(true, 900, true)).toBe(900);
+    expect(restAfterPhoto(true, 4000, true)).toBe(1500);
+    expect(restAfterPhoto(false, 900, true)).toBe(0);
+    expect(restAfterPhoto(true, 900, false)).toBe(0);
+  });
+});
