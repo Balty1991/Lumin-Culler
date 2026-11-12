@@ -33,7 +33,10 @@ import kotlin.math.roundToInt
  */
 @CapacitorPlugin(name = "SharpImage")
 class SharpImagePlugin : Plugin() {
-    private val executor = pluginExecutor("SharpImage")
+    // Două fire: dalele clare ale galeriei (mici, rapide) nu mai stau la coadă una după alta.
+    private val executor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newFixedThreadPool(2) { r ->
+        Thread(r, "Lumin-SharpImage").apply { isDaemon = true }
+    }
 
     override fun handleOnDestroy() {
         executor.shutdown()

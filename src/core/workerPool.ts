@@ -487,7 +487,9 @@ export class AnalysisPool {
       // Un ecran greu deschis (editorul): citirea din fundal stă de tot până se închide
       // (raportat: „în timp ce încarcă poze, editarea merge foarte sacadat”).
       if (this.gentle && this.uiHolds > 0) return 0;
-      if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return 1;
+      // Citirea din fundal (gentle) stă de tot cât derulezi: dalele clare ale galeriei au
+      // nevoie de procesor (raportat cu înregistrare: poze neclare la derulare, în timpul citirii).
+      if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return this.gentle ? 0 : 1;
       if (this.gentle) return Math.min(thermal, Math.max(2, Math.ceil(this.nativeConcurrencyLimit / 2)));
     }
     return thermal;
