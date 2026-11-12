@@ -35,6 +35,7 @@ import { photoTime } from './days';
  * singur buton pentru ce mai cere o decizie. Apoi zilele trecute, pe scurt.
  */
 import { EnginesIntro } from './EnginesIntro';
+import { minuteBatch } from './minuteBatch';
 import { FilmCreator } from './FilmCreator';
 import { RephotoSheet, canRephoto } from './Rephoto';
 import { CapsuleCard } from './Capsule';
@@ -102,6 +103,8 @@ export function TodayScreen() {
   const past = days.filter(d => d.start < todayStart).slice(0, 4);
   // Cititorul galeriei lucrează în fundal: Azi rămâne Azi, cu o bară mică dedesubt.
   const busy = (!reader || reader.paused === 'import') && (importing || (!!progress && progress.phase !== 'finalizat'));
+  // „Un minut azi”: 10 poze vechi nehotărâte pe zi, ca galeria să nu se mai adune.
+  const minute = useMemo(() => minuteBatch(photos), [photos]);
   const sortingActive = busy || !!(reader && reader.paused !== 'import' && reader.paused !== 'training');
 
   const [inGallery, setInGallery] = useState<number | null>(null);
@@ -262,6 +265,18 @@ export function TodayScreen() {
                 </span>
               </button>
             ))}
+          </div>
+        </section>
+      )}
+
+      {(!today || today.waiting.length === 0) && !busy && minute.ids.length >= 5 && (
+        <section className="lx-card lx-decide lx-minute">
+          <div>
+            <b>⏱ {tr('lx.minute.title')}</b>
+            <span>{tr('lx.minute.sub', { count: minute.ids.length, left: minute.left })}</span>
+          </div>
+          <div className="lx-decide-actions">
+            <button className="lx-btn primary" onClick={() => openSort(minute.ids, tr('lx.minute.title'))}>{tr('lx.minute.go')}</button>
           </div>
         </section>
       )}
