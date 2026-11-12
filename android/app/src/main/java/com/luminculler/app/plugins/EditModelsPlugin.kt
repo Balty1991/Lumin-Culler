@@ -345,6 +345,8 @@ class EditModelsPlugin : Plugin() {
         if (img64.isNullOrEmpty() && uri.isNullOrEmpty()) { call.reject("imageBase64 or imageUri is required"); return }
         val inSide = (call.getInt("inSide") ?: 640).coerceIn(128, 900)
         val outSide = (call.getInt("outSide") ?: 2048).coerceIn(256, 3200)
+        // Puțin / Mediu / Mult din ecran: 0,4 / 0,7 / 1.
+        val strength = ((call.getDouble("strength") ?: 0.7).toFloat()).coerceIn(0.1f, 1.2f)
         executor.ruleaza(call, "Clarity failed") {
             // Originalul direct din galerie, nu o copie mică trimisă ca text.
             if (!uri.isNullOrEmpty() && call.getInt("maxSide") == null) call.data.put("maxSide", outSide)
@@ -354,7 +356,7 @@ class EditModelsPlugin : Plugin() {
             // O poză de telefon are deja detaliul: îl scoatem la iveală, nu-l inventăm.
             // Modelul rămâne doar pentru pozele mici (WhatsApp, capturi vechi).
             val big = max(full.width, full.height)
-            val result = if (big >= SMALL_PHOTO) detailClarity(full, outSide) else esrganClarity(full, inSide, outSide)
+            val result = if (big >= SMALL_PHOTO) detailClarity(full, outSide, strength) else esrganClarity(full, inSide, outSide, strength)
             val o = JSObject()
             o.put("imageBase64", encode(result))
             call.resolve(o)
@@ -362,7 +364,8 @@ class EditModelsPlugin : Plugin() {
     }
 
     /** Claritate fidelă: detaliul fin (cu prag peste zgomot) + contrast local în tonurile medii. */
-    private fun detailClarity(src: Bitmap, outSide: Int): Bitmap {
+    private fun detailClarity(src: Bitmap, outSide: Int, strength: Float = 0.7f): Bitmap {
+        val gain = strength / 0.7f
         val k = min(1f, outSide.toFloat() / max(src.width, src.height))
         val b = if (k < 1f) Bitmap.createScaledBitmap(src, max(1, (src.width * k).toInt()), max(1, (src.height * k).toInt()), true) else src
         val w = b.width; val h = b.height; val n = w * h
@@ -380,10 +383,10 @@ class EditModelsPlugin : Plugin() {
             val d = yi - fine[i]
             // Sub ~1,5 nivele e zgomot de senzor: nu-l ascuțim.
             val gate = ((kotlin.math.abs(d) - 1.5f) / 3f).coerceIn(0f, 1f)
-            val dFine = (d * gate * 0.9f).coerceIn(-12f, 12f)
+            val dFine = (d * gate * 0.9f * gain).coerceIn(-12f * gain, 12f * gain)
             // Contrast local doar în tonurile medii: luminile și umbrele rămân curate (fără „glow”).
             val t = (yi - 128f) / 128f
-            val dWide = (yi - wide[i]).coerceIn(-30f, 30f) * 0.18f * (1f - t * t)
+            val dWide = (yi - wide[i]).coerceIn(-30f, 30f) * 0.18f * gain * (1f - t * t)
             val dy = dFine + dWide
             val p = px[i]
             val r = (((p shr 16) and 0xFF) + dy).toInt().coerceIn(0, 255)
@@ -422,7 +425,8 @@ class EditModelsPlugin : Plugin() {
     }
 
     /** Poze mici: Real-ESRGAN ×4, amestecat cu mărirea clasică ca să nu inventeze prea mult. */
-    private fun esrganClarity(full: Bitmap, inSide: Int, outSide: Int): Bitmap {
+    private fun esrganClarity(full: Bitmap, inSide: Int, outSide: Int, strength: Float = 0.7f): Bitmap {
+        val mix = (ESRGAN_MIX * strength / 0.7f).coerceIn(0.2f, 0.85f)
         val k = min(1f, inSide.toFloat() / max(full.width, full.height))
         val w = max(16, (full.width * k).toInt()); val h = max(16, (full.height * k).toInt())
         val src = Bitmap.createScaledBitmap(full, w, h, true)
@@ -474,9 +478,9 @@ class EditModelsPlugin : Plugin() {
         val c = IntArray(fw * fh); plain.getPixels(c, 0, fw, 0, 0, fw, fh)
         for (i in a.indices) {
             val p = a[i]; val q = c[i]
-            val r = (((p shr 16) and 0xFF) * ESRGAN_MIX + ((q shr 16) and 0xFF) * (1 - ESRGAN_MIX)).toInt()
-            val g = (((p shr 8) and 0xFF) * ESRGAN_MIX + ((q shr 8) and 0xFF) * (1 - ESRGAN_MIX)).toInt()
-            val b = ((p and 0xFF) * ESRGAN_MIX + (q and 0xFF) * (1 - ESRGAN_MIX)).toInt()
+            val r = (((p shr 16) and 0xFF) * mix + ((q shr 16) and 0xFF) * (1 - mix)).toInt()
+            val g = (((p shr 8) and 0xFF) * mix + ((q shr 8) and 0xFF) * (1 - mix)).toInt()
+            val b = ((p and 0xFF) * mix + (q and 0xFF) * (1 - mix)).toInt()
             a[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
         return Bitmap.createBitmap(a, fw, fh, Bitmap.Config.ARGB_8888)

@@ -58,7 +58,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
           const uri = await originalUri(photo.id).catch(() => null);
           if (uri) {
             setState('work');
-            const out = await clarityOnDevice(null, 2048, uri);
+            const out = await clarityOnDevice(null, 2048, uri, strength);
             if (!alive) return;
             if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
           }
@@ -69,7 +69,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         }
         const src = srcBlob.current;
         setState('work');
-        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? (await mainFaceCenter(photo.id)) ?? undefined, await originalUri(photo.id).catch(() => null)) : cutoutOnDevice(src, 'white')) : null;
+        const out = src ? await (kind === 'clarity' ? clarityOnDevice(src, 2048, null, strength) : kind === 'portrait' ? portraitOnDevice(src, strength, focus ?? (await mainFaceCenter(photo.id)) ?? undefined, await originalUri(photo.id).catch(() => null)) : cutoutOnDevice(src, 'white')) : null;
         if (!alive) return;
         if (out) { setBlob(out); setUrl(URL.createObjectURL(out)); setState('done'); return; }
         setWhy(tr('lx.aiRetouch.err.failed')); setState('error'); return;
@@ -124,7 +124,7 @@ export function AiRetouch({ photo, onClose, kind = 'retouch' }: { photo: PhotoVi
         {state === 'done' && <span className="lx-enhance-tag right">{tr(peek ? 'lx.enhance.before' : 'lx.enhance.after')}</span>}
       </div>
       <div className="lx-viewer-info">
-        {kind === 'portrait' && (
+        {(kind === 'portrait' || kind === 'clarity') && (
           <div className="lx-seg small lx-portrait-strength" role="radiogroup" aria-label={tr('lx.portrait.strength')}>
             {[0.4, 0.7, 1].map(v => (
               <button key={v} role="radio" aria-checked={strength === v} className={strength === v ? 'on' : ''} disabled={state === 'work'} onClick={() => setStrength(v)}>
