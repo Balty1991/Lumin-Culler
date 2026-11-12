@@ -7,7 +7,7 @@ import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
-import { frameCrop } from './instaCrop';
+import { aiCrop, frameCrop } from './instaCrop';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
@@ -461,8 +461,8 @@ type Panel = 'styles' | 'light' | 'color' | 'frame';
 type ManualPanel = 'light' | 'color';
 const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
 /** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
-type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
-const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
+type Aspect = 'orig' | 'ai' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
+const ASPECTS: Record<Exclude<Aspect, 'ai'>, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
 type ManualKey = 'relight' | 'toneMap' | 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
 const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
@@ -556,7 +556,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const [geo, setGeo] = useState<{ width: number; height: number; faces: { box: [number, number, number, number] }[] } | null>(null);
   const crop = useMemo(() => {
     if (aspect === 'orig' || !geo) return undefined;
-    const r = frameCrop(geo.width, geo.height, ASPECTS[aspect], geo.faces);
+    const r = aspect === 'ai' ? aiCrop(geo.width, geo.height, geo.faces) : frameCrop(geo.width, geo.height, ASPECTS[aspect], geo.faces);
     return { x: r.x / geo.width, y: r.y / geo.height, width: r.w / geo.width, height: r.h / geo.height };
   }, [aspect, geo]);
   const rotation = userTilt ?? (straight ? tilt : 0);
@@ -584,14 +584,14 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
   const view = pure ? (orig ?? src) : src;
   // Anulare pas cu pas: fiecare stare la care te-ai oprit (stil, intensitate, reglaje).
-  type Snap = { style: EnhanceStyle; amount: number; manual: Partial<Record<ManualKey, number>>; pure: boolean };
+  type Snap = { style: EnhanceStyle; amount: number; manual: Partial<Record<ManualKey, number>>; pure: boolean; aspect: Aspect; tilt: number | null };
   const [hist, setHist] = useState<Snap[]>([]);
   const [histAt, setHistAt] = useState(-1);
   const restoring = useRef(false);
   useEffect(() => {
     if (!base) return;
     if (restoring.current) { restoring.current = false; return; }
-    const snap: Snap = { style, amount, manual, pure };
+    const snap: Snap = { style, amount, manual, pure, aspect, tilt: userTilt };
     const timer = window.setTimeout(() => {
       setHist(h => {
         const kept = h.slice(0, histAt + 1);
@@ -603,13 +603,14 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     }, 450);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, style, amount, manual, pure]);
+  }, [base, style, amount, manual, pure, aspect, userTilt]);
   const stepHistory = (d: number) => {
     const snap = hist[histAt + d];
     if (!snap) return;
     restoring.current = true;
     setHistAt(histAt + d);
     setStyle(snap.style); setAmount(snap.amount); setManual(snap.manual); setPure(snap.pure);
+    setAspect(snap.aspect); setUserTilt(snap.tilt);
   };
   // Copiază reglajele de pe poza asta și le lipește pe alta (stil, intensitate, reglaje de mână).
   const [clip, setClip] = useState<EditClip | null>(() => readEditClip());
@@ -620,7 +621,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     setPure(clip.pure); if (ok) setStyle(clip.style as EnhanceStyle); setAmount(clip.amount); setManual(clip.manual as Partial<Record<ManualKey, number>>);
   };
   // „Încadrare AI”: formatul potrivit pozei, cu fețele ținute în cadru (frameCrop).
-  const aiFrame = () => { if (geo) setAspect(suggestAspect(geo.width, geo.height, geo.faces.length)); };
+  // Proporția rămâne cea a pozei; a doua atingere revine la cadrul întreg.
+  const aiFrame = () => setAspect(a => (a === 'ai' ? 'orig' : 'ai'));
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
   const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
@@ -935,8 +937,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
-                  <button className="lx-chip-btn" onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
-                  {(Object.keys(ASPECTS) as Aspect[]).map(a => (
+                  <button role="radio" aria-checked={aspect === 'ai'} className={aspect === 'ai' ? 'lx-chip-btn on' : 'lx-chip-btn'} disabled={!geo} onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
+                  {(Object.keys(ASPECTS) as Exclude<Aspect, 'ai'>[]).map(a => (
                     <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
                       {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
                     </button>

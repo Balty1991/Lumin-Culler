@@ -37,3 +37,22 @@ describe('instaCrop', () => {
     expect(r.x + r.w).toBeGreaterThanOrEqual(0.93 * 6000);
   });
 });
+
+describe('aiCrop', () => {
+  it('păstrează proporția pozei și strânge cadrul pe fețe', async () => {
+    const { aiCrop } = await import('./instaCrop');
+    const r = aiCrop(4000, 3000, [{ box: [0.55, 0.3, 0.15, 0.2] }]);
+    expect(r.w / r.h).toBeCloseTo(4 / 3, 2);
+    expect(r.w).toBeLessThan(4000);
+    expect(r.w).toBeGreaterThanOrEqual(4000 * 0.72 - 1);
+    // fața rămâne în cadru
+    expect(r.x).toBeLessThanOrEqual(0.55 * 4000);
+    expect(r.x + r.w).toBeGreaterThanOrEqual(0.7 * 4000);
+  });
+  it('fără fețe: o strângere ușoară, centrată', async () => {
+    const { aiCrop } = await import('./instaCrop');
+    const r = aiCrop(3000, 4000);
+    expect(r.w / r.h).toBeCloseTo(3 / 4, 2);
+    expect(r.x).toBe(Math.round((3000 - r.w) / 2));
+  });
+});

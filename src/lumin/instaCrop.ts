@@ -28,8 +28,8 @@ export function instaCrop(width: number, height: number, format: InstaFormat, fa
 }
 
 /** Același cadru pe fețe, pentru orice proporție (lățime / înălțime) — și în editor. */
-export function frameCrop(width: number, height: number, ratio: number, faces?: readonly { box: Box }[]): CropRect {
-  const w = width / height > ratio ? height * ratio : width;
+export function frameCrop(width: number, height: number, ratio: number, faces?: readonly { box: Box }[], scale = 1): CropRect {
+  const w = (width / height > ratio ? height * ratio : width) * scale;
   const h = w / ratio;
   let cx = width / 2;
   let cy = height / 2;
@@ -55,4 +55,20 @@ export function frameCrop(width: number, height: number, ratio: number, faces?: 
   const x = clamp(cx - w / 2, 0, width - w);
   const y = clamp(top, 0, height - h);
   return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+}
+
+/**
+ * „Încadrare AI”: aceeași proporție ca poza (raportat: „sare numai la 1:1”), doar
+ * strânsă pe subiect. Cu fețe, cadrul se apropie până când grupul de fețe ocupă cam
+ * jumătate din lățime (între 72% și 92% din poză); fără fețe, o strângere ușoară.
+ */
+export function aiCrop(width: number, height: number, faces?: readonly { box: Box }[]): CropRect {
+  const boxes = (faces ?? []).map(f => f.box).filter(b => b[2] > 0 && b[3] > 0);
+  let scale = 0.92;
+  if (boxes.length) {
+    const gw = Math.max(...boxes.map(b => b[0] + b[2])) - Math.min(...boxes.map(b => b[0]));
+    const gh = Math.max(...boxes.map(b => b[1] + b[3])) - Math.min(...boxes.map(b => b[1]));
+    scale = clamp(Math.max(gw / 0.5, gh / 0.45), 0.72, 0.92);
+  }
+  return frameCrop(width, height, width / height, faces, scale);
 }
