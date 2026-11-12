@@ -2161,3 +2161,12 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-fold-head.lx-fold-card h2 { font-size: 15px; letter-spacing: 0; text-transform: none; font-family: inherit; font-weight: 700; color: var(--text, #fff); }
 .lx-fold-head.lx-fold-card .lx-fold-hint { margin: 0; font-size: 12.5px; line-height: 1.4; }
 .lx-group .lx-hint.lx-group-hint { font-size: 13px; color: var(--text-dim); margin: 8px 2px 0; line-height: 1.45; }
+
+/* Albumul persoanei: „Cum a crescut” (GrowthStrip.tsx) */
+.lx-growth-strip { margin: 4px 0 12px; }
+.lx-growth-row { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 4px; scroll-snap-type: x mandatory; }
+.lx-growth-row::-webkit-scrollbar { display: none; }
+.lx-growth-card { flex: 0 0 auto; width: 112px; display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 0; border: 0; background: none; color: inherit; scroll-snap-align: start; }
+.lx-growth-img { width: 112px; height: 140px; border-radius: 16px; overflow: hidden; display: block; background: var(--lx-glass); }
+.lx-growth-img img, .lx-growth-img .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-growth-card b { font-size: 13px; font-weight: 700; }

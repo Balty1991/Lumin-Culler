@@ -14,6 +14,7 @@ import { capitalizeFirst, dayLabel, daySummary, monthLabel } from './format';
 import { ageAt, formatBirthday, parseBirthday, readBirthdays, writeBirthday, type Birthday } from './birthdays';
 import { useLx, type GalleryView } from './lxStore';
 import { FaceCheckButton } from './FaceCheck';
+import { GrowthStrip } from './GrowthStrip';
 import { useLxActions, useTr } from './context';
 import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
@@ -432,6 +433,7 @@ function PersonView({ name, list, onBack, onRenamed }: { name: string; list: Pho
       </header>
       {editing && <p className="lx-hint">{tr('lx.people.correctHint', { name })}</p>}
       {!editing && <BirthdayRow name={name} />}
+      {!editing && <GrowthStrip name={name} list={list} />}
       {!editing && <GroupRow name={name} />}
       {!editing && <PersonTimeButtons name={name} list={list} />}
       {!editing && <FaceCheckButton name={name} />}
