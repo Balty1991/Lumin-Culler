@@ -322,6 +322,17 @@ describe('analyzeNative', () => {
       expect(result.strangerCount).toBe(0);
     });
 
+    it('pe calea cu URI (telefonul) recunoaste fata decupand-o direct din bitmap', async () => {
+      mockOneFace();
+      const recognize = vi.fn().mockResolvedValue({ embedding: [1, 0], faceCount: 1 });
+
+      const { analyzeNative } = await import('./nativeAnalysis');
+      const result = await analyzeNative('p1', fakeBitmap(200, 200), recognize, [AMI], 'content://media/1');
+
+      expect(recognize).toHaveBeenCalledTimes(1);
+      expect(result.faces[0].personId).toBe('ami-id');
+    });
+
     it('lasa fata neidentificata cand similaritatea ramane sub pragul de recunoastere', async () => {
       mockOneFace();
       const recognize = vi.fn().mockResolvedValue({ embedding: [0, 1], faceCount: 1 }); // ortogonal pe [1,0] -> similaritate 0
@@ -694,11 +705,11 @@ describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', ()
    * ('canvas' in core/stageTiming.ts) tocmai ca sa se poata decide pe cifre
    * daca merita.
    */
-  it('cu URI dar CU callback de recunoastere, il construieste chiar fara nicio persoana inrolata', async () => {
+  it('cu URI si callback de recunoastere NU il construieste: fetele se decupeaza din bitmap (blocajele de ~1 s din raportul de pe telefon)', async () => {
     const { analyzeNative } = await import('./nativeAnalysis');
     await analyzeNative('p1', fakeBitmap(4000, 3000), async () => null, [], 'content://media/1');
 
-    expect(canvasesBuilt).toBeGreaterThan(0);
+    expect(canvasesBuilt).toBe(0);
   });
 
   it('fara URI (selector de fisiere) il construieste, ca inainte — blob-ul e singura cale spre modele', async () => {
@@ -708,12 +719,12 @@ describe('analyzeNative — canvas-ul la rezolutie plina, doar cand e cerut', ()
     expect(canvasesBuilt).toBeGreaterThan(0);
   });
 
-  it('cu persoane inrolate il construieste, chiar si cu URI — recunoasterea decupeaza din el', async () => {
+  it('cu persoane inrolate si URI tot nu il construieste — recunoasterea decupeaza din bitmap', async () => {
     const persons: KnownPerson[] = [{ id: 'x', name: 'Ami', embeddings: [[0.1]], updatedAt: 0 }];
     const { analyzeNative } = await import('./nativeAnalysis');
     await analyzeNative('p1', fakeBitmap(4000, 3000), async () => null, persons, 'content://media/1');
 
-    expect(canvasesBuilt).toBeGreaterThan(0);
+    expect(canvasesBuilt).toBe(0);
   });
 });
 

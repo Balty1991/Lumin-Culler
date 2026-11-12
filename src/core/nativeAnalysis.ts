@@ -217,7 +217,7 @@ const MAX_RECOGNIZED_FACES_PER_PHOTO = 6;
 const MAX_GROUPING_FACES_PER_PHOTO = 2;
 
 function cropFaceBitmap(
-  canvas: OffscreenCanvas,
+  canvas: OffscreenCanvas | ImageBitmap,
   box: NativeFaceBoundingBox,
   sourceWidth: number,
   sourceHeight: number
@@ -459,7 +459,7 @@ function hasAwkwardBodyCrop(people: NativePose[]): boolean {
  * neidentificata.
  */
 async function recognizeFaces(
-  canvas: OffscreenCanvas,
+  canvas: OffscreenCanvas | ImageBitmap,
   detected: DetectedFaces,
   faces: FaceInsight[],
   recognize: (crop: ImageBitmap) => Promise<{ embedding: number[]; faceCount: number } | null>,
@@ -538,9 +538,17 @@ export async function analyzeNative(
    * are nevoie de ele ca sa poata spune "acelasi om". Deci canvas-ul revine pe
    * calea cu URI, si e cronometrat ('canvas') tocmai ca sa se vada cat costa.
    */
-  const needsFullCanvas = !mediaUri || !!recognize;
+  // Cu URI de galerie (calea normală pe telefon) nu se mai construiește deloc: decupajele de
+  // față se iau direct din bitmap-ul deja decodat. Desenul complet pe canvas, pe firul
+  // principal, ținea ecranul pe loc ~1 s la fiecare poză (măsurat pe telefon, raportul
+  // de blocaje din 12 nov.: toate blocajele erau în „analiză”, câte ~1 s).
+  const needsFullCanvas = !mediaUri;
   const canvas = needsFullCanvas ? timedSync('canvas', () => drawToCanvas(bitmap)) : undefined;
-  bitmap.close();
+  if (canvas) bitmap.close();
+  /** Din ce se decupează fețele: canvas-ul, când există, altfel bitmap-ul (închis după recunoaștere). */
+  const cropSource: OffscreenCanvas | ImageBitmap = canvas ?? bitmap;
+  let bitmapReleased = !!canvas;
+  const releaseBitmap = () => { if (!bitmapReleased) { bitmapReleased = true; bitmap.close(); } };
   /** Canvas-ul, acolo unde codul stie deja ca `needsFullCanvas` a fost adevarat. */
   const requireCanvas = (): OffscreenCanvas => {
     if (!canvas) throw new Error('Canvas-ul la rezolutie plina a fost cerut fara sa fi fost pregatit (analiza nativa).');
@@ -639,9 +647,9 @@ export async function analyzeNative(
   // se vede in cifre, nu se banuieste.
   const recognitionStart = performance.now();
   const recognition = recognize && faces.length > 0
-    ? recognizeFaces(requireCanvas(), detected, faces, recognize, knownPersons ?? [])
-        .finally(() => record('recognition', performance.now() - recognitionStart))
-    : Promise.resolve();
+    ? recognizeFaces(cropSource, detected, faces, recognize, knownPersons ?? [])
+        .finally(() => { record('recognition', performance.now() - recognitionStart); releaseBitmap(); })
+    : Promise.resolve().then(releaseBitmap);
 
   // CAND rulam OCR. Doua conditii, si a doua a fost gresita de doua ori.
   //
