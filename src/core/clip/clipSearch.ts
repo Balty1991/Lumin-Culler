@@ -10,6 +10,8 @@
  * nu pleacă de pe telefon.
  */
 import { db } from '../db';
+import { englishGloss } from '../searchSynonyms';
+import { normalizeForSearch } from '../sceneTagLabels';
 import { ClipNative as ClipText, isClipPlatform } from './clipEngine';
 
 let dense: { w: Float32Array; out: number; inp: number } | null = null;
@@ -81,12 +83,23 @@ export async function clipSearch(query: string, limit = 120): Promise<string[]> 
   if (q.length < 3 || !(await clipSearchReady())) return [];
   try {
     // „o fotografie cu …”: CLIP a învățat din descrieri de poze, nu din cuvinte izolate.
-    const [{ pooled }, d, idx] = await Promise.all([ClipText.embedText({ text: `o fotografie cu ${q}` }), loadDense(), loadIndex()]);
+    // Și în engleză, când știm cuvântul: modelul e mult mai sigur acolo („monede” nu găsea
+    // poza cu monede). Fiecare poză păstrează scorul mai bun dintre cele două întrebări.
+    const en = englishGloss(normalizeForSearch(q));
+    const [{ pooled }, d, idx, enOut] = await Promise.all([
+      ClipText.embedText({ text: `o fotografie cu ${q}` }), loadDense(), loadIndex(),
+      en ? ClipText.embedText({ text: `a photo of ${en}` }).catch(() => null) : Promise.resolve(null),
+    ]);
     if (!idx.ids.length) return [];
-    const t = project(pooled, d);
+    const texts = [project(pooled, d)];
+    if (enOut) texts.push(project(enOut.pooled, d));
     const scored = idx.vecs.map((v, i) => {
-      let s = 0;
-      for (let k = 0; k < 512; k++) s += v[k] * t[k];
+      let s = -1;
+      for (const t of texts) {
+        let z = 0;
+        for (let k = 0; k < 512; k++) z += v[k] * t[k];
+        if (z > s) s = z;
+      }
       return { id: idx.ids[i], s };
     }).sort((a, b) => b.s - a.s);
     const best = scored[0].s;

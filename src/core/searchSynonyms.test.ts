@@ -50,3 +50,15 @@ describe('relatedSceneTags', () => {
     for (const k of SYNONYM_KEYS) expect(relatedSceneTags(k).size).toBeGreaterThan(0);
   });
 });
+
+import { englishGloss } from './searchSynonyms';
+describe('englishGloss', () => {
+  it('traduce banii și monedele, fără cuvintele de umplutură', () => {
+    expect(englishGloss('poze cu bani')).toBe('coin');
+    expect(englishGloss('monede')).toBe('coin');
+    expect(englishGloss('zapada la munte')).toBe('snow mountain');
+  });
+  it('null când nu știe niciun cuvânt', () => {
+    expect(englishGloss('xyzw')).toBeNull();
+  });
+});

@@ -200,6 +200,14 @@ function nativeAnalysisConcurrency(): number {
 
 /** Cât timp după ultima atingere analiza merge cu o singură poză. */
 const INTERACTION_QUIET_MS = 900;
+/**
+ * Citirea din fundal cu aplicația pe ecran pornește o poză nouă abia după atâta liniște.
+ * O poză odată pornită nu se mai poate opri (~1–2 s de modele native), iar cu 900 ms
+ * următoarea atingere cădea mereu în mijlocul ei: raportul din 12 nov. (build b358579)
+ * arăta tot opriri de ~2 s cu doar ~90 ms de cod de-al nostru. Cu ecranul stins sau în
+ * altă aplicație citirea merge plin, ca până acum.
+ */
+const GENTLE_QUIET_MS = 8000;
 
 export class AnalysisPool {
   private slots: Slot[] = [];
@@ -489,7 +497,9 @@ export class AnalysisPool {
       if (this.gentle && this.uiHolds > 0) return 0;
       // Citirea din fundal (gentle) stă de tot cât derulezi: dalele clare ale galeriei au
       // nevoie de procesor (raportat cu înregistrare: poze neclare la derulare, în timpul citirii).
-      if (Date.now() - this.lastTouch < INTERACTION_QUIET_MS) return this.gentle ? 0 : 1;
+      const quiet = Date.now() - this.lastTouch;
+      if (this.gentle && quiet < GENTLE_QUIET_MS) return 0;
+      if (quiet < INTERACTION_QUIET_MS) return 1;
       // Cu aplicația pe ecran, citirea din fundal: o singură poză odată. Cu două, modelele
       // a 2 poze ocupau toate nucleele și ecranul îngheța ~1 s (raportul din 12 nov.,
       // blocajele chiar în timpul FaceMesh/ImageAnalysis/OCR). Cu ecranul stins merge plin.
@@ -518,7 +528,7 @@ export class AnalysisPool {
               this.nativeInFlight++;
               next();
             }
-          }, INTERACTION_QUIET_MS + 20);
+          }, (this.gentle ? GENTLE_QUIET_MS : INTERACTION_QUIET_MS) + 20);
         };
         for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchmove', 'keydown', 'scroll']) {
           window.addEventListener(ev, mark, { passive: true, capture: true });

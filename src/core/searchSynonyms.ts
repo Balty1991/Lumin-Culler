@@ -94,8 +94,35 @@ const SYNONYMS: Record<string, string[]> = {
   // interior
   acasa: ['couch', 'bed', 'chair', 'tv', 'potted plant', 'dining table'],
   birou: ['laptop', 'keyboard', 'mouse', 'monitor', 'chair'],
-  sport: ['sports ball', 'tennis racket', 'skateboard', 'surfboard', 'skis', 'bicycle']
+  sport: ['sports ball', 'tennis racket', 'skateboard', 'surfboard', 'skis', 'bicycle'],
+
+  // bani (raportat: „poze cu bani” / „monede” nu găseau poza cu monede)
+  bani: ['coin', 'currency', 'money', 'banknote', 'cash'],
+  monede: ['coin', 'currency', 'money'],
+  moneda: ['coin', 'currency', 'money'],
+  bancnote: ['banknote', 'currency', 'money', 'cash'],
+  money: ['coin', 'currency', 'money', 'banknote', 'cash'],
+  coins: ['coin', 'currency', 'money']
 };
+
+/**
+ * Subiectul tradus în engleză pentru căutarea vizuală (CLIP): modelul de text multilingv
+ * nimerește mult mai sigur „a photo of coin” decât „o fotografie cu monede”. Fiecare cuvânt
+ * cunoscut devine prima lui etichetă; cele necunoscute rămân cum sunt. `null` când n-am
+ * tradus nimic (atunci nu are rost o a doua întrebare).
+ */
+export function englishGloss(normalizedQuery: string): string | null {
+  let any = false;
+  const filler = /^(poze|poza|pozele|fotografii|fotografie|imagini|imagine|cu|de|la|niste|toate|photos?|pictures?|with|of)$/;
+  const words = normalizedQuery.split(/\s+/).filter(w => w && !filler.test(w)).map(w => {
+    if (w.length < 3) return w;
+    const key = SYNONYMS[w] ? w : Object.keys(SYNONYMS).find(k => w.startsWith(k) && k.length >= 4);
+    if (!key) return w;
+    any = true;
+    return SYNONYMS[key][0];
+  });
+  return any ? words.join(' ') : null;
+}
 
 /**
  * Etichetele inrudite cu ce a scris utilizatorul.

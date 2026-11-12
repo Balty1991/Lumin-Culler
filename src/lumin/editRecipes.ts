@@ -25,7 +25,7 @@ export const RECIPES: readonly Recipe[] = [
   // (lăsa un contur luminos în jurul omului) — raportat cu capturi.
   { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 10, shadows: 8, highlights: -10, sharpen: 8 }, aspect: 'orig' },
   { key: 'insta', icon: '📸', style: 'vivid', amount: 0.6, manual: { sharpen: 10, clarity: 6 }, aspect: '4:5' },
-  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.45, manual: { shadows: 8, sharpen: 8 }, aspect: '4:5' },
+  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.45, manual: { shadows: 8, sharpen: 8 }, aspect: 'orig' },
   { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.7, manual: { contrast: 10, saturation: 10, clarity: 8, sharpen: 12 }, aspect: '9:16' },
   { key: 'story', icon: '📱', style: 'vivid', amount: 0.6, manual: { sharpen: 8 }, aspect: '9:16' },
   { key: 'sunset', icon: '🌅', style: 'warm', amount: 0.8, manual: { saturation: 8, highlights: -10 }, aspect: 'orig' },
