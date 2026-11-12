@@ -231,7 +231,10 @@ export function TasteQuiz() {
           </>
         ) : (
           <section className="tq-done">
-            <span className="v3-kicker">{tr('taste.done.kicker')}</span>
+            <div className="v3-screen-head">
+              <span className="v3-kicker">{tr('taste.done.kicker')}</span>
+              <button className="ghost icon-btn" onClick={leave} aria-label={tr('app.toast.close')}><XIcon /></button>
+            </div>
             <div className="v3-ring" style={{ ['--p' as string]: `${score.total ? Math.round((score.hits / score.total) * 100) : 0}` }}>
               <span>{score.hits}<small>/{score.total}</small></span>
             </div>
