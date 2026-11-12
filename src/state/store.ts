@@ -3171,7 +3171,10 @@ export const useStore = create<AppState>((set, get) => ({
           seen.add(p.id);
           return next;
         });
-        for (const photo of batch) if (!seen.has(photo.id)) merged.push(photo);
+        // Din `incoming` (o dată pe id), nu din `batch`: aceeași poză vine de două ori dintr-un
+        // lot (vederea rapidă, apoi analiza completă) și ajungea de două ori în galerie
+        // (raportat: „unele poze apar de mai multe ori”, 84 în lună dar 87 în vizualizare).
+        for (const photo of incoming.values()) if (!seen.has(photo.id)) { seen.add(photo.id); merged.push(photo); }
         return { photos: merged };
       });
     };

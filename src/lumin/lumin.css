@@ -2171,13 +2171,6 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-growth-img img, .lx-growth-img .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lx-growth-card b { font-size: 13px; font-weight: 700; }
 
-/* Galerie: rândurile pătrate se calculează din lățimea reală a grilei, nu din JS.
-   Raportat de mai multe ori: dalele ieșeau turtite câteva secunde (măsurarea din JS
-   prindea grila ascunsă, cu lățimea 0). `--cell` rămâne doar pentru mărimea pozelor clare. */
-.lx-wall-month { container-type: inline-size; }
-@supports (width: 1cqw) {
-  .lx-wall-month > .lx-bento { grid-auto-rows: calc((100cqw - var(--gap, 6px) * (var(--cols, 3) - 1)) / var(--cols, 3)); }
-}
 
 /* Editor: înainte/după și cu decupaj — „înainte” e o pânză decupată la fel, care dă mărimea cadrului. */
 .lx-enhance-frame.crop-compare > .lx-enhance-canvas { display: block; position: static; width: auto; height: auto; max-width: 100%;
