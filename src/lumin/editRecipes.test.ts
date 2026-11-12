@@ -15,7 +15,7 @@ describe('rețete dintr-o atingere', () => {
     expect(r.aspect).toBe('orig');
     expect(r.manual.relight).toBeUndefined();
     expect(resolveRecipe(perfect, { recommended: 'natural', hasFace: true, allowed: all }).style).not.toBe('natural');
-    expect(resolveRecipe(perfect, { recommended: null, hasFace: true, allowed: all }).aspect).toBe('ai');
+    expect(resolveRecipe(perfect, { recommended: null, hasFace: true, allowed: all }).aspect).toBe('orig');
   });
   it('un stil indisponibil cade pe Natural', () => {
     const retro = RECIPES.find(r => r.key === 'retro')!;

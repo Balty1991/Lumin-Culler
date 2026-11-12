@@ -2202,3 +2202,7 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 
 /* Cât vine miniatura: previzualizarea de 24 px, estompată (nu pătrățele pixelate). */
 img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
+
+/* Înainte/după: imaginea „după” nu se mai poate întinde când proporțiile diferă cu o fracțiune
+   (raportat: „redimensionează și distorsionează ciudat”). */
+.lx-enhance-after .lx-enhance-canvas, .lx-enhance-frame.crop-compare > .lx-enhance-canvas { object-fit: cover; }

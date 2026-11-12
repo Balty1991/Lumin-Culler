@@ -21,7 +21,9 @@ export const RECIPES: readonly Recipe[] = [
   // „Perfectă”: nu Natural cu două reglaje (raportat: „să nu aibă treabă cu Natural, să fie wow”).
   // Culori vii, lumină pe fețe, umbrele deschise, luminile ținute, detaliu și cadru pe subiect.
   // Fără saturație și contrast în plus: pe pozele deja colorate ardeau roșul (raportat cu capturi).
-  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 16, shadows: 10, highlights: -12, clarity: 6, sharpen: 10 }, aspect: 'ai' },
+  // Fără decupaj (o poză tăiată nu e ce aștepți de la „Perfectă”) și fără claritate locală
+  // (lăsa un contur luminos în jurul omului) — raportat cu capturi.
+  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 10, shadows: 8, highlights: -10, sharpen: 8 }, aspect: 'orig' },
   { key: 'insta', icon: '📸', style: 'vivid', amount: 0.6, manual: { sharpen: 10, clarity: 6 }, aspect: '4:5' },
   { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.45, manual: { shadows: 8, sharpen: 8 }, aspect: '4:5' },
   { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.7, manual: { contrast: 10, saturation: 10, clarity: 8, sharpen: 12 }, aspect: '9:16' },
