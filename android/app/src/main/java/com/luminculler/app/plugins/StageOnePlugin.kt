@@ -150,7 +150,7 @@ class StageOnePlugin : Plugin() {
         val fine = fineSharpness(bitmap)
         val paper = paperScore(bitmap)
         val preview = jpegBase64(bitmap, PREVIEW_MAX, 75)
-        val thumb = jpegBase64(bitmap, THUMB_MAX, 70)
+        val thumb = jpegBase64(bitmap, THUMB_MAX, 80)
         val lqip = jpegBase64(bitmap, LQIP_MAX, 50)
         bitmap.recycle()
         return JSObject().apply {
@@ -322,7 +322,9 @@ class StageOnePlugin : Plugin() {
 
     companion object {
         private const val PREVIEW_MAX = 480
-        private const val THUMB_MAX = 256
+        // 384, nu 256: pe ecranele dese o dală are nevoie de ~300–600 px, iar miniatura mică
+        // se vedea moale până venea varianta clară (raportat: „poze neclarificate”).
+        private const val THUMB_MAX = 384
         private const val LQIP_MAX = 24
         private const val PAPER_SIDE = 48
     }
