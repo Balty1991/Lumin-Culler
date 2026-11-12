@@ -91,6 +91,11 @@ export function SettingsScreen() {
       </button>
 
       <section className="lx-group">
+        <h2>{tr('lx.twin.autonomy')}</h2>
+        <AutonomyPicker />
+      </section>
+
+      <section className="lx-group">
         <h2>{tr('lx.settings.ai')}</h2>
         <div className="lx-seg" role="radiogroup" aria-label={tr('fr.strict.title')}>
           {STRICTNESS.map(v => (
@@ -99,7 +104,7 @@ export function SettingsScreen() {
             </button>
           ))}
         </div>
-        <p className="lx-hint">{tr(`fr.strict.${strictness}.sub`)}</p>
+        <p className="lx-hint lx-group-hint">{tr(`fr.strict.${strictness}.sub`)}</p>
       </section>
 
       <AiModelsSection />
@@ -144,11 +149,6 @@ export function SettingsScreen() {
         </button>
       </section>
 
-      <section className="lx-group">
-        <h2>{tr('lx.twin.autonomy')}</h2>
-        <AutonomyPicker />
-      </section>
-
       <BackgroundWork />
 
       {isNativeNotificationsAvailable() && (
@@ -162,10 +162,10 @@ export function SettingsScreen() {
       )}
 
       <section className="lx-group">
-        <button className="lx-fold-head" onClick={() => toggleData()} aria-expanded={dataOpen}>
-          <h2>{tr('lx.settings.data')}</h2><i aria-hidden="true">›</i>
+        <button className="lx-fold-head lx-fold-card" onClick={() => toggleData()} aria-expanded={dataOpen}>
+          <span><h2>{tr('lx.settings.data')}</h2>{!dataOpen && <small className="lx-fold-hint">{tr('lx.settings.dataHint')}</small>}</span>
+          <i aria-hidden="true">›</i>
         </button>
-        {!dataOpen && <p className="lx-fold-hint">{tr('lx.settings.dataHint')}</p>}
         {dataOpen && (
           <>
           {canMakePhoneAlbums() && (

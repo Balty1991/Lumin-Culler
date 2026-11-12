@@ -550,8 +550,8 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 /* Sortat singur — „Am ales 4 din 27” */
 .lx-auto-result {
   position: relative; flex-direction: column; align-items: stretch; gap: 6px; margin: 0 0 18px;
-  border-color: rgba(var(--accent-rgb), .35);
-  background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(var(--accent-2-rgb), .10)), var(--lx-glass);
+  border-color: rgb(var(--accent-rgb) / .35);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / .16), rgb(var(--accent-2-rgb) / .10)), var(--lx-glass);
   animation: lx-rise .5s var(--lx-spring) both;
 }
 .lx-auto-result > b { font-family: var(--font-display); font-size: 20px; line-height: 1.2; padding-right: 28px; }
@@ -593,7 +593,7 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 /* Copia ta */
 .lx-twin { display: flex; align-items: center; gap: 18px; padding: 8px 0 18px; }
 .lx-twin-ring { --p: 0; flex: none; width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center;
-  background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(var(--accent-rgb), .14) 0); position: relative; }
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), rgb(var(--accent-rgb) / .14) 0); position: relative; }
 .lx-twin-ring::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--bg); }
 .lx-twin-ring > * { position: relative; z-index: 1; }
 .lx-twin.compact .lx-twin-ring { width: 84px; height: 84px; }
@@ -605,11 +605,11 @@ body.lx-viewer-open .lx-dock-scrim { visibility: hidden; }
 .lx-auto-opt { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--lx-glass); }
 .lx-auto-opt b { font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .lx-auto-opt small { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
-.lx-auto-opt.on { border-color: rgba(var(--accent-rgb), .6); background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(var(--accent-2-rgb), .08)), var(--lx-glass); }
+.lx-auto-opt.on { border-color: rgb(var(--accent-rgb) / .6); background: linear-gradient(135deg, rgb(var(--accent-rgb) / .16), rgb(var(--accent-2-rgb) / .08)), var(--lx-glass); }
 .lx-auto-opt.on b::before { content: '●'; color: var(--accent); font-size: 11px; }
 .lx-freed { margin: 0 0 14px; }
-.lx-freed-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: var(--pick); background: rgba(var(--pick-rgb), .14); }
-.lx-chip-btn.danger { color: #ff9a9a; border-color: rgba(var(--reject-rgb), .45); background: rgba(var(--reject-rgb), .12); }
+.lx-freed-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: var(--pick); background: rgb(var(--pick-rgb) / .14); }
+.lx-chip-btn.danger { color: #ff9a9a; border-color: rgb(var(--reject-rgb) / .45); background: rgb(var(--reject-rgb) / .12); }
 .lx-cleanup-size { color: var(--pick) !important; font-weight: 600; }
 .lx-wall-wrap > .lx-cleanup { margin-bottom: 16px; }
 
@@ -2154,3 +2154,10 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-facecheck-img { width: 160px; height: 160px; border-radius: 50%; object-fit: cover; background: var(--surface-3, rgb(255 255 255 / .08)); display: block; }
 .lx-facecheck-q { margin: 0; font-size: 20px; font-weight: 700; }
 .lx-facecheck .lx-decide-actions { width: 100%; }
+
+/* Setări: „Date și unelte” ca un card, ca restul rândurilor; explicația de sub alegeri, mică. */
+.lx-fold-head.lx-fold-card { padding: 14px 16px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--lx-glass); gap: 12px; }
+.lx-fold-head.lx-fold-card > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lx-fold-head.lx-fold-card h2 { font-size: 15px; letter-spacing: 0; text-transform: none; font-family: inherit; font-weight: 700; color: var(--text, #fff); }
+.lx-fold-head.lx-fold-card .lx-fold-hint { margin: 0; font-size: 12.5px; line-height: 1.4; }
+.lx-group .lx-hint.lx-group-hint { font-size: 13px; color: var(--text-dim); margin: 8px 2px 0; line-height: 1.45; }
