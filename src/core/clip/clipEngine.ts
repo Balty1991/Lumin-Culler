@@ -115,7 +115,17 @@ const STRICT_AT = 0.75;
 export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<number>): string[] {
   const ranked = zeroShot(e);
   const animalP = ranked.filter(r => ANIMALS.has(r.key)).reduce((a, r) => a + r.p, 0);
-  const out = (mlkit ?? []).filter(tag => !(ANIMAL_TAGS.has(tag.toLowerCase()) && animalP < 0.08));
+  const pOf = (key: string) => ranked.find(r => r.key === key)?.p ?? 0;
+  const catP = pOf('cat'), dogP = pOf('dog');
+  // Pisică sau câine: ML Kit le confundă (raportat: „poze cu câini” arăta pisici, iar o
+  // pătură moale dădea „pisică”). Specia rămâne doar dacă CLIP n-o vede clar pe cealaltă.
+  const wrongSpecies = (tag: string) => {
+    const t = tag.toLowerCase();
+    if (t === 'cat' || t === 'kitten') return catP < 0.05 && (dogP > catP * 3 || animalP < 0.15);
+    if (t === 'dog' || t === 'puppy') return dogP < 0.05 && (catP > dogP * 3 || animalP < 0.15);
+    return false;
+  };
+  const out = (mlkit ?? []).filter(tag => !(ANIMAL_TAGS.has(tag.toLowerCase()) && animalP < 0.08) && !wrongSpecies(tag));
   const have = new Set(out.map(tag => tag.toLowerCase()));
   for (const r of ranked.slice(0, 2)) {
     if (r.p < (STRICT.has(r.key) ? STRICT_AT : ADD_AT) || r.key.startsWith('-') || have.has(r.key)) continue;

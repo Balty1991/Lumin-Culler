@@ -28,6 +28,11 @@ describe('clipEngine', () => {
   it('lasă animalul când CLIP îl vede', () => {
     expect(refineTags(['Dog'], row('dog'))).toContain('Dog');
   });
+  it('scoate câinele de pe o pisică și pisica de pe un câine', () => {
+    expect(refineTags(['Dog', 'Cat'], row('cat'))).not.toContain('Dog');
+    expect(refineTags(['Dog', 'Cat'], row('cat'))).toContain('Cat');
+    expect(refineTags(['Cat', 'Dog'], row('dog'))).not.toContain('Cat');
+  });
   it('nu adaugă repere (-person) ca etichete', () => {
     expect(refineTags([], row('-person'))).not.toContain('-person');
   });

@@ -90,6 +90,7 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
     if (todo.length >= 50 && getModelsState().textReady) {
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
+    await recheckSpecies();
     await deepPass();
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
@@ -184,4 +185,27 @@ async function deepPass(): Promise<void> {
   if (florence) await closeFlorence();
   if (canTranslate) await releaseTranslator();
   setModelsState({ phase: getModelsState().textReady ? 'ready' : 'idle', scanned: rows.length });
+}
+
+const SPECIES_KEY = 'cherrypic.speciesRecheck.v1';
+/**
+ * O singură dată: pozele care aveau deja amprenta CLIP își refac eticheta de pisică/câine
+ * cu regula nouă din refineTags (raportat: „poze cu câini” arăta pisici și un om pe canapea).
+ */
+async function recheckSpecies(): Promise<void> {
+  try { if (localStorage.getItem(SPECIES_KEY)) return; } catch { return; }
+  const species = /^(cat|kitten|dog|puppy)$/i;
+  const rows = await db.analyses.filter(a => !!a.clipEmbedding && (a.sceneTags ?? []).some(tag => species.test(tag))).toArray();
+  const changed = new Map<string, string[] | undefined>();
+  for (const a of rows) {
+    const tags = refineTags(a.sceneTags, a.clipEmbedding!);
+    if (tags.length === (a.sceneTags ?? []).length && tags.every((tag, i) => tag === a.sceneTags![i])) continue;
+    const next = tags.length ? tags : undefined;
+    await db.analyses.update(a.photoId, { sceneTags: next });
+    changed.set(a.photoId, next);
+  }
+  if (changed.size) {
+    useStore.setState(s => ({ photos: s.photos.map(p => (changed.has(p.id) ? { ...p, sceneTags: changed.get(p.id) } : p)) }));
+  }
+  try { localStorage.setItem(SPECIES_KEY, '1'); } catch { /* data viitoare */ }
 }
