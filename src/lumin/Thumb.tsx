@@ -91,7 +91,10 @@ export function Thumb({ id, lqip, full = false, sharp = true, className, alt = '
   }, [id, full, sharp, node]);
   const shown = src ?? lqip;
   if (src && edits && !isNeutral(edits)) return <AdjustedImage className={className} src={src} edits={edits} alt={alt} />;
+  // Doar previzualizarea de 24 px (miniatura încă se încarcă): estompată, nu pătrățele
+  // pixelate (raportat cu video: „poze neclarificate” la derulare în timpul citirii).
+  const tiny = !src && !!lqip;
   return shown
-    ? <img ref={setNode} className={className} src={shown} alt={alt} draggable={false} data-photo-id={full ? undefined : id} />
+    ? <img ref={setNode} className={tiny ? `${className ?? ''} lx-lqip`.trim() : className} src={shown} alt={alt} draggable={false} data-photo-id={full ? undefined : id} />
     : <span ref={setNode} className={className ? `${className} lx-thumb-empty` : 'lx-thumb-empty'} aria-hidden="true" data-photo-id={full ? undefined : id} />;
 }

@@ -2199,3 +2199,6 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-ba-strip > span img, .lx-ba-strip > span .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .55; filter: grayscale(.4); }
 .lx-ba-strip em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 16px; color: #fff; }
 .lx-ba-strip small { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--pick, #6fe3a1); margin-left: 6px; white-space: nowrap; }
+
+/* Cât vine miniatura: previzualizarea de 24 px, estompată (nu pătrățele pixelate). */
+img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
