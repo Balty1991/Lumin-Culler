@@ -1861,6 +1861,23 @@ export function settleFreeCleanup(used: boolean): void {
 }
 
 /**
+ * Câte poze de azi din galerie lipsesc încă din aplicație — aceeași regulă ca
+ * importToday (necunoscute și neîncercate deja azi). Cardul „Ai 3 poze noi azi”
+ * număra toate fișierele zilei, inclusiv copiile editate salvate azi, și rămânea
+ * pe ecran după sortare, cu un buton care nu mai avea ce face (raportat cu video).
+ */
+export async function todayMissingCount(): Promise<number | null> {
+  if (!isNativeMediaLibraryAvailable()) return null;
+  try {
+    const list = await listPhotosInRange(startOfDay(), Date.now() + 1);
+    if (!list.granted) return null;
+    const known = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
+    const skipped = readTodaySkipped();
+    return list.photos.filter(p => !known.has(p.uri) && !skipped.has(p.uri)).length;
+  } catch { return null; }
+}
+
+/**
  * Ordinea în care se păstrează cadrele unei serii. La pozele de grup (2+ fețe) câștigă
  * cadrul în care toți au ochii deschiși, apoi cel cu zâmbetul cel mai larg; scorul AI
  * decide doar între cadre la fel de bune. Altfel (o față sau niciuna), scorul AI.

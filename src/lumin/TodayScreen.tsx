@@ -5,8 +5,8 @@ import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhoto
 import { useEffect, useMemo, useState } from 'react';
 import { TrainingCard } from './TrainingCard';
 import { useLxPhotos } from './useLxPhotos';
-import { useStore } from '../state/store';
-import { countGalleryPhotosSince, isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
+import { todayMissingCount, useStore } from '../state/store';
+import { isNativeMediaLibraryAvailable } from '../core/nativeMediaLibrary';
 import { startOfDay } from '../core/todayDigest';
 import { readRitualDays, streakOf } from '../core/ritualStreak';
 import { readTasteScore } from '../core/tasteScore';
@@ -111,11 +111,12 @@ export function TodayScreen() {
   useEffect(() => {
     if (!isNativeMediaLibraryAvailable() || busy) return;
     let alive = true;
-    void countGalleryPhotosSince(todayStart).then(r => { if (alive && r.granted) setInGallery(r.count); }).catch(() => {});
+    void todayMissingCount().then(n => { if (alive && n !== null) setInGallery(n); }).catch(() => {});
     return () => { alive = false; };
   }, [busy, photos.length, todayStart]);
 
-  const waitingInGallery = Math.max(0, (inGallery ?? 0) - (today?.photos.length ?? 0));
+  // Doar pozele de azi pe care aplicația chiar nu le are (vezi todayMissingCount).
+  const waitingInGallery = inGallery ?? 0;
   const streak = streakOf(readRitualDays());
   const score = readTasteScore();
   const twin = readTwin();
