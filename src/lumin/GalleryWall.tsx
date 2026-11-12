@@ -644,7 +644,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   // Cât te uiți la o poză, citirea galeriei așteaptă: poza clară vine imediat, nu după rând
   // (văzut într-o înregistrare: ecran gol câteva secunde la deschidere, în timpul citirii).
   useHoldAnalysis();
-  const [enhancing, setEnhancing] = useState(false);
+  const [enhancing, setEnhancing] = useState<boolean | 'perfect'>(false);
   const [writing, setWriting] = useState(false);
   const [insta, setInsta] = useState(false);
   const [magic, setMagic] = useState(false);
@@ -950,6 +950,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         </div>
         {more && (
           <div className="lx-more-grid">
+            <button onClick={() => { setMore(false); setEnhancing('perfect'); }}><span><Icon name="sparkle" /></span>{tr('lx.recipe.oneTap')}</button>
             {bestFix.length > 0 && <button disabled={bestBusy} onClick={() => void makeBestTake()}><span><Icon name="sparkle" /></span>{tr('lx.bestTake.button')}</button>}
             {livePhotoAvailable() && !!p.mediaUri && <button onClick={() => setTool('live')}><span><Icon name="sparkle" /></span>{tr('lx.live.title')}</button>}
             {canRephoto() && p.capturedAt !== undefined && Date.now() - p.capturedAt > 90 * 86_400_000 && <button onClick={() => setTool('rephoto')}><span><Icon name="target" /></span>{tr('lx.rephoto.title')}</button>}
@@ -985,7 +986,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           </button>
         </div>
       </div>
-      {enhancing && <EnhanceSheet photo={p} onClose={() => setEnhancing(false)} />}
+      {enhancing && <EnhanceSheet photo={p} recipe={enhancing === 'perfect' ? 'perfect' : undefined} onClose={() => setEnhancing(false)} />}
       {comparing && twin && <TwinCompare photo={p} twin={twin} onClose={() => setComparing(false)} />}
       {writing && <CaptionSheet photo={p} onClose={() => setWriting(false)} />}
       {insta && <InstaSheet photo={p} onClose={() => setInsta(false)} />}

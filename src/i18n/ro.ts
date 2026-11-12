@@ -2718,6 +2718,7 @@ export const ro = {
   "lx.faceCheck.yes": "Da",
   "lx.faceCheck.no": "Nu",
   "lx.faceCheck.later": "Mai târziu",
+  "lx.recipe.oneTap": "✨ Perfectă dintr-o atingere",
   "lx.recipe.title": "Dintr-o atingere",
   "lx.recipe.perfect": "Perfectă",
   "lx.recipe.insta": "Instagram",

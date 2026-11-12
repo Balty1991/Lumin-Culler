@@ -8,7 +8,7 @@ import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
 import { isNativeSegmentationAvailable, segmentPersonMask } from '../core/nativeSegmentation';
 import { useStore, type PhotoView } from '../state/store';
 import { aiCrop, frameCrop } from './instaCrop';
-import { RECIPES, resolveRecipe, type Recipe } from './editRecipes';
+import { RECIPES, resolveRecipe, type Recipe, type RecipeKey } from './editRecipes';
 import { saveEditedBlob } from './saveEdited';
 import { useTr } from './context';
 import { AiRetouch, type ToolKind } from './AiRetouch';
@@ -519,7 +519,7 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
   return out as unknown as EditAdjustments;
 }
 
-export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: () => void }) {
+export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onClose: () => void; /** Deschis cu o rețetă deja pusă („Perfectă” din poza deschisă). */ recipe?: RecipeKey }) {
   const [erasing, setErasing] = useState(false);
   // Escape închide editorul (auditul: tastatura nu avea ieșire).
   useEffect(() => {
@@ -633,6 +633,21 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     setApplied(r);
     vibrate(8);
   };
+  // Deschis din „Perfectă dintr-o atingere”: rețeta se pune singură, o dată, când poza e gata.
+  const autoRecipe = useRef(recipe);
+  useEffect(() => {
+    if (!autoRecipe.current || !base) return;
+    // Fețele (pentru încadrare) vin separat; le așteptăm puțin, nu la nesfârșit.
+    const go = () => {
+      const r = RECIPES.find(x => x.key === autoRecipe.current);
+      autoRecipe.current = undefined;
+      if (r) applyRecipe(r);
+    };
+    if (geo) { go(); return; }
+    const timer = window.setTimeout(go, 700);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, geo]);
   const recipeOn = (k: string) => !!applied && applied.key === k && !pure && style === applied.style && amount === applied.amount
     && aspect === applied.aspect && JSON.stringify(manual) === JSON.stringify(applied.manual);
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */

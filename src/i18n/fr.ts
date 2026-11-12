@@ -597,6 +597,7 @@ export const dict: Record<string, string> = {
   "lx.faceCheck.yes": "Oui",
   "lx.faceCheck.no": "Non",
   "lx.faceCheck.later": "Plus tard",
+  "lx.recipe.oneTap": "✨ Parfaite en un geste",
   "lx.recipe.title": "En un geste",
   "lx.recipe.perfect": "Parfaite",
   "lx.recipe.insta": "Instagram",

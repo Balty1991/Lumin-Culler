@@ -2632,6 +2632,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.faceCheck.yes": "Yes",
   "lx.faceCheck.no": "No",
   "lx.faceCheck.later": "Later",
+  "lx.recipe.oneTap": "✨ Perfect in one tap",
   "lx.recipe.title": "One tap",
   "lx.recipe.perfect": "Perfect",
   "lx.recipe.insta": "Instagram",
