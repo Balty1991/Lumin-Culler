@@ -746,7 +746,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   //  · două degete → mărești (până la 4×) și plimbi poza; atingere dublă → la loc.
   const [holding, setHolding] = useState(false);
   const zoomBox = useRef<HTMLDivElement>(null);
-  const gesture = useRef({ pointers: new Map<number, { x: number; y: number }>(), startX: 0, startY: 0, moved: false, holdTimer: 0, held: false, scale: 1, tx: 0, ty: 0, pinchDist: 0, pinchScale: 1, lastTap: 0 });
+  const gesture = useRef({ pointers: new Map<number, { x: number; y: number }>(), startX: 0, startY: 0, moved: false, onLine: false, holdTimer: 0, held: false, scale: 1, tx: 0, ty: 0, pinchDist: 0, pinchScale: 1, lastTap: 0 });
   const applyZoom = () => {
     const g = gesture.current;
     if (zoomBox.current) zoomBox.current.style.transform = g.scale > 1.01 ? `translate3d(${g.tx}px,${g.ty}px,0) scale(${g.scale})` : '';
@@ -773,7 +773,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       return;
     }
     g.startX = e.clientX; g.startY = e.clientY; g.moved = false;
-    dragBounds.current = stage.current?.getBoundingClientRect() ?? null;
+    // Linia se măsoară pe cadrul pozei, cu mărirea inclusă (raportat: la zoom, linia nu se mai
+    // putea trage). Atingerea lângă linie o mută; în altă parte, pe poza mărită, se plimbă poza.
+    const frame = stage.current?.querySelector('.lx-enhance-frame') as HTMLElement | null;
+    dragBounds.current = frame?.getBoundingClientRect() ?? stage.current?.getBoundingClientRect() ?? null;
+    const line = compareLine.current?.querySelector('.lx-enhance-line')?.getBoundingClientRect();
+    g.onLine = !!line && Math.abs(e.clientX - (line.left + line.width / 2)) < 48;
     g.holdTimer = window.setTimeout(() => {
       if (g.moved || g.pointers.size !== 1) return;
       g.held = true; setHolding(true); placeSplit(100);
@@ -794,7 +799,7 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     if (g.held) return;
     if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 8) return;
     g.moved = true; window.clearTimeout(g.holdTimer);
-    if (g.scale > 1.01) { g.tx += e.clientX - prev.x; g.ty += e.clientY - prev.y; clampPan(); applyZoom(); return; }
+    if (g.scale > 1.01 && !g.onLine) { g.tx += e.clientX - prev.x; g.ty += e.clientY - prev.y; clampPan(); applyZoom(); return; }
     dragging.current = true;
     move(e);
   };
