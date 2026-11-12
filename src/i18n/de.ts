@@ -343,6 +343,7 @@ export const dict: Record<string, string> = {
   "lx.wall.kept": "Behalten",
   "lx.wall.notToday": "Nicht heute",
   "lx.wall.empty": "Hier noch keine Fotos.",
+  "lx.enhance.shareBA": "Vorher/Nachher senden",
   "lx.reader.waitCharge": "Den Rest lese ich, während das Handy lädt ({done} von {total})",
   "lx.reader.yearDone": "Das letzte Jahr ist fertig. Den Rest ({left} Fotos) lese ich beim Laden, damit das Handy nicht langsamer wird.",
   "lx.textSize.title": "Großer Text",

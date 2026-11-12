@@ -1095,7 +1095,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
                   if (blob) await shareCard(blob, `cherrypic-inainte-dupa-${Date.now()}.jpg`, fixes, tr('lx.share.cta'));
                 } finally { if (after) URL.revokeObjectURL(after); }
               })();
-            }}>{tr('lx.freed.share')}</button>
+            }}>{tr('lx.enhance.shareBA')}</button>
           )}
           {!nothing && <button className="lx-btn primary" disabled={!edits || saving} onClick={() => void save()}>{tr(proPreview ? 'lx.enhance.savePro' : 'lx.enhance.save')}</button>}
         </div>
