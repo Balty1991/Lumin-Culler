@@ -292,12 +292,27 @@ class PortraitPlugin : Plugin() {
                     if (vals.isEmpty()) 1f else { vals.sort(); vals[(vals.size * 0.85f).toInt().coerceAtMost(vals.size - 1)] }
                 }
                 val tol = 0.07f
+                // Raportat: „blurează inclusiv mâinile” — mâinile și ce ține copilul (ghidonul)
+                // sunt MAI APROAPE decât fața, deci ieșeau din planul de focus. Ce e în fața
+                // planului, în dreptul omului (cutia siluetei, puțin lărgită), rămâne clar.
+                var bx0 = ws; var by0 = hs; var bx1 = -1; var by1 = -1
+                if (personShare > 0.04f) for (y in 0 until hs) for (x in 0 until ws) if (matteS[y * ws + x] > 0.5f) {
+                    if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y
+                }
+                if (bx1 >= 0) {
+                    val mx = ((bx1 - bx0) * 0.12f).roundToInt(); val my = ((by1 - by0) * 0.06f).roundToInt()
+                    bx0 = max(0, bx0 - mx); bx1 = min(ws - 1, bx1 + mx); by0 = max(0, by0 - my); by1 = min(hs - 1, by1 + my)
+                }
                 focus = FloatArray(ws * hs) { i ->
                     val d = kotlin.math.abs(depth01[i] - fd)
-                    val t = ((d - tol) / (tol * 1.5f)).coerceIn(0f, 1f)
+                    val x = i % ws; val y = i / ws
+                    val inBox = x in bx0..bx1 && y in by0..by1
+                    val nearer = depth01[i] > fd
+                    val tl = if (nearer && inBox) 0.3f else tol
+                    val t = ((d - tl) / (tl * 1.5f)).coerceIn(0f, 1f)
                     var f = 1f - t * t * (3f - 2f * t)
                     // Oamenii din planul de focus: silueta ține tot corpul clar (mâini, păr).
-                    if (matteS[i] > 0.5f && d < 0.16f) f = max(f, matteS[i])
+                    if (matteS[i] > 0.3f && (d < 0.16f || (nearer && inBox))) f = max(f, ((matteS[i] - 0.3f) / 0.3f).coerceIn(0f, 1f))
                     f
                 }
                 // Marginea după imagine (filtru ghidat): conturul urmează părul și hainele,
