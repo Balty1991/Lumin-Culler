@@ -1,4 +1,5 @@
 import { startJankLog } from '../core/jankLog';
+import { WorkModeOverlay } from './SampleFlow';
 import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -480,6 +481,7 @@ export function LuminApp() {
 
         {/* Sub bara de jos: fundal plin până la marginea ecranului, ca pozele și titlurile
             să nu se mai vadă prin bara sistemului (raportat: „Octombrie” apărea acolo). */}
+        <WorkModeOverlay />
         <div className="lx-dock-scrim" aria-hidden="true" />
         <nav className="lx-dock" aria-label={tr('lx.nav.label')} hidden={!booted}>
           {tabs.slice(0, 2).map(x => (

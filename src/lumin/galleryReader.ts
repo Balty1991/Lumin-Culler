@@ -51,6 +51,35 @@ export function continueWithoutTraining(): void { skipTraining = true; }
 function trainingOffered(): boolean {
   try { return localStorage.getItem(TRAIN_OFFERED_KEY) === '1'; } catch { return true; }
 }
+/**
+ * „Prima privire”: la prima pornire se citesc doar cele mai noi ~150 de poze, la viteză
+ * maximă, ca omul să vadă în 2–3 minute ce face aplicația (alese, serii, neclare, editorul,
+ * antrenamentul). Restul galeriei pornește abia când apasă „Analizează toată galeria”.
+ * Cerut: „un utilizator nou nu știe ce se întâmplă, poate crede că nu merge”.
+ */
+export const SAMPLE_SIZE = 150;
+const SAMPLE_DONE_KEY = 'cp.sample.done';
+const FULL_KEY = 'cp.sample.full';
+const SAMPLE_RESULT_KEY = 'cp.sample.result';
+/** Rezultatul primei priviri, și după repornirea aplicației (până pornește citirea întreagă). */
+export function storedSampleResult(): { ids: string[]; left: number } | null {
+  if (!sampleDone() || fullReadAccepted()) return null;
+  try { return JSON.parse(localStorage.getItem(SAMPLE_RESULT_KEY) ?? 'null') as { ids: string[]; left: number } | null; } catch { return null; }
+}
+function flag(k: string): boolean { try { return localStorage.getItem(k) === '1'; } catch { return true; } }
+function setFlag(k: string): void { try { localStorage.setItem(k, '1'); } catch { /* fără stocare */ } }
+export function sampleDone(): boolean { return flag(SAMPLE_DONE_KEY); }
+export function fullReadAccepted(): boolean { return flag(FULL_KEY); }
+/** Mărimea primei priviri: doar pentru o bibliotecă nouă și o galerie destul de mare. */
+export function sampleLimit(known: number, missing: number): number | null {
+  if (known >= 50 || missing <= SAMPLE_SIZE + 50) return null;
+  return SAMPLE_SIZE;
+}
+/** „Analizează toată galeria”, după prima privire. */
+export function startFullRead(): Promise<void> {
+  setFlag(FULL_KEY);
+  return readWholeGallery(true);
+}
 const ANNOUNCED_KEY = 'lumin-gallery-read-announced';
 let running = false;
 /** „Continuă acum”: omul a ales să nu aștepte încărcătorul (până la următoarea pornire). */
@@ -164,6 +193,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
   // Cerut de om: se reîncearcă și pozele sărite data trecută.
   if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); localStorage.setItem(STARTED_KEY, '1'); } catch { /* fără stocare */ } }
   else if (readerStopped() || !readerStarted()) return;
+  // După prima privire, restul galeriei pornește doar la cererea omului.
+  if (!byUser && sampleDone() && !fullReadAccepted()) return;
   // Întâi motoarele AI, apoi galeria (cerut: „încărcarea galeriei să nu pornească până
   // nu descarci toate modelele”). Și pornirea cerută de om așteaptă: când motoarele sunt
   // pe telefon, ENGINES_READY_EVENT repornește citirea (vezi LuminApp).
@@ -188,8 +219,15 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     if (!list.granted) return;
     const known = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
     const skipped = readSkipped();
-    const missing = list.photos.filter(p => !known.has(p.uri) && !skipped.has(p.uri)).sort((a, b) => b.capturedAt - a.capturedAt);
-    if (!missing.length) return;
+    const allMissing = list.photos.filter(p => !known.has(p.uri) && !skipped.has(p.uri)).sort((a, b) => b.capturedAt - a.capturedAt);
+    if (!allMissing.length) return;
+    // Prima privire: doar cele mai noi poze, o singură dată. O bibliotecă veche (deja citită)
+    // sau o galerie mică trece direct la citirea întreagă.
+    const limit = sampleDone() ? null : sampleLimit(known.size, allMissing.length);
+    if (limit === null && !sampleDone()) { setFlag(SAMPLE_DONE_KEY); setFlag(FULL_KEY); }
+    const sampling = limit !== null;
+    const missing = sampling ? allMissing.slice(0, limit) : allMissing;
+    useLx.getState().setSampling(sampling);
 
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
     const locale = useStore.getState().locale;
@@ -217,7 +255,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       // Cu aplicația pe ecran, un pachet întreg (citirea fișierelor, salvarea, seriile) pornește
       // abia după 8 s fără atingeri, nu doar analiza din el (video 12 nov.: derularea greoaie și
       // poza care abia se deschidea, cât citea galeria). Cu ecranul stins merge ca până acum.
-      while (!stopRequested && document.visibilityState === 'visible' && (userActive(8_000) || analysisPool.uiHeld())) await sleep(600);
+      while (!stopRequested && !sampling && !useLx.getState().workMode && document.visibilityState === 'visible' && (userActive(8_000) || analysisPool.uiHeld())) await sleep(600);
       while (!stopRequested && (importBusy() || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
@@ -236,8 +274,11 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         }
         if (stopRequested) break;
       }
-      const fast = readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
+      // Prima privire și ecranul „Lucrez la galeria ta”: viteză maximă, omul se uită la progres.
+      const focus = sampling || useLx.getState().workMode;
+      const fast = focus || readerPace({ charging: await isCharging(), visible: document.visibilityState === 'visible', active: userActive(20_000) }) === 'full';
       analysisPool.setGentle(!fast);
+      analysisPool.setBackground(!focus);
       useLx.getState().setReader({ done, total: missing.length, fast });
       const files = await jankSpan('citire-fisiere', () => readPhotoFiles(missing.slice(i, i + size)));
       if (files.length) {
@@ -283,7 +324,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       // restul galeriei. Continuă singur după test (sau când omul alege să continue fără).
       // Doar când antrenamentul chiar are din ce face perechi: dacă primele poze sunt capturi
       // sau documente, citirea merge mai departe și pauza vine la un pachet următor.
-      if (!trainingOffered() && done >= TRAIN_PAUSE_AT && done < missing.length && !readTasteQuizDone() && !(await trainedEnough()) && quizReady(useStore.getState().photos)) {
+      if (!sampling && !trainingOffered() && done >= TRAIN_PAUSE_AT && done < missing.length && !readTasteQuizDone() && !(await trainedEnough()) && quizReady(useStore.getState().photos)) {
         try { localStorage.setItem(TRAIN_OFFERED_KEY, '1'); } catch { /* fără stocare */ }
         skipTraining = false;
         analysisPool.setGentle(false);
@@ -306,6 +347,18 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     const nowKnown = new Set(useStore.getState().photos.map(p => p.mediaUri).filter(Boolean));
     writeSkipped([...skipped, ...missing.map(p => p.uri).filter(u => !nowKnown.has(u))]);
     const fresh = useStore.getState().photos.filter(p => !beforeIds.has(p.id));
+    if (sampling) {
+      setFlag(SAMPLE_DONE_KEY);
+      // Antrenamentul se oferă pe cardul rezultatului, nu ca pauză în mijlocul citirii.
+      try { localStorage.setItem(TRAIN_OFFERED_KEY, '1'); } catch { /* fără stocare */ }
+      if (fresh.length) {
+        await useStore.getState().applyMoments().catch(() => {});
+        const result = { ids: fresh.map(p => p.id), left: allMissing.length - missing.length };
+        try { localStorage.setItem(SAMPLE_RESULT_KEY, JSON.stringify(result)); } catch { /* fără stocare */ }
+        useLx.getState().setSampleResult(result);
+      }
+      return;
+    }
     let announced = false;
     try { announced = localStorage.getItem(ANNOUNCED_KEY) === '1'; localStorage.setItem(ANNOUNCED_KEY, '1'); } catch { /* fără stocare */ }
     // Prima citire completă primește un rezumat; completările de mai târziu, nu.
@@ -322,6 +375,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     if (holding) void releaseBackgroundAnalysis();
     analysisPool.setGentle(false);
     analysisPool.setBackground(false);
+    useLx.getState().setSampling(false);
     running = false;
     useLx.getState().setReader(null);
   }

@@ -1,4 +1,5 @@
 import { buildMorningReport, markMorningSeen, morningSeen } from './morningReport';
+import { SampleResultCard } from './SampleFlow';
 import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
 import { formatBytes } from '../core/freedSpace';
 import { listPhotosInRange, readGalleryDateRange, readGalleryOverview, readPhotoFiles } from '../core/nativeMediaLibrary';
@@ -70,6 +71,7 @@ export function TodayScreen() {
   const autoResult = useLx(s => s.autoResult);
   const reader = useLx(s => s.reader);
   const readerResult = useLx(s => s.readerResult);
+  const sampling = useLx(s => s.sampling);
   const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
   const setAutoResult = useLx(s => s.setAutoResult);
@@ -217,18 +219,20 @@ export function TodayScreen() {
           <div className="lx-reader-head">
             <div>
               <span className="lx-eyebrow">{tr('lx.reader.eyebrow')}</span>
-              <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : reader.paused === 'charging' ? 'lx.reader.waitCharge' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
+              <b>{tr(reader.paused === 'battery' ? 'lx.reader.paused' : reader.paused === 'charging' ? 'lx.reader.waitCharge' : sampling ? 'lx.sample.reading' : 'lx.reader.title', { done: reader.done, total: reader.total })}</b>
             </div>
             {reader.paused === 'battery' && <button className="lx-btn ghost small" onClick={continueOnLowBattery}>{tr('lx.reader.continue')}</button>}
             <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>
           </div>
           <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
-          <span>{tr('lx.reader.sub')}</span>
+          <span>{tr(sampling ? 'lx.sample.readingSub' : 'lx.reader.sub')}</span>
+          {!sampling && !reader.paused && <button className="lx-btn ghost small" onClick={() => useLx.getState().setWorkMode(true)}>⚡ {tr('lx.work.open')}</button>}
           {!reader.paused && reader.total - reader.done > 200 && <span className="lx-reader-fast">{reader.fast ? `⚡ ${tr('lx.reader.fast')}` : tr('lx.reader.fastTip')}</span>}
           <BatteryHint />
         </section>
       )}
       {!reader && readerStopped() && readerStarted() && <ReaderStopped />}
+      <SampleResultCard />
       {readerResult && !reader && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setReaderResult(null)} aria-label={tr('lx.close')}>✕</button>

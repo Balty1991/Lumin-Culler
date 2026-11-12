@@ -2277,3 +2277,46 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-enhance-meta .lx-enhance-fix { flex: 1 1 160px; margin: 0; }
 .lx-enhance-meta .lx-pure-btn { margin: 0; }
 .lx-enhance-meta .lx-enhance-mine { flex-basis: 100%; margin: 0; font-size: 12px; }
+
+/* —— Prima privire: rezultatul pe Azi —— */
+.lx-sample { display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+.lx-sample::before { content: ""; position: absolute; inset: -40% -20% auto auto; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / .28), transparent 70%); pointer-events: none; }
+.lx-sample-title { font-size: 22px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; }
+.lx-sample-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.lx-sample-facts span { padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: rgb(var(--accent-rgb) / .12); color: var(--text); }
+.lx-sample-best { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.lx-sample-best button { padding: 0; border: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); }
+.lx-sample-best button:first-child { grid-row: span 2; aspect-ratio: auto; }
+.lx-sample-best .lx-thumb, .lx-sample-best img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-sample-steps { display: flex; flex-direction: column; gap: 6px; }
+.lx-sample-step { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 16px; text-align: left;
+  border: 1px solid var(--lx-line); background: var(--lx-glass); color: var(--text); font: inherit; }
+.lx-sample-step > i { font-style: normal; font-size: 20px; width: 28px; text-align: center; }
+.lx-sample-step span { display: flex; flex-direction: column; gap: 2px; }
+.lx-sample-step b { font-size: 14.5px; }
+.lx-sample-step small { font-size: 12px; color: var(--text-dim); }
+.lx-sample-note { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+
+/* —— „Lucrez la galeria ta”: ecran opțional, cu viteză maximă —— */
+.lx-work { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; overflow: hidden;
+  background: #07060c; color: #fff; padding: calc(24px + var(--safe-top, 0px)) 24px calc(24px + var(--safe-bottom, 0px)); }
+.lx-work-aurora { position: absolute; inset: -30%; filter: blur(60px); opacity: .55;
+  background: conic-gradient(from 0deg, #ff4f7f, #c86bff, #6bd6ff, #ffb36b, #ff4f7f); animation: lx-work-spin 18s linear infinite; }
+.lx-work-core { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; max-width: 360px; width: 100%; }
+.lx-work-ring { --p: 0; position: relative; width: 220px; height: 220px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 18px;
+  background: conic-gradient(#ff4f7f calc(var(--p) * 1%), rgb(255 255 255 / .1) 0); transition: background .6s; }
+.lx-work-ring::before { content: ""; position: absolute; inset: 10px; border-radius: 50%; background: rgb(7 6 12 / .92); }
+.lx-work-ring > b { position: relative; font-size: 46px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.lx-work-orbit { position: absolute; inset: -34px; animation: lx-work-spin 24s linear infinite; }
+.lx-work-orbit span { --i: 0; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 12px; overflow: hidden;
+  border: 2px solid rgb(255 255 255 / .85); box-shadow: 0 8px 20px -8px rgb(0 0 0 / .8);
+  transform: rotate(calc(var(--i) * 45deg)) translateY(-144px) rotate(calc(var(--i) * -45deg)); }
+.lx-work-orbit span .lx-thumb, .lx-work-orbit span img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-work h2 { margin: 6px 0 0; font-size: 24px; font-weight: 800; }
+.lx-work p { margin: 0; color: rgb(255 255 255 / .78); font-size: 15px; }
+.lx-work .lx-work-eta { font-weight: 700; color: #fff; }
+.lx-work .lx-work-tip { font-size: 13px; color: rgb(255 255 255 / .6); max-width: 300px; margin: 6px 0 14px; }
+.lx-work .lx-btn.ghost { color: #fff; border-color: rgb(255 255 255 / .3); }
+@keyframes lx-work-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lx-work-aurora, .lx-work-orbit { animation: none; } }

@@ -13,7 +13,8 @@ import { XIcon } from './icons';
 import { t, baseLocale } from '../i18n';
 
 /** Cât stă pe ecran dezvăluirea „AI-ul a ghicit / ar fi ales-o pe asta”. */
-const REVEAL_MS = 650;
+// Scurt: cât să vezi ce a ghicit AI-ul, fără să aștepți (raportat: tranziția părea greoaie).
+const REVEAL_MS = 420;
 
 /**
  * ui/TasteQuiz.tsx
@@ -136,6 +137,7 @@ export function TasteQuiz() {
 
   const finish = async (final: TasteScore) => {
     setBusy(true);
+    await learning.current;
     writeTasteQuizDone();
     // Scorul de antrenament se adună peste cele de dinainte (recalibrările).
     const before = readTasteScore();
@@ -145,11 +147,12 @@ export function TasteQuiz() {
       total: before.total + final.total
     });
     try {
-      await rescorePhotos();
-      // Mesajul „Re-analizate N poze” acoperea butonul de la final (raportat).
-      useStore.getState().clearNotice();
+      // Rezumatul întâi, apoi reordonarea galeriei în spate (înainte, ecranul de final aștepta
+      // re-analiza întregii biblioteci).
       const models = await contextEngine.summarize(baseLocale(locale));
       setSummary([...new Set(models.flatMap(m => m.notes))].slice(0, 3));
+      // Mesajul „Re-analizate N poze” acoperea butonul de la final (raportat).
+      void rescorePhotos().then(() => useStore.getState().clearNotice()).catch(() => {});
     } catch {
       setSummary([]);
     } finally {
@@ -157,18 +160,16 @@ export function TasteQuiz() {
     }
   };
 
+  const learning = useRef<Promise<void>>(Promise.resolve());
   const answer = async (choice: TasteAnswer) => {
     if (!pair || busy || reveal) return;
     const next = scoreAnswer(score, guess, choice);
     setScore(next);
     setReveal({ choice, guess });
-    setBusy(true);
-    try {
-      await learnTastePair(pair.aId, pair.bId, choice);
-    } catch {
-      // o lecție pierdută nu oprește antrenamentul
-    }
-    setBusy(false);
+    // Lecția se scrie în spate, la rând cu celelalte: perechea următoare nu o mai așteaptă.
+    learning.current = learning.current
+      .then(() => learnTastePair(pair.aId, pair.bId, choice))
+      .catch(() => { /* o lecție pierdută nu oprește antrenamentul */ });
     window.setTimeout(() => {
       setReveal(null);
       if (index + 1 < pairs.length) setIndex(index + 1);

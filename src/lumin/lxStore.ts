@@ -43,6 +43,15 @@ interface LxState {
   setReader: (r: { done: number; total: number; paused?: 'battery' | 'import' | 'training' | 'charging'; fast?: boolean } | null) => void;
   /** „Am citit toată galeria”, arătat o dată pe Azi. */
   readerResult: { total: number; kept: number; waiting: number } | null;
+  /** Citirea curentă e „prima privire” (cele mai noi ~150 de poze). */
+  sampling: boolean;
+  setSampling: (on: boolean) => void;
+  /** Rezultatul primei priviri: pozele citite și câte au rămas din galerie. */
+  sampleResult: { ids: string[]; left: number } | null;
+  setSampleResult: (r: { ids: string[]; left: number } | null) => void;
+  /** Ecranul „Lucrez la galeria ta” e deschis: citirea merge pe viteză maximă. */
+  workMode: boolean;
+  setWorkMode: (on: boolean) => void;
   setReaderResult: (r: { total: number; kept: number; waiting: number } | null) => void;
   faceVersion: number;
   bumpFaces: () => void;
@@ -76,6 +85,12 @@ export const useLx = create<LxState>((set, get) => ({
   // „fast” se păstrează între actualizările de progres; se schimbă doar când e dat explicit.
   setReader: r => set(s => ({ reader: r && r.fast === undefined && s.reader?.fast && !r.paused ? { ...r, fast: true } : r })),
   readerResult: null,
+  sampling: false,
+  setSampling: on => set({ sampling: on }),
+  sampleResult: null,
+  setSampleResult: r => set({ sampleResult: r }),
+  workMode: false,
+  setWorkMode: on => set({ workMode: on }),
   setReaderResult: r => set({ readerResult: r }),
   faceVersion: 0,
   bumpFaces: () => set(s => ({ faceVersion: s.faceVersion + 1 })),
