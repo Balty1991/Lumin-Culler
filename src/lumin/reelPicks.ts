@@ -15,10 +15,15 @@ export function reelPicks(photos: readonly PhotoView[], max = 12, now = Date.now
   let pool = within(7);
   if (pool.length < 6) pool = within(30);
   if (pool.length < 6) pool = kept;
-  const score = (p: PhotoView) => (p.aesthetic ?? p.aiScore / 12) + (p.faceCount > 0 ? 0.6 : 0) + (p.bestSmile ?? 0);
+  return bestForReel(pool, max);
+}
+
+/** Cele mai bune `max` dintr-o listă (una din fiecare serie), în ordinea timpului. */
+export function bestForReel(pool: readonly PhotoView[], max = 12): string[] {
+  const score = (p: PhotoView) => (p.status === 'selected' ? 1 : 0) + (p.aesthetic ?? p.aiScore / 12) + (p.faceCount > 0 ? 0.6 : 0) + (p.bestSmile ?? 0);
   // Din serii, o singură poză: altfel Reel-ul arată de trei ori același cadru.
   const seenGroup = new Set<string>();
-  const best = [...pool].sort((a, b) => score(b) - score(a)).filter(p => {
+  const best = [...pool].filter(p => p.status !== 'rejected' && !p.aside).sort((a, b) => score(b) - score(a)).filter(p => {
     if (!p.groupId) return true;
     if (seenGroup.has(p.groupId)) return false;
     seenGroup.add(p.groupId);

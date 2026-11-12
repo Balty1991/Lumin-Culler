@@ -27,7 +27,8 @@ export function FilmCreator({ startId, initialIds, initialTransition, onClose, p
   const byId = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
   const [ids, setIds] = useState<string[]>(() => (initialIds.length ? initialIds : [startId]).slice(0, FILM_MAX_PHOTOS));
   const [active, setActive] = useState<string | null>(null);
-  const [allDays, setAllDays] = useState(false);
+  // La Reel, toate zilele de la început: omul alege din toată galeria, nu doar dintr-o zi.
+  const [allDays, setAllDays] = useState(preset === 'reel');
   const [speed, setSpeed] = useState<NonNullable<FilmOptions['speed']>>(preset === 'reel' ? 'fast' : 'normal');
   const [transition, setTransition] = useState<NonNullable<FilmOptions['transition']> | null>(initialTransition ?? null);
   const [loop, setLoop] = useState<NonNullable<FilmOptions['loop']>>(preset === 'reel' ? 'forward' : 'bounce');
@@ -109,7 +110,11 @@ export function FilmCreator({ startId, initialIds, initialTransition, onClose, p
         <section className="lx-fm-section">
           <div className="lx-fm-head">
             <b>{tr('lx.filmMaker.order')}</b>
-            <button className="lx-link" onClick={byTime} disabled={ids.length < 2}>{tr('lx.filmMaker.byTime')}</button>
+            <span className="lx-fm-head-actions">
+              <button className="lx-link" onClick={byTime} disabled={ids.length < 2}>{tr('lx.filmMaker.byTime')}</button>
+              {/* Alegi tu, de la zero: golește lista (pozele propuse de AI rămân doar o sugestie). */}
+              <button className="lx-link" onClick={() => { setIds([]); setActive(null); setAllDays(true); }} disabled={!ids.length}>{tr('lx.filmMaker.clear')}</button>
+            </span>
           </div>
           <div className="lx-tidy-row lx-fm-strip">
             {ids.map((id, i) => {

@@ -11,6 +11,7 @@ import { answer, type AssistantReply } from './assistantBrain';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { clipSearch } from '../core/clip/clipSearch';
 import { applyFilters } from './assistantQuery';
+import { FilmCreator } from './FilmCreator';
 
 /**
  * lumin/Assistant.tsx
@@ -26,6 +27,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
   const actions = useLxActions();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
+  const [reel, setReel] = useState<string[] | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const next = useRef(1);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
@@ -77,6 +79,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
   const view = (ids: string[], i = 0) => { onClose(); lx().openViewer(ids, i); };
   const sort = (ids: string[], title: string) => { onClose(); lx().openSort(ids, title); };
 
+  const photoById = new Map(photos.map(p => [p.id, p]));
   const renderReply = (r: AssistantReply) => {
     switch (r.kind) {
       case 'results': {
@@ -111,10 +114,18 @@ export function Assistant({ onClose }: { onClose: () => void }) {
       case 'train': return (<><p>{tr('lx.ask.train')}</p><button className="lx-btn primary small" onClick={() => { onClose(); openTasteQuiz(); }}>{tr('lx.brain.train')}</button></>);
       case 'studio': return (<><p>{tr('lx.ask.studio')}</p><button className="lx-btn primary small" onClick={() => { onClose(); lx().setTab('brain'); }}>{tr('lx.ask.openStudio')}</button></>);
       case 'year': return (<><p>{tr('lx.ask.year')}</p><button className="lx-btn primary small" onClick={() => { void import('./yearShare').then(m => m.shareYear(photos, r.year)).then(ok => { if (!ok) useStore.getState().setNotice(tr('lx.ask.yearNone')); }); }}>{tr('lx.year.cta')}</button></>);
+      case 'reel': return r.ids.length >= 2 ? (
+        <>
+          <p>{tr(r.query ? 'lx.ask.reel' : 'lx.ask.reelWeek', { count: r.ids.length, query: r.query })}</p>
+          <div className="lx-ask-grid">{r.ids.slice(0, 6).map(id => { const p = photoById.get(id); return p ? <span key={id}><Thumb id={id} lqip={p.lqip} edits={p.edits} /></span> : null; })}</div>
+          <button className="lx-btn primary small" onClick={() => setReel(r.ids)}>{tr('lx.ask.reelGo')}</button>
+        </>
+      ) : <p>{tr('lx.ask.reelNone', { query: r.query })}</p>;
       case 'add': return (<><p>{tr('lx.ask.add')}</p><button className="lx-btn primary small" onClick={() => { onClose(); actions.pick(); }}>{tr('lx.addPhotos')}</button></>);
     }
   };
 
+  if (reel) return <FilmCreator startId={reel[0]} initialIds={reel} initialTransition="fade" preset="reel" onClose={() => setReel(null)} />;
   return createPortal(
     <div className="lx lx-ask" role="dialog" aria-modal="true" aria-label={tr('lx.ask.title')}>
       <header className="lx-ask-head">

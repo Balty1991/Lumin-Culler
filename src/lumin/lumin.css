@@ -2175,3 +2175,6 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 /* Editor: înainte/după și cu decupaj — „înainte” e o pânză decupată la fel, care dă mărimea cadrului. */
 .lx-enhance-frame.crop-compare > .lx-enhance-canvas { display: block; position: static; width: auto; height: auto; max-width: 100%;
   max-height: calc(100dvh - 380px - var(--safe-top, 0px) - var(--safe-bottom, 0px)); user-select: none; }
+
+/* Creatorul de filme: acțiunile de lângă „Ordinea” (după timp, alege de la zero). */
+.lx-fm-head-actions { display: inline-flex; gap: 14px; align-items: center; }

@@ -4,6 +4,7 @@
  * aplicația (căutarea pe cuvinte, oamenii, datele, seriile). Rulează pe telefon,
  * fără server: reguli simple pentru intenții, apoi căutarea obișnuită.
  */
+import { bestForReel, reelPicks } from './reelPicks';
 import { applyFilters, fixNames, parseQuery, type ParsedQuery } from './assistantQuery';
 import type { PhotoView } from '../state/store';
 import { fold, searchPhotos } from './textSearch';
@@ -18,7 +19,8 @@ export type AssistantReply =
   | { kind: 'train' }
   | { kind: 'studio' }
   | { kind: 'add' }
-  | { kind: 'year'; year: number };
+  | { kind: 'year'; year: number }
+  | { kind: 'reel'; query: string; ids: string[] };
 
 /** Cuvinte de umplutură din întrebări: nu se caută. */
 const FILLER = new Set(('arata arati mi imi vreau sa vad vezi gaseste cauta da poze pozele poza fotografii fotografiile cu de la din pe in si unde e este sunt toate ale lui ei cele mai ' +
@@ -63,7 +65,15 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
     return { kind: 'cleanup', photos: s.extras, sets: s.sets, screenshots: photos.filter(p => p.aside === 'screenshot' && photoTime(p) < old).length };
   }
   if (has(q, /\b(astept|asteapt|nesortat|de vazut|sorteaz|waiting|unsorted|to review|sort)\w*/)) return { kind: 'waiting', photos: photos.filter(isWaiting) };
-  if (has(q, /\b(film|video|clip|colaj|collage|movie|studio|reel|tiktok)\w*/)) return { kind: 'studio' };
+  // „Fă un Reel cu Ami din vacanță”: caută pozele, apoi le face Reel (nu doar deschide Studio).
+  if (has(q, /\b(reel|reels|tiktok|filmulet|film|video|clip|movie)\w*/)) {
+    const subject = q.replace(/\b(fa|faci|fami|fa mi|creeaza|creaza|vreau|un|o|niste|mi|imi|make|me|a|reels?|tiktok|filmulet\w*|film\w*|video\w*|clip\w*|movie|din|cu|with|from|of)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!subject) return { kind: 'reel', query: '', ids: reelPicks(photos, 12, now) };
+    const inner = answer(subject, photos, now);
+    if (inner.kind === 'results') return { kind: 'reel', query: subject, ids: bestForReel(inner.photos) };
+    return { kind: 'reel', query: subject, ids: [] };
+  }
+  if (has(q, /\b(colaj|collage|studio)\w*/)) return { kind: 'studio' };
 
   const best = has(q, /\b(cele mai|cea mai|best|top|frumoas|reusit|beautiful)\w*/);
   // Când, care, câte, cine (vezi assistantQuery.ts): „pozele păstrate de ieri cu Amy”.

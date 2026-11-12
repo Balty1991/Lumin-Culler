@@ -30,7 +30,8 @@ describe('asistentul galeriei', () => {
     expect(s.kind === 'stats' && [s.total, s.waiting, s.people]).toEqual([6, 1, 1]);
     expect(answer('antrenează-te', photos).kind).toBe('train');
     expect(answer('adaugă poze', photos).kind).toBe('add');
-    expect(answer('fă-mi un film', photos).kind).toBe('studio');
+    expect(answer('fă-mi un film', photos).kind).toBe('reel');
+    expect(answer('fă-mi un colaj', photos).kind).toBe('studio');
   });
   it('spune cinstit când nu găsește nimic', () => {
     expect(answer('elefant roz', photos)).toMatchObject({ kind: 'none', query: 'elefant roz', partial: [] });

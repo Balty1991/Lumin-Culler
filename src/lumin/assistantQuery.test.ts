@@ -45,3 +45,12 @@ describe('ce înțelege asistentul', () => {
     expect(applyFilters(photos, parseQuery('păstrate', now)).map(x => x.id)).toEqual(['ieri-ami']);
   });
 });
+
+describe('asistentul face Reel', () => {
+  it('„fă un reel cu Ami” caută pozele cu Ami și le face Reel', () => {
+    const photos = [p('a1', 1, { personNames: ['Ami'] }), p('a2', 2, { personNames: ['Ami'] }), p('x', 1, { sceneTags: ['Food'] })];
+    const r = answer('fă-mi un reel cu Ami', photos, now);
+    expect(r.kind).toBe('reel');
+    expect(r.kind === 'reel' && [...r.ids].sort()).toEqual(['a1', 'a2']);
+  });
+});
