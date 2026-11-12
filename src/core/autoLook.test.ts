@@ -73,6 +73,20 @@ describe('corecția automată pe telefon', () => {
     expect(data[i]).toBeGreaterThan(src[i] - 40);
   });
 
+  it('lumina pe față nu lasă o dungă orizontală pe frunte', async () => {
+    const { applySubjectFinish } = await import('./autoLook');
+    const w = 80, h = 60;
+    // Ten uniform, închis: orice salt între două rânduri vine din lumina adăugată, nu din poză.
+    const d = paint(w, h, () => [70, 52, 44]);
+    applySubjectFinish(d, w, h, 60, 0, [face]);
+    const x = Math.floor(0.5 * w);
+    let maxStep = 0;
+    for (let y = 1; y < Math.floor(0.5 * h); y++) {
+      maxStep = Math.max(maxStep, Math.abs(d[(y * w + x) * 4] - d[((y - 1) * w + x) * 4]));
+    }
+    expect(maxStep).toBeLessThanOrEqual(10); // înainte de reparație: 38
+  });
+
   it('stinge o pupilă roșie', () => {
     const w = 80, h = 60;
     const src = paint(w, h, (x, y) => {

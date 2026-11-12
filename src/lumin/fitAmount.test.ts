@@ -31,3 +31,14 @@ describe('stilul de pornire, după tipul pozei', () => {
     expect(recommendStyle([])).toBe('natural');
   });
 });
+
+import { suggestAspect } from './Enhance';
+describe('încadrarea propusă', () => {
+  it('oamenii merg la 4:5 sau pătrat, peisajele late la 16:9, restul rămân cum sunt', () => {
+    expect(suggestAspect(3000, 4000, 2)).toBe('1:1');
+    expect(suggestAspect(2000, 4000, 1)).toBe('4:5');
+    expect(suggestAspect(4000, 3000, 1)).toBe('4:5');
+    expect(suggestAspect(4000, 3000, 0)).toBe('16:9');
+    expect(suggestAspect(3000, 4000, 0)).toBe('orig');
+  });
+});

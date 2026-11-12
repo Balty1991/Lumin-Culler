@@ -463,7 +463,7 @@ const PANELS: Panel[] = ['styles', 'light', 'color', 'frame'];
 /** Proporțiile din „Cadru” (lățime / înălțime); cadrul se așază pe fețe (frameCrop). */
 type Aspect = 'orig' | '4:5' | '1:1' | '9:16' | '16:9' | '3:2';
 const ASPECTS: Record<Aspect, number> = { orig: 0, '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16, '16:9': 16 / 9, '3:2': 3 / 2 };
-type ManualKey = 'toneMap' | 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
+type ManualKey = 'relight' | 'toneMap' | 'exposure' | 'contrast' | 'highlights' | 'shadows' | 'whites' | 'blacks' | 'clarity' | 'vignette' | 'temperature' | 'tint' | 'saturation' | 'dehaze' | 'sharpen' | 'noiseReduction' | 'grain' | 'sky';
 const MANUAL: Record<ManualPanel, { key: ManualKey; min?: number; track?: string }[]> = {
   light: [
     { key: 'toneMap', min: 0 }, { key: 'exposure' }, { key: 'contrast' }, { key: 'highlights' }, { key: 'shadows' },
@@ -512,7 +512,7 @@ export function withManual(e: EditAdjustments, manual: Partial<Record<ManualKey,
   const out = { ...e } as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(manual)) {
     if (!v) continue;
-    const lo = k === 'sharpen' || k === 'grain' || k === 'noiseReduction' || k === 'toneMap' ? 0 : -100;
+    const lo = k === 'sharpen' || k === 'grain' || k === 'noiseReduction' || k === 'toneMap' || k === 'relight' ? 0 : -100;
     out[k] = Math.max(lo, Math.min(100, Math.round((out[k] ?? 0) + v)));
   }
   return out as unknown as EditAdjustments;
@@ -576,9 +576,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
   const edits = useMemo(() => {
     if (!base) return null;
     if (pure) return withManual({ ...NEUTRAL_ADJUSTMENTS, rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
-    const e = withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
+    const e0 = withManual({ ...styledEdits(base, style, amount), rotationDeg: rotation, ...(crop ? { crop } : {}) }, manual);
+    // „Lumină pe fețe”: reglajul lucrează doar în jurul fețelor găsite la import.
+    const e = manual.relight && geo?.faces.length && !e0.faceBoxes?.length ? { ...e0, faceBoxes: geo.faces } : e0;
     return style === 'portrait' && personMask ? { ...e, bokehMask: personMask.image, ...(personMask.focusY !== null ? { bokehFocusY: personMask.focusY } : {}) } : e;
-  }, [base, style, amount, rotation, crop, manual, personMask, pure]);
+  }, [base, style, amount, rotation, crop, manual, personMask, pure, geo]);
   // Fără reparații, previzualizarea pleacă de la poza originală (nu de la cea deja luminată).
   const view = pure ? (orig ?? src) : src;
   // Anulare pas cu pas: fiecare stare la care te-ai oprit (stil, intensitate, reglaje).
@@ -609,6 +611,16 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
     setHistAt(histAt + d);
     setStyle(snap.style); setAmount(snap.amount); setManual(snap.manual); setPure(snap.pure);
   };
+  // Copiază reglajele de pe poza asta și le lipește pe alta (stil, intensitate, reglaje de mână).
+  const [clip, setClip] = useState<EditClip | null>(() => readEditClip());
+  const copyEdits = () => { const c = { style, amount, manual, pure }; writeEditClip(c); setClip(c); useStore.getState().setNotice(tr('lx.enhance.copied')); };
+  const pasteEdits = () => {
+    if (!clip) return;
+    const ok = (ENHANCE_STYLES as string[]).includes(clip.style) && (!NEEDS_FACE.has(clip.style as EnhanceStyle) || !!base?.bokehSubject);
+    setPure(clip.pure); if (ok) setStyle(clip.style as EnhanceStyle); setAmount(clip.amount); setManual(clip.manual as Partial<Record<ManualKey, number>>);
+  };
+  // „Încadrare AI”: formatul potrivit pozei, cu fețele ținute în cadru (frameCrop).
+  const aiFrame = () => { if (geo) setAspect(suggestAspect(geo.width, geo.height, geo.faces.length)); };
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
   const proPreview = premiumLocked && !pure && ADVANCED.has(style);
   const styles = ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject);
@@ -667,9 +679,11 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
       if (!mine) {
         // Stilul de pornire, după ce fel de poză e (fără un stil învățat): peisajele, mâncarea
         // și cerul înnorat câștigă din culoare și contrast local; oamenii rămân naturali.
-        const pick = recommendStyle(found, faces.length);
-        if (alive && pick !== 'natural') { setStyle(pick); setPicked({ style: pick, scene: found.find(sc => VIVID_SCENES.has(sc)) ?? null }); }
-        const fit = await fitAmount(url, lightOnly, pick).catch(() => null);
+        // Editorul pornește mereu pe „Natural” (cerut: „intră automat pe Vie” nu e de dorit).
+        // `recommendStyle` rămâne doar ca sugestie marcată pe miniatură, fără să schimbe stilul.
+        const hint = recommendStyle(found, faces.length);
+        if (alive && hint !== 'natural') setPicked({ style: hint, scene: found.find(sc => VIVID_SCENES.has(sc)) ?? null });
+        const fit = await fitAmount(url, lightOnly, 'natural').catch(() => null);
         if (alive && fit !== null) setAmount(fit);
       }
     })().catch(() => { if (alive) setFailed(true); });
@@ -915,9 +929,8 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
             </div>
             {panel === 'frame' ? (
               <div className="lx-enhance-sliders">
-                {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
-            {picked && !pure && style === picked.style && picked.scene && <p className="lx-enhance-mine">✦ {tr('lx.enhance.pickedNote', { style: tr(`lx.enhance.style.${picked.style}`), scene: tr(`lx.enhance.scene.${picked.scene}`) })}</p>}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
+                  <button className="lx-chip-btn" onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
                   {(Object.keys(ASPECTS) as Aspect[]).map(a => (
                     <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
                       {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
@@ -933,6 +946,15 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               </div>
             ) : panel !== 'styles' ? (
               <div className="lx-enhance-sliders">
+                {panel === 'light' && !!geo?.faces.length && (
+                  <label className="lx-enhance-amount lx-enhance-zone">
+                    <span>{tr('lx.enhance.adj.relight')}</span>
+                    <input type="range" min={0} max={60} step={1} value={manual.relight ?? 0}
+                      onChange={e => setManual(v => ({ ...v, relight: Number(e.target.value) }))}
+                      onDoubleClick={() => setManual(v => ({ ...v, relight: 0 }))} />
+                    <b>{(manual.relight ?? 0) > 0 ? '+' : ''}{manual.relight ?? 0}</b>
+                  </label>
+                )}
                 {MANUAL[panel as ManualPanel].map(m => (
                   <label key={m.key} className="lx-enhance-amount">
                     <span>{tr(`lx.enhance.adj.${m.key}`)}</span>
@@ -967,11 +989,12 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
                 <Icon name="reset" size={16} /> {tr('lx.enhance.pure')}
               </button>
             )}
+            {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
               {styles.map(st => (
                 <button key={st} role="radio" aria-checked={!pure && style === st} className={!pure && style === st ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
                   {view && base && <StyleThumb src={view} edits={styledEdits(base, st, Math.max(0.6, amount))} />}
-                  <span>{mine?.style === st && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
+                  <span>{(mine?.style === st || (!mine && picked?.style === st)) && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
                   {ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
               ))}
@@ -986,6 +1009,10 @@ export function EnhanceSheet({ photo, onClose }: { photo: PhotoView; onClose: ()
               <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
               <b>{Math.round(amount * 100)}%</b>
             </label>}
+            <div className="lx-enhance-clip">
+              <button className="lx-link" onClick={copyEdits}>{tr('lx.enhance.copy')}</button>
+              {clip && <button className="lx-link" onClick={pasteEdits}>{tr('lx.enhance.paste')}</button>}
+            </div>
             <div className="lx-enhance-tools" role="group" aria-label={tr('lx.tool.group')}>
               <button className="lx-tool-btn" onClick={() => setErasing(true)}><Icon name="eraser" />{tr('lx.magic.erase')}</button>
               {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><Icon name="zoom" />{tr('lx.tool.clarity.button')}</button>}
@@ -1110,6 +1137,26 @@ async function fitAmount(src: string, base: EditAdjustments, style: EnhanceStyle
     if (ch >= FIT_TARGET) break;
   }
   return pickAmount(changes, steps);
+}
+
+/** Reglajele copiate dintr-o poză, de lipit pe alta. Ținute pe telefon, între deschideri. */
+export interface EditClip { style: string; amount: number; manual: Record<string, number | undefined>; pure: boolean }
+const CLIP_KEY = 'cherrypic.editClip';
+export function readEditClip(): EditClip | null {
+  try {
+    const c = JSON.parse(localStorage.getItem(CLIP_KEY) ?? 'null') as EditClip | null;
+    return c && typeof c.style === 'string' && typeof c.amount === 'number' && c.manual && typeof c.manual === 'object' ? c : null;
+  } catch { return null; }
+}
+export function writeEditClip(c: EditClip): void {
+  try { localStorage.setItem(CLIP_KEY, JSON.stringify(c)); } catch { /* fără stocare */ }
+}
+/** Formatul propus: portretele cu oameni la 4:5 (Instagram), peisajele late la 16:9, restul cum sunt. */
+export function suggestAspect(width: number, height: number, faces: number): '4:5' | '16:9' | '1:1' | 'orig' {
+  const r = width / height;
+  if (faces > 0) return r < 0.72 ? '4:5' : r > 1.2 ? '4:5' : '1:1';
+  if (r > 1.25) return '16:9';
+  return 'orig';
 }
 
 /** Poza cu reglajele aplicate, ca adresă temporară (cel mult 1600 px pe latura lungă). */

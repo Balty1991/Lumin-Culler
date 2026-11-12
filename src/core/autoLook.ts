@@ -470,7 +470,11 @@ export function applySubjectFinish(
     if (!(fw > 0.02) || !(fh > 0.02)) continue;
     const x0 = Math.max(0, Math.floor((fx - fw * 0.15) * width));
     const x1 = Math.min(width, Math.ceil((fx + fw * 1.15) * width));
-    const y0 = Math.max(0, Math.floor((fy - fh * 0.05) * height));
+    // În sus, lumina se stinge lin până deasupra frunții. Înainte, zona era tăiată drept la
+    // marginea de sus a feței, unde lumina era încă aproape întreagă: rămânea o dungă
+    // orizontală pe frunte (raportat cu captură).
+    const ryUp = Math.max(2, fh * height * 0.62);
+    const y0 = Math.max(0, Math.floor((fy + fh * 0.42) * height - ryUp));
     const y1 = Math.min(height, Math.ceil((fy + fh * 2.4) * height));
     const cx = (fx + fw / 2) * width;
     const cy = (fy + fh * 0.42) * height;
@@ -481,7 +485,7 @@ export function applySubjectFinish(
     if (rel > 0) {
       for (let y = y0; y < y1; y += 2) {
         for (let x = x0; x < x1; x += 2) {
-          const dx = (x - cx) / rx, dy = (y - cy) / ry;
+          const dx = (x - cx) / rx, dy = (y - cy) / (y < cy ? ryUp : ry);
           if (dx * dx + dy * dy > 1) continue;
           const i = (y * width + x) * 4;
           sum += lumaOf(data[i], data[i + 1], data[i + 2]);
@@ -497,7 +501,7 @@ export function applySubjectFinish(
       for (let x = x0; x < x1; x++) {
         const i = (y * width + x) * 4;
         let r = data[i], g = data[i + 1], b = data[i + 2];
-        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        const dx = (x - cx) / rx, dy = (y - cy) / (y < cy ? ryUp : ry);
         const d2 = dx * dx + dy * dy;
         if (rel > 0 && d2 < 1) {
           const fall = 1 - d2;
