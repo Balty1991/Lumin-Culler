@@ -40,6 +40,8 @@ export interface ExportResult {
 export interface ExportPhotoInput {
   id: string;
   fileName: string;
+  /** Poza din galeria telefonului: originalul se citește de acolo, nu dintr-o copie. */
+  mediaUri?: string;
   personNames: string[];
   faceCount: number;
   strangerCount: number;
@@ -324,7 +326,14 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
     if (stored) {
       const file = new File([stored.blob], stored.fileName, { type: stored.type });
       available.push({ ...await exportName(p, file, folder), folder });
-    } else missing.push(p.fileName);
+      tick();
+      continue;
+    }
+    // fallback 3: poza din galeria telefonului, citită direct de acolo (pozele din galerie
+    // nu mai sunt copiate în IndexedDB — vezi writePersistJobs).
+    const fromGallery = p.mediaUri ? await readMediaUri(p.mediaUri, p.fileName) : null;
+    if (fromGallery) available.push({ ...await exportName(p, fromGallery, folder), folder });
+    else missing.push(p.fileName);
     tick();
   }
 
@@ -392,4 +401,14 @@ export async function exportOriginalFiles(photos: ExportPhotoInput[], options: E
   const result = await downloadZip(zipName, entries);
   while (doneSteps < totalSteps) tick();
   return { exported: result.cancelled ? 0 : available.length, missing, method, cancelled: result.cancelled, grouped: !result.cancelled };
+}
+
+async function readMediaUri(uri: string, name: string): Promise<File | null> {
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+    const blob = await (await fetch(Capacitor.convertFileSrc(uri))).blob();
+    return new File([blob], name, { type: blob.type || 'image/jpeg' });
+  } catch {
+    return null;
+  }
 }

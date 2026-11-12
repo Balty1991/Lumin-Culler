@@ -768,7 +768,10 @@ async function writePersistJobs(jobs: PersistJob[]): Promise<void> {
         db.thumbnails.put({ photoId: job.photo.id, blob: job.thumb }),
         db.previews.put({ photoId: job.photo.id, blob: job.preview }),
         db.analyses.put(job.analysis),
-        ...(job.photo.status === 'selected'
+        // Pozele din galeria telefonului nu se mai copiază în IndexedDB: originalul e deja
+        // în MediaStore (exportul îl citește de acolo). Copia de 3–8 MB pe poză umplea
+        // memoria și baza de date în timpul citirii (auditul de performanță).
+        ...(job.photo.status === 'selected' && !job.photo.mediaUri
           ? [job.handle
               ? db.fileHandles.put({ photoId: job.photo.id, handle: job.handle })
               : db.originals.put({ photoId: job.photo.id, blob: job.file, fileName: job.file.name, type: job.file.type })]
@@ -776,7 +779,7 @@ async function writePersistJobs(jobs: PersistJob[]): Promise<void> {
       ]));
     }));
     for (const job of jobs) {
-      originalFiles.set(job.photo.id, job.file);
+      if (!job.photo.mediaUri) originalFiles.set(job.photo.id, job.file);
       if (job.handle) originalHandles.set(job.photo.id, job.handle);
       job.resolve();
     }
@@ -1679,8 +1682,17 @@ export async function importFiles(
   // index-backed (vezi db.ts v6): groupId e mereu '' pentru poze negrupate,
   // niciodata absent, deci where().equals('') foloseste indexul in loc sa
   // scaneze toata tabela — cost independent de marimea bibliotecii.
+  // Doar vecinii în timp (±2 zile față de lot) și duplicatele exacte, oricând ar fi: înainte
+  // se încărcau analizele (cu toate vectorii) pentru TOATĂ biblioteca negrupată la fiecare lot,
+  // apoi se clonau în worker — O(n²) pe citire și blocaje de 1–2 s (auditul de performanță).
+  const times = hashes.map(h => h.capturedAt).filter((t): t is number => typeof t === 'number');
+  const near = 2 * 86_400_000;
+  const lo = times.length ? Math.min(...times) - near : -Infinity;
+  const hi = times.length ? Math.max(...times) + near : Infinity;
+  const batchHashes = new Set(hashes.map(h => h.hash));
   const existingUngrouped = (await db.photos.where('groupId').equals('').toArray())
-    .filter(p => !currentBatchIds.has(p.id) && !p.aside);
+    .filter(p => !currentBatchIds.has(p.id) && !p.aside
+      && (batchHashes.has(p.dHash) || p.capturedAt === undefined || (p.capturedAt >= lo && p.capturedAt <= hi)));
   let existingHashes: HashInput[] = [];
   if (existingUngrouped.length) {
     const analyses = await db.analyses.bulkGet(existingUngrouped.map(p => p.id));

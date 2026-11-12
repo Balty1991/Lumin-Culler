@@ -78,7 +78,7 @@ class FlorencePlugin : Plugin() {
     private fun s(name: String): OrtSession {
         sessions[name]?.let { return it }
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
-        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
+        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }
         return e.createSession(file(name).absolutePath, opts).also { sessions[name] = it }
     }
 

@@ -205,6 +205,7 @@ export const dict: Record<string, string> = {
   "lx.today.unsure.one": "1 foto su cui non sono sicura",
   "lx.today.unsure": "{count} foto su cui non sono sicura",
   "lx.today.unsureSub": "Me lo dici tu, ~{seconds} secondi. Imparo da ognuna.",
+  "lx.today.unsureSubMin": "Me lo dici tu, ~{minutes} minuti. Imparo da ognuna.",
   "lx.today.check": "Decidi tu",
   "lx.today.acceptAll": "Non oggi",
   "lx.today.acceptAll.confirm": "Mettere {count} foto in Non oggi? Non si cancella nulla.",

@@ -12,6 +12,7 @@ import { FreedCard } from './TwinParts';
 import { Icon } from './icons';
 import { WeeklyClean } from './WeeklyClean';
 import { FolderClean } from './FolderClean';
+import { BurstTidy } from './BurstTidy';
 
 /**
  * lumin/CleanScreen.tsx
@@ -30,14 +31,18 @@ export function CleanScreen() {
     const rejected = photos.filter(p => !p.aside && p.status === 'rejected' && p.mediaUri);
     const ids = new Set([...series.extras, ...rejected].map(p => p.id));
     const bytes = photos.filter(p => ids.has(p.id)).reduce((s, p) => s + (p.sizeBytes ?? 0), 0);
-    return { series, rejected, count: ids.size, bytes };
+    // Serii cu mai multe poze încă păstrate: nu se șterg de aici, dar nici galeria nu e „curată”.
+    const tidyGroups = new Map<string, number>();
+    for (const p of photos) if (p.groupId && !p.aside && p.status !== 'rejected') tidyGroups.set(p.groupId, (tidyGroups.get(p.groupId) ?? 0) + 1);
+    const tidy = [...tidyGroups.values()].some(n => n >= 2);
+    return { series, rejected, count: ids.size, bytes, tidy };
   }, [photos]);
 
   return (
     <div className="lx-screen lx-clean">
       <header className="lx-head"><h1 className="lx-title">{tr('lx.clean.title')}</h1></header>
-      <section className="lx-clean-hero">
-        <span className="lx-eyebrow">{tr('lx.clean.heroEyebrow')}</span>
+      {(sum.count > 0 || !sum.tidy) && <section className="lx-clean-hero">
+        {sum.count > 0 && <span className="lx-eyebrow">{tr('lx.clean.heroEyebrow')}</span>}
         {sum.count > 0 ? (
           <>
             <b>{sum.bytes > 0 ? formatBytes(sum.bytes, locale) : tr('lx.clean.heroCount', { count: sum.count })}</b>
@@ -49,9 +54,10 @@ export function CleanScreen() {
             <span>{tr('lx.clean.heroCleanSub')}</span>
           </>
         )}
-      </section>
+      </section>}
 
       <WeeklyClean />
+      <BurstTidy photos={photos.filter(p => !p.aside)} />
       {sum.series.extras.length > 0 && (
         <button className="lx-burst-tidy" onClick={() => openSort(sum.series.extras.map(p => p.id), tr('lx.story.series.badge'))}>
           <span className="lx-burst-tidy-icon"><Icon name="faces" size={18} /></span>

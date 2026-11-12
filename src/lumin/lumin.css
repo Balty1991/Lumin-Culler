@@ -1465,7 +1465,6 @@ html, body { overflow-x: hidden; }
 /* Fila activă de sus rămâne albă (tema black rose o făcea vișinie pe negru). */
 :root[data-palette] .lx-screen > .lx-seg.scroll button.on { color: var(--text) !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
 /* „Cea mai bună din lună”: pe un rând, mai mic. */
-.lx-hero-badge { white-space: normal; max-width: calc(100% - 8px); font-size: 10.5px; letter-spacing: .06em; }
 /* Motoarele AI: pliate într-un rând. */
 .lx-engines-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 2px; border: 0; border-top: 1px solid var(--lx-line); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .lx-engines-head span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -2184,7 +2183,6 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 .lx-wall-head > span { flex: 1 1 auto; overflow: visible; text-overflow: clip; }
 .lx-wall-head > small { flex: 0 1 auto; }
 /* „Cea mai bună din lună”: pe un singur rând. */
-.lx-hero-badge { white-space: nowrap; font-size: 10px; letter-spacing: .06em; }
 .lx-dock button { position: relative; }
 .lx-dock-new { position: absolute; top: 6px; right: calc(50% - 16px); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgb(6 7 10 / .8); }
 
@@ -2210,3 +2208,20 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 /* Colaj: modelul ales, mare, înainte de salvare sau trimitere. */
 .lx-collage-big { display: block; width: 100%; max-height: 62dvh; object-fit: contain; border-radius: 16px; margin: 4px 0 14px; }
 .lx-collage-actions { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px; }
+
+
+/* —— Auditul de interfață (12 nov.) —— */
+/* Editor: Renunț / Salvează stau mereu la vedere, jos în panou (erau sub marginea ecranului). */
+.lx-enhance .lx-viewer-info > .lx-decide-actions { position: sticky; bottom: 0; z-index: 3; margin-top: 4px;
+  padding: 10px 0 calc(6px + var(--safe-bottom, 0px)); background: rgb(14 16 24 / .98); }
+:root[data-theme="light"] .lx-enhance .lx-viewer-info > .lx-decide-actions { background: var(--surface); }
+/* Insigna „Cea mai bună din lună”: într-un singur rând, lizibilă. */
+.lx-hero-badge { display: inline-flex; width: max-content; max-width: 100%; white-space: nowrap; font-size: 10.5px; letter-spacing: .06em; color: #06070a; }
+/* Prima carte „Alese de AI” nu mai stă lipită de marginea ecranului. */
+.lx-picks { scroll-padding-inline: 18px; }
+/* Tema deschisă: textul alb pe butonul principal (contrast AA) și plăcile Studio cu margini vizibile. */
+:root[data-theme="light"] .lx-btn.primary { color: #fff; }
+:root[data-theme="light"] .lx-studio-tile { background: var(--surface); border-color: var(--line); box-shadow: 0 1px 2px rgb(0 0 0 / .06), 0 6px 18px -10px rgb(0 0 0 / .18); }
+:root[data-theme="light"] .lx-studio-tile::after { opacity: .35; }
+/* Ținte de atingere de cel puțin 44 px. */
+.lx-enhance-tabs button, .lx-pure-btn { min-height: 44px; }

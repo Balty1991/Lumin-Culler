@@ -308,7 +308,9 @@ export function TodayScreen() {
         <section className="lx-card lx-decide">
           <div>
             <b>{tr(plural(today.waiting.length, 'lx.today.unsure.one', 'lx.today.unsure'), { count: today.waiting.length })}</b>
-            <span>{tr('lx.today.unsureSub', { seconds: Math.max(10, today.waiting.length * 4) })}</span>
+            <span>{today.waiting.length * 4 >= 90
+              ? tr('lx.today.unsureSubMin', { minutes: Math.round(today.waiting.length * 4 / 60) })
+              : tr('lx.today.unsureSub', { seconds: Math.max(10, today.waiting.length * 4) })}</span>
           </div>
           <div className="lx-decide-actions">
             <button className="lx-btn primary" onClick={() => openSort(today.waiting.map(p => p.id), tr('lx.sort.today'))}>{tr('lx.today.check')}</button>

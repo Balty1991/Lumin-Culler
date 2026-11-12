@@ -50,8 +50,16 @@ function installId(): string {
   } catch { return crypto.randomUUID(); }
 }
 
+let verdictCache: { raw: string | null; value: Record<string, CloudVerdict> } | null = null;
 export function readVerdicts(): Record<string, CloudVerdict> {
-  try { return JSON.parse(localStorage.getItem(VERDICTS_KEY) ?? '{}'); } catch { return {}; }
+  // Citit la fiecare literă din căutare: parsăm doar când s-a schimbat textul salvat.
+  try {
+    const raw = localStorage.getItem(VERDICTS_KEY);
+    if (verdictCache && verdictCache.raw === raw) return verdictCache.value;
+    const value = JSON.parse(raw ?? '{}') as Record<string, CloudVerdict>;
+    verdictCache = { raw, value };
+    return value;
+  } catch { return {}; }
 }
 
 function writeVerdicts(all: Record<string, CloudVerdict>): void {

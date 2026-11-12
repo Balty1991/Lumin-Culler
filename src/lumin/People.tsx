@@ -31,7 +31,7 @@ export function PeopleGrid({ onOpen }: { onOpen?: (name: string) => void }) {
   const [picked, setPicked] = useState<Map<string, LooseFace>>(new Map());
   const faceVersion = useLx(s => s.faceVersion);
   const faceProgress = useLx(s => s.faceProgress);
-  const { people, unknown, loose } = usePeopleFaces(persons, refresh + faceVersion);
+  const { people, unknown, loose } = usePeopleFaces(persons, faceVersion + refresh * 1e6);
   const groups = readPersonGroups();
   const [group, setGroup] = useState<PersonGroup | null>(null);
 

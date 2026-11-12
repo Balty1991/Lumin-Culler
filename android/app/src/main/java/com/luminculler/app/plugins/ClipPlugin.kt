@@ -80,7 +80,7 @@ class ClipPlugin : Plugin() {
     private fun session(): OrtSession {
         session?.let { return it }
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
-        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
+        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }
         // Din fișier, nu din memorie: 89 MB citiți în heap ar fi riscul de OOM.
         return e.createSession(modelFile().absolutePath, opts).also { session = it }
     }
@@ -183,7 +183,7 @@ class ClipPlugin : Plugin() {
             val ids = tokenize(text)
             val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
             val s = textSession ?: e.createSession(File(context.filesDir, TEXT_FILE).absolutePath,
-                OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }).also { textSession = it }
+                OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }).also { textSession = it }
             val n = ids.size.toLong()
             val idT = OnnxTensor.createTensor(e, java.nio.LongBuffer.wrap(ids.map { it.toLong() }.toLongArray()), longArrayOf(1, n))
             val mT = OnnxTensor.createTensor(e, java.nio.LongBuffer.wrap(LongArray(ids.size) { 1L }), longArrayOf(1, n))

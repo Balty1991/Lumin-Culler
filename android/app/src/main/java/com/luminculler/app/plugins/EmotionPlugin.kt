@@ -48,7 +48,7 @@ class EmotionPlugin : Plugin() {
     private fun session(): OrtSession {
         session?.let { return it }
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
-        return e.createSession(model().absolutePath, OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }).also { session = it }
+        return e.createSession(model().absolutePath, OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }).also { session = it }
     }
 
     /** { imageUri, boxes: [[x,y,w,h] 0..1, …] } → { faces: [[8 probabilități], …] } */

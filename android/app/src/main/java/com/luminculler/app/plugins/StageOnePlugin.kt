@@ -35,8 +35,14 @@ import kotlin.math.sqrt
 @CapacitorPlugin(name = "StageOne")
 class StageOnePlugin : Plugin() {
     private val executor = pluginExecutor("StageOne", fundal = true)
-    private val pool = Executors.newFixedThreadPool(4) { runnable ->
-        Thread(runnable, "Lumin-StageOne-batch").apply { isDaemon = true }
+    // Două fire, cu prioritate de fundal: un fir Java nou pornește cu prioritatea normală
+    // (nu o moștenește pe a executorului), iar 4 fire la egalitate cu firul care desenează
+    // țineau ecranul ocupat la fiecare 8 poze (auditul de performanță).
+    private val pool = Executors.newFixedThreadPool(2) { runnable ->
+        Thread({
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            runnable.run()
+        }, "Lumin-StageOne-batch").apply { isDaemon = true }
     }
 
     override fun handleOnDestroy() {

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { PaneActive } from './useLxPhotos';
 import { db, type KnownPerson } from '../core/db';
 import type { FaceCluster } from '../core/faceClustering';
 import { clusterFaces, MODEL as SFACE, type FaceRef } from './faceIdentity';
@@ -57,49 +58,69 @@ function looseFaces(analyses: { photoId: string; faces?: { personId: string | nu
   return out.sort((x, y) => y.box[2] * y.box[3] - x.box[2] * x.box[3]).slice(0, limit);
 }
 
-export function usePeopleFaces(persons: readonly KnownPerson[], refresh: number): { people: PersonFace[]; unknown: FaceCluster[]; loose: LooseFace[] } {
-  const [state, setState] = useState<{ people: PersonFace[]; unknown: FaceCluster[]; loose: LooseFace[] }>({ people: [], unknown: [], loose: [] });
-  useEffect(() => {
-    let alive = true;
-    void db.analyses.toArray().then(analyses => {
-      if (!alive) return;
+type PeopleFaces = { people: PersonFace[]; unknown: FaceCluster[]; loose: LooseFace[] };
+
+/**
+ * Un singur calcul pentru toate ecranele care arată oameni: cine cere aceleași persoane la
+ * aceeași versiune primește aceeași promisiune. Înainte, până la șase ecrane deschise
+ * citeau fiecare toată tabela de analize și grupau fețele pe firul principal, la fiecare
+ * placeFaces din timpul citirii (auditul de performanță).
+ */
+let shared: { key: string; persons: readonly KnownPerson[]; promise: Promise<PeopleFaces> } | null = null;
+function computePeopleFaces(persons: readonly KnownPerson[], refresh: number): Promise<PeopleFaces> {
+  const key = `${refresh}`;
+  if (shared && shared.key === key && shared.persons === persons) return shared.promise;
+  const promise = db.analyses.toArray().then(analyses => {
       const people: PersonFace[] = [];
-      for (const person of persons) {
-        const photoIds: string[] = [];
-        let first: { photoId: string; box: [number, number, number, number] } | null = null;
-        for (const a of analyses) {
-          const f = (a.faces ?? []).find(x => x.personId === person.id);
-          if (!f) continue;
-          photoIds.push(a.photoId);
-          if (!first) first = { photoId: a.photoId, box: f.box };
-        }
-        const rep = first ?? readPersonFaces()[person.name];
-        if (rep) people.push({ name: person.name, photoId: rep.photoId, box: rep.box, photoIds });
+    for (const person of persons) {
+      const photoIds: string[] = [];
+      let first: { photoId: string; box: [number, number, number, number] } | null = null;
+      for (const a of analyses) {
+        const f = (a.faces ?? []).find(x => x.personId === person.id);
+        if (!f) continue;
+        photoIds.push(a.photoId);
+        if (!first) first = { photoId: a.photoId, box: f.box };
       }
-      // Fețele cu amprentă SFace se grupează după asemănare (lumin/faceIdentity.ts):
-      // grupurile de 2+ sunt „Cine e? (N poze)”, restul rămân de ales cu mâna.
-      type F = { personId: string | null; box: [number, number, number, number]; embedding?: number[]; embeddingModel?: string };
-      const isSface = (f: F) => !f.personId && f.embeddingModel === SFACE && !!f.embedding?.length;
-      const sface: FaceRef[] = [];
-      const plain = analyses.map(a => {
-        const faces = (a.faces ?? []) as F[];
-        faces.forEach((f, faceIndex) => { if (isSface(f)) sface.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding! }); });
-        // cele grupate nu mai apar și ca fețe de ales cu mâna
-        return { photoId: a.photoId, faces: faces.map(f => (isSface(f) ? { ...f, personId: '__grouped' } : f)) };
-      });
-      const groups = clusterFaces(sface);
-      const unknown: FaceCluster[] = groups.filter(g => g.length >= 2).slice(0, 12).map(g => ({
-        members: g.map(f => ({ photoId: f.photoId, fileName: '', faceIndex: f.faceIndex, box: f.box, embedding: f.embedding }))
-      }));
-      const singles: LooseFace[] = groups.filter(g => g.length === 1).map(g => ({ photoId: g[0].photoId, faceIndex: g[0].faceIndex, box: g[0].box }));
-      setState({
-        people: people.sort((a, b) => b.photoIds.length - a.photoIds.length),
-        unknown,
-        loose: [...singles, ...looseFaces(plain)].slice(0, 60)
-      });
-    }).catch(() => {});
+      const rep = first ?? readPersonFaces()[person.name];
+      if (rep) people.push({ name: person.name, photoId: rep.photoId, box: rep.box, photoIds });
+    }
+    // Fețele cu amprentă SFace se grupează după asemănare (lumin/faceIdentity.ts):
+    // grupurile de 2+ sunt „Cine e? (N poze)”, restul rămân de ales cu mâna.
+    type F = { personId: string | null; box: [number, number, number, number]; embedding?: number[]; embeddingModel?: string };
+    const isSface = (f: F) => !f.personId && f.embeddingModel === SFACE && !!f.embedding?.length;
+    const sface: FaceRef[] = [];
+    const plain = analyses.map(a => {
+      const faces = (a.faces ?? []) as F[];
+      faces.forEach((f, faceIndex) => { if (isSface(f)) sface.push({ photoId: a.photoId, faceIndex, box: f.box, embedding: f.embedding! }); });
+      // cele grupate nu mai apar și ca fețe de ales cu mâna
+      return { photoId: a.photoId, faces: faces.map(f => (isSface(f) ? { ...f, personId: '__grouped' } : f)) };
+    });
+    const groups = clusterFaces(sface);
+    const unknown: FaceCluster[] = groups.filter(g => g.length >= 2).slice(0, 12).map(g => ({
+      members: g.map(f => ({ photoId: f.photoId, fileName: '', faceIndex: f.faceIndex, box: f.box, embedding: f.embedding }))
+    }));
+    const singles: LooseFace[] = groups.filter(g => g.length === 1).map(g => ({ photoId: g[0].photoId, faceIndex: g[0].faceIndex, box: g[0].box }));
+    return {
+      people: people.sort((a, b) => b.photoIds.length - a.photoIds.length),
+      unknown,
+      loose: [...singles, ...looseFaces(plain)].slice(0, 60)
+    };
+  });
+  shared = { key, persons, promise };
+  promise.catch(() => { if (shared?.promise === promise) shared = null; });
+  return promise;
+}
+
+export function usePeopleFaces(persons: readonly KnownPerson[], refresh: number): PeopleFaces {
+  const [state, setState] = useState<PeopleFaces>({ people: [], unknown: [], loose: [] });
+  // Un ecran ascuns (altă filă) nu recalculează; o face când e arătat din nou.
+  const active = useContext(PaneActive);
+  useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    void computePeopleFaces(persons, refresh).then(r => { if (alive) setState(r); }).catch(() => {});
     return () => { alive = false; };
-  }, [persons, refresh]);
+  }, [persons, refresh, active]);
   return state;
 }
 

@@ -64,7 +64,7 @@ class TranslatePlugin : Plugin() {
         padId = index["<pad>"] ?: (n - 1)
         startId = padId // Marian: decoder_start_token_id = pad
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
-        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
+        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }
         enc = e.createSession(fEnc.absolutePath, opts)
         dec = e.createSession(fDec.absolutePath, opts)
         lang = l

@@ -22,10 +22,16 @@ export async function loadStageOne(key: string): Promise<StageOneCacheRecord | n
   }
 }
 
+let savesSinceTrim = 0;
+
 export async function saveStageOne(record: StageOneCacheRecord): Promise<void> {
   if (!db.stageOneCache) return;
   try {
     await db.stageOneCache.put(record);
+    // Tăierea (count + orderBy + delete, trei tranzacții) doar o dată la 40 de poze, nu după
+    // fiecare: era o parte din rafalele de IDBRequest.onsuccess din rapoartele de blocaje.
+    if (++savesSinceTrim < 40) return;
+    savesSinceTrim = 0;
     const count = await db.stageOneCache.count();
     if (count <= STAGE_ONE_CACHE_CAP) return;
     const overflow = count - STAGE_ONE_CACHE_CAP;

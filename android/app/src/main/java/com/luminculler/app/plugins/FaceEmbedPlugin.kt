@@ -55,7 +55,7 @@ class FaceEmbedPlugin : Plugin() {
         session?.let { return it }
         val e = env ?: OrtEnvironment.getEnvironment().also { env = it }
         val bytes = context.assets.open(MODEL_FILE).use { it.readBytes() }
-        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
+        val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2); addConfigEntry("session.intra_op.allow_spinning", "0") }
         return e.createSession(bytes, opts).also { session = it }
     }
 

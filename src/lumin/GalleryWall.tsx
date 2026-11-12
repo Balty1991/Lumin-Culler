@@ -1,7 +1,7 @@
 import { useHoldAnalysis } from './useHoldAnalysis';
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
-import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { memo, useCallback, useContext, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
 import { useLx } from './lxStore';
 import { closeWithTransition, openWithTransition } from './viewTransition';
@@ -41,7 +41,6 @@ import { LivePhotoSheet } from './LivePhoto';
 import { livePhotoAvailable } from './livePhoto';
 import { RephotoSheet, canRephoto } from './Rephoto';
 import { FamilyVote } from './FamilyVote';
-import { BurstTidy } from './BurstTidy';
 import { Tunnel3D } from './Tunnel3D';
 import { logError } from '../core/errorLog';
 import { saveEditedBlob } from './saveEdited';
@@ -222,6 +221,8 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
   const paneActive = useContext(PaneActive);
   const [cell, setCell] = useState(() => Math.max(40, (Math.min(window.innerWidth, 720) - 32 - GAP * (density - 1)) / density));
 
+  // Căutarea rulează pe valoarea amânată: tastarea rămâne fluidă pe 1.600+ poze.
+  const searchQuery = useDeferredValue(query);
   const list = useMemo(() => {
     if (similar) {
       const byId = new Map(photos.map(p => [p.id, p]));
@@ -229,20 +230,20 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     }
     if (folder) return photos.filter(p => inFolder(p, folder)).sort((a, b) => photoTime(b) - photoTime(a));
     // Cu o căutare: și documentele (bonul de benzină se caută), în ordinea potrivirii.
-    if (query.trim()) {
+    if (searchQuery.trim()) {
       // Și ce a văzut Lumi Cloud în poză (descriere + etichete), unde există.
       const verdicts = readVerdicts();
       const searchable = photos.map(p => (verdicts[p.id] ? { ...p, aiDescription: `${p.aiDescription ?? ''} ${cloudSearchText(p.id, verdicts)}` } : p));
-      const all = searchPhotos(searchable, query);
+      const all = searchPhotos(searchable, searchQuery);
       // Pozele întâi; documentele și potrivirile doar din textul citit, separat, la cerere.
-      const docs = all.filter(p => isTextOnlyMatch(p, query));
+      const docs = all.filter(p => isTextOnlyMatch(p, searchQuery));
       const found = docs.length && docs.length < all.length && !withDocs ? all.filter(p => !docs.includes(p)) : all;
       docCount.current = docs.length < all.length ? docs.length : 0;
       // Pe luni, cele mai noi întâi: galeria grupează pe luni, iar ordinea după scor
       // făcea aceeași lună să apară de două ori (auditul).
       const byText = [...found].sort((a, b) => photoTime(b) - photoTime(a));
       // Apoi ce se vede în poze, în ordinea potrivirii, fără documente și fără dubluri.
-      if (visual?.q === query.trim() && visual.ids.length) {
+      if (visual?.q === searchQuery.trim() && visual.ids.length) {
         const have = new Set(byText.map(p => p.id));
         const byId = new Map(searchable.map(p => [p.id, p]));
         const seen = visual.ids.map(id => byId.get(id)).filter((p): p is PhotoView => !!p && !have.has(p.id) && (withDocs || !p.aside));
@@ -251,7 +252,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
         return [...byText, ...seen].sort((a, b) => photoTime(b) - photoTime(a));
       }
       visualCount.current = 0;
-      if (found.length || aiTerms?.q !== query.trim()) return byText;
+      if (found.length || aiTerms?.q !== searchQuery.trim()) return byText;
       const seen = new Set<string>();
       return aiTerms.terms.flatMap(t => searchPhotos(searchable, t)).filter(p => !seen.has(p.id) && !!seen.add(p.id));
     }
@@ -262,7 +263,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     if (filter === 'blinks') return selectBlinks(base);
     if (filter === 'blurry') return selectBlurry(base);
     return base;
-  }, [photos, filter, query, similar, aiTerms, folder, withDocs, visual]);
+  }, [photos, filter, searchQuery, similar, aiTerms, folder, withDocs, visual]);
   const folders = useMemo(() => folderCounts(photos), [photos]);
   const issues = useMemo(() => {
     const base = photos.filter(p => !p.aside);
@@ -519,7 +520,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
           )}
         </div>
       )}
-      {filter === 'all' && plain && <BurstTidy photos={photos} />}
+      {/* Seriile de ordonat stau în Curățenie: aici galeria începe direct cu pozele (auditul de interfață). */}
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}
       {list.length === 0 && <p className="lx-empty">{tr(filter === 'blinks' || filter === 'blurry' ? 'lx.wall.kindEmpty' : 'lx.wall.empty')}</p>}
       {months.map(m => {

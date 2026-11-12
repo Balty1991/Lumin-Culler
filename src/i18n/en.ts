@@ -2240,6 +2240,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.today.unsure.one": "1 photo I am not sure about",
   "lx.today.unsure": "{count} photos I am not sure about",
   "lx.today.unsureSub": "You tell me, ~{seconds} seconds. I learn from each one.",
+  "lx.today.unsureSubMin": "You tell me, ~{minutes} minutes. I learn from each one.",
   "lx.today.check": "You decide",
   "lx.today.acceptAll": "Not today",
   "lx.today.acceptAll.confirm": "Move {count} photos to Not today? Nothing is deleted.",
