@@ -92,11 +92,11 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
       <div className="v3-screen-inner fr-inner">
         <div className="fr-top">
           <div className="fr-dots" aria-hidden="true">
-            {[0, 1, 2].map(i => <i key={i} className={i === step ? 'on' : i < step ? 'done' : ''} />)}
+            {[0, 2].map(i => <i key={i} className={i === step ? 'on' : i < step ? 'done' : ''} />)}
           </div>
           {step === 0 ? <LocaleToggle /> : <button className="fr-skip" onClick={skip}>{tr('fr.later')}</button>}
         </div>
-        <span className="sr-only" role="status" aria-live="polite">{tr('welcome.progress', { current: step + 1, total: 3 })}</span>
+        <span className="sr-only" role="status" aria-live="polite">{tr('welcome.progress', { current: step === 0 ? 1 : 2, total: 2 })}</span>
 
         {step === 0 && (
           <section className="fr-step fr-hero" key="intro">
@@ -117,7 +117,9 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
               <span><i>⚡</i>{tr('fr.hero.f2')}</span>
               <span><i>🔒</i>{tr('fr.hero.f3')}</span>
             </div>
-            <button className="v3-cta fr-cta" onClick={() => setStep(1)}>
+            {/* Doi pași, nu trei: cât de strict să fie se schimbă oricând din Setări,
+                iar la început omul vrea să vadă ce face aplicația, nu să configureze. */}
+            <button className="v3-cta fr-cta" onClick={() => setStep(2)}>
               <span>{tr('fr.start')}</span><span className="v3-mono">→</span>
             </button>
             <button className="fr-demo-link" onClick={() => setDemo(true)}>▶ {tr('fr.demo.open')}</button>

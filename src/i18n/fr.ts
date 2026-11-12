@@ -141,7 +141,7 @@ export const dict: Record<string, string> = {
   "fr.strict.strict": "Stricte",
   "fr.strict.strict.sub": "Seulement les 3–5 meilleures photos de chaque jour.",
   "fr.strict.note": "Tu peux le changer à tout moment dans les Réglages.",
-  "fr.photos.kicker": "Étape 3 sur 3 · Accès à la galerie",
+  "fr.photos.kicker": "Étape 2 sur 2 · Accès à la galerie",
   "fr.photos.title": "Commençons par ta galerie",
   "fr.photos.lead": "Cherrypic lit ta galerie en commençant par les photos les plus récentes. Les premiers résultats arrivent en quelques secondes ; le reste se fait en arrière-plan pendant que tu utilises l'appli.",
   "fr.photos.permission": "Quand Android demande l'accès, choisis « Tout autoriser » pour que le rangement se fasse tout seul.",
