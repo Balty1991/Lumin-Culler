@@ -1023,6 +1023,39 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
                 )}
               </div>
             ) : (<>
+            {/* Întâi rezultatul: fiecare rețetă cu previzualizarea ei pe poza asta (cerut: interfața
+                editorului „merită îmbunătățită”; rețetele erau doar butoane cu emoji). */}
+            <p className="lx-recipes-title">{tr('lx.recipe.title')}</p>
+            <div className="lx-enhance-styles lx-recipes" role="group" aria-label={tr('lx.recipe.title')}>
+              {RECIPES.map(r => (
+                <button key={r.key} className={recipeOn(r.key) ? 'lx-style-card lx-recipe-card on' : 'lx-style-card lx-recipe-card'} onClick={() => applyRecipe(r)}>
+                  {view && base && <StyleThumb src={view} edits={withManual(styledEdits(base, r.style as EnhanceStyle, r.amount), r.manual as Partial<Record<ManualKey, number>>)} />}
+                  <span><i aria-hidden="true">{r.icon}</i> {tr(`lx.recipe.${r.key}`)}</span>
+                  {ADVANCED.has(r.style as EnhanceStyle) && premiumLocked && <b className="lx-pro">PRO</b>}
+                </button>
+              ))}
+            </div>
+            <p className="lx-recipes-title">{tr('lx.enhance.stylesTitle')}</p>
+            <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
+              {styles.map(st => (
+                <button key={st} role="radio" aria-checked={!pure && style === st && !recipeActive} className={!pure && style === st && !recipeActive ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
+                  {view && base && <StyleThumb src={view} edits={styledEdits(base, st, Math.max(0.6, amount))} />}
+                  <span>{(mine?.style === st || (!mine && picked?.style === st)) && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
+                  {ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
+                </button>
+              ))}
+              {tilt !== 0 && (
+                <button role="switch" aria-checked={straight} className={straight ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStraight(v => !v)}>
+                  📐 {tr('lx.enhance.straighten')}
+                </button>
+              )}
+            </div>
+            {!pure && <label className="lx-enhance-amount">
+              <span>{tr('lx.enhance.amount')}</span>
+              <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
+              <b>{Math.round(amount * 100)}%</b>
+            </label>}
+            <div className="lx-enhance-meta">
             {/* O singură linie mică: ce a reparat editorul (și că a pornit de la reglajele omului). */}
             {pure ? (
               <p className="lx-enhance-fix">
@@ -1043,43 +1076,17 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
               </button>
             )}
             {mine && !pure && <p className="lx-enhance-mine">✦ {tr('lx.enhance.mineNote', { style: tr(`lx.enhance.style.${mine.style}`), percent: Math.round(mine.amount * 100), count: mine.saves })}</p>}
-            <p className="lx-recipes-title">{tr('lx.recipe.title')}</p>
-            <div className="lx-enhance-styles lx-recipes" role="group" aria-label={tr('lx.recipe.title')}>
-              {RECIPES.map(r => (
-                <button key={r.key} className={recipeOn(r.key) ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => applyRecipe(r)}>
-                  <span aria-hidden="true">{r.icon}</span> {tr(`lx.recipe.${r.key}`)}
-                  {ADVANCED.has(r.style as EnhanceStyle) && premiumLocked && <b className="lx-pro">PRO</b>}
-                </button>
-              ))}
             </div>
-            <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.style')}>
-              {styles.map(st => (
-                <button key={st} role="radio" aria-checked={!pure && style === st && !recipeActive} className={!pure && style === st && !recipeActive ? 'lx-style-card on' : 'lx-style-card'} onClick={() => { setPure(false); setStyle(st); }}>
-                  {view && base && <StyleThumb src={view} edits={styledEdits(base, st, Math.max(0.6, amount))} />}
-                  <span>{(mine?.style === st || (!mine && picked?.style === st)) && <i className="lx-mine" title={tr('lx.enhance.mine')}>✦ </i>}{tr(`lx.enhance.style.${st}`)}</span>
-                  {ADVANCED.has(st) && premiumLocked && <b className="lx-pro">PRO</b>}
-                </button>
-              ))}
-              {tilt !== 0 && (
-                <button role="switch" aria-checked={straight} className={straight ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setStraight(v => !v)}>
-                  📐 {tr('lx.enhance.straighten')}
-                </button>
-              )}
-            </div>
-            {!pure && <label className="lx-enhance-amount">
-              <span>{tr('lx.enhance.amount')}</span>
-              <input type="range" min={0} max={150} step={5} value={Math.round(amount * 100)} onChange={e => setAmount(Number(e.target.value) / 100)} />
-              <b>{Math.round(amount * 100)}%</b>
-            </label>}
-            <div className="lx-enhance-clip">
-              <button className="lx-link" onClick={copyEdits}>{tr('lx.enhance.copy')}</button>
-              {clip && <button className="lx-link" onClick={pasteEdits}>{tr('lx.enhance.paste')}</button>}
-            </div>
+            <p className="lx-recipes-title">{tr('lx.tool.group')}</p>
             <div className="lx-enhance-tools" role="group" aria-label={tr('lx.tool.group')}>
               <button className="lx-tool-btn" onClick={() => setErasing(true)}><Icon name="eraser" />{tr('lx.magic.erase')}</button>
               {tools.clarity && <button className="lx-tool-btn" onClick={() => setRetouch('clarity')}><Icon name="zoom" />{tr('lx.tool.clarity.button')}</button>}
               {tools.cutout && <button className="lx-tool-btn" onClick={() => setRetouch('cutout')}><Icon name="scissors" />{tr('lx.tool.cutout.button')}</button>}
               {portraitAvailable() && <button className="lx-tool-btn" onClick={() => setRetouch('portrait')}><Icon name="target" />{tr('lx.tool.portrait.button')}</button>}
+            </div>
+            <div className="lx-enhance-clip">
+              <button className="lx-link" onClick={copyEdits}>{tr('lx.enhance.copy')}</button>
+              {clip && <button className="lx-link" onClick={pasteEdits}>{tr('lx.enhance.paste')}</button>}
             </div>
             </>)}
           </>

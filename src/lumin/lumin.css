@@ -2264,3 +2264,16 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-reset-btn { min-height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--lx-line); background: transparent;
   color: var(--text); font: inherit; font-size: 13px; font-weight: 600; }
 .lx-reset-btn:disabled { opacity: .4; }
+
+/* Editor reorganizat: rețetele ca previzualizări mari, apoi stiluri, intensitate, unelte. */
+.lx-recipe-card { width: 84px; }
+.lx-recipe-card canvas { width: 84px; height: 84px; border-radius: 18px; }
+.lx-recipe-card span { max-width: 88px; font-size: 12px; }
+.lx-recipe-card span i { font-style: normal; }
+.lx-recipe-card.on span { color: var(--text); }
+.lx-recipe-card.on canvas { outline: 2px solid rgb(var(--accent-rgb)); box-shadow: 0 8px 22px -10px rgb(var(--accent-rgb) / .6); }
+.lx-enhance .lx-recipes-title { margin: 12px 0 6px; }
+.lx-enhance-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 2px; }
+.lx-enhance-meta .lx-enhance-fix { flex: 1 1 160px; margin: 0; }
+.lx-enhance-meta .lx-pure-btn { margin: 0; }
+.lx-enhance-meta .lx-enhance-mine { flex-basis: 100%; margin: 0; font-size: 12px; }

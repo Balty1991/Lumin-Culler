@@ -2378,6 +2378,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.wall.kept": "Kept",
   "lx.wall.notToday": "Don't keep",
   "lx.wall.empty": "No photos here yet.",
+  "lx.enhance.stylesTitle": "Or pick a style",
   "lx.enhance.resetAll": "Reset",
   "lx.enhance.shareBA": "Share before/after",
   "lx.reader.waitCharge": "I read the rest while the phone is charging ({done} of {total})",

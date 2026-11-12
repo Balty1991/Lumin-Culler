@@ -2464,6 +2464,7 @@ export const ro = {
   "lx.wall.kept": "Păstrate",
   "lx.wall.notToday": "Nu păstrez",
   "lx.wall.empty": "Nicio poză aici încă.",
+  "lx.enhance.stylesTitle": "Sau alege un stil",
   "lx.enhance.resetAll": "Resetează",
   "lx.enhance.shareBA": "Trimite înainte/după",
   "lx.reader.waitCharge": "Restul pozelor le citesc când telefonul stă la încărcat ({done} din {total})",

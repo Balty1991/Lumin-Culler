@@ -605,7 +605,10 @@ export function drawAdjusted(
 ): void {
   const brightness = 1 + a.exposure / 100;
   const contrast = 1 + a.contrast / 100;
-  const saturate = 1 + a.saturation / 100;
+  // Saturația pozitivă nu mai e un `saturate()` uniform: acela împingea la fel și culorile deja
+  // puternice (geaca roz devenea neon, raportat cu video). Urcă prin vibrance, mai jos, pe pixeli.
+  const vibrance = a.saturation > 0 ? a.saturation : 0;
+  const saturate = a.saturation > 0 ? 1 : 1 + a.saturation / 100;
   const healed = a.heal?.length ? healedSource(source, sourceWidth, sourceHeight, a.heal) : null;
   ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
   drawGeometry(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a);
@@ -632,7 +635,7 @@ export function drawAdjusted(
   if (bokeh > 0) applyBokeh(ctx, healed ?? source, sourceWidth, sourceHeight, width, height, a, bokeh);
 
   const hasSubject = (relight > 0 || redEyeAmt > 0) && !!a.faceBoxes?.length;
-  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl && sky === 0 && !hasSubject) return;
+  if (!hasColorShift && !hasDetailPass && !luts && activePoints.length === 0 && vignette === 0 && grade === 0 && grain === 0 && dehaze === 0 && bw === 0 && !hasHsl && sky === 0 && !hasSubject && vibrance === 0) return;
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const d = imgData.data;
@@ -678,6 +681,7 @@ export function drawAdjusted(
   // (acela muta toate culorile deodata, deci trebuie sa se fi asezat inainte de
   // a decide ce gama e fiecare pixel) si INAINTE de curbe: curbele lucreaza pe
   // tonuri si trebuie sa vada culorile deja alese.
+  if (vibrance > 0) applyVibrance(d, vibrance);
   if (hasHsl) applyHslBands(d, a.hsl!);
 
   // Curbele: trei citiri din tablou per pixel, indiferent cate curbe a desenat
@@ -2108,5 +2112,31 @@ export async function applyAdjustmentsToBlob(blob: Blob, adjustments: EditAdjust
     );
   } finally {
     bitmap.close();
+  }
+}
+
+/**
+ * Vibrance: culorile șterse urcă mult, cele deja puternice aproape deloc, iar pielea e
+ * protejată. `amount` 0..100 (ce era înainte saturația pozitivă). La 100, o culoare gri-pastel
+ * capătă cam +100% saturație, una deja vie (saturație > 0,7) sub +10%.
+ */
+export function applyVibrance(d: Uint8ClampedArray, amount: number): void {
+  const k = Math.max(0, Math.min(100, amount)) / 100;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    const min = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    if (max === 0 || max === min) continue;
+    const sat = (max - min) / max;
+    const free = (1 - sat) * (1 - sat);
+    // Piele (cald, roșu > verde > albastru, nu foarte saturat): doar o treime.
+    const skin = r > g && g > b && r - b > 20 && sat < 0.6 ? 0.35 : 1;
+    // Lângă alb/negru, culoarea nu se umflă (fără halouri colorate în zonele arse).
+    const tone = max > 245 || max < 25 ? 0.4 : 1;
+    const f = 1 + 1.8 * k * free * skin * tone;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    d[i] = clamp255(lum + (r - lum) * f);
+    d[i + 1] = clamp255(lum + (g - lum) * f);
+    d[i + 2] = clamp255(lum + (b - lum) * f);
   }
 }

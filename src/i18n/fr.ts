@@ -343,6 +343,7 @@ export const dict: Record<string, string> = {
   "lx.wall.kept": "Gardées",
   "lx.wall.notToday": "Pas aujourd'hui",
   "lx.wall.empty": "Pas encore de photos ici.",
+  "lx.enhance.stylesTitle": "Ou choisis un style",
   "lx.enhance.resetAll": "Réinitialiser",
   "lx.enhance.shareBA": "Envoyer avant/après",
   "lx.reader.waitCharge": "Je lis le reste pendant la charge ({done} sur {total})",
