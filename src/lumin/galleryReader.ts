@@ -188,6 +188,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     // „a apărut 0 din o poză citite, deși nu era nimic”.
     if (missing.length >= 5) { await holdBackgroundAnalysis(missing.length, bgText(0)); holding = true; }
     let done = 0;
+    let lastNotified = 0;
     let recentAnnounced = false;
     lx.setReader({ done, total: missing.length });
     for (let i = 0; i < missing.length; i += chunkSizeAt(i)) {
@@ -218,7 +219,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
           if (p && p.total > 0 && p.phase !== 'finalizat') {
             const d = Math.min(missing.length, base + Math.round((p.done / p.total) * files.length));
             useLx.getState().setReader({ done: d, total: missing.length });
-            if (holding && document.visibilityState !== 'visible') void updateHeldBackground(d, missing.length, bgText(d));
+            // Notificarea urmează cifra din aplicație (raportat: 985 în aplicație, 936 în notificare),
+            // cel mult o dată la 2 s, ca să nu încarce telefonul.
+            if (holding && Date.now() - lastNotified >= 2000) { lastNotified = Date.now(); void updateHeldBackground(d, missing.length, bgText(d)); }
           }
         });
         // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
