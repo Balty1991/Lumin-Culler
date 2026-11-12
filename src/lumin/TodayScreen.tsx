@@ -83,7 +83,13 @@ export function TodayScreen() {
     const text = extras.length >= 5
       ? tr('lx.reader.offer', { extras: extras.length, sets, size: formatBytes(size, useStore.getState().locale), waiting: readerResult.waiting })
       : tr('lx.reader.offerWaiting', { waiting: readerResult.waiting });
-    return { text };
+    // Înainte / după, pe pozele omului: cât are acum și cât ar rămâne după curățenie.
+    const visible = photos.filter(p => !p.aside);
+    const leaving = new Set([...extras.map(p => p.id), ...visible.filter(p => p.status === 'rejected').map(p => p.id)]);
+    const before = visible.length;
+    const after = Math.max(0, before - leaving.size);
+    const sample = extras.slice(0, 5);
+    return { text, before, after, sample, size };
   }, [readerResult, premiumLocked, photos, tr]);
   // O singură dată, după prima citire mare: oferta se deschide singură, cu „Nu acum” la vedere.
   useEffect(() => {
@@ -229,6 +235,18 @@ export function TodayScreen() {
           <b>{tr('lx.reader.doneTitle', { total: readerResult.total })}</b>
           <span>{tr('lx.reader.doneSub', { kept: readerResult.kept, waiting: readerResult.waiting })}</span>
           {readOffer && <span className="lx-read-offer">{readOffer.text}</span>}
+          {readOffer && readOffer.before > readOffer.after && (
+            <div className="lx-ba" aria-label={tr('lx.reader.baLabel', { before: readOffer.before, after: readOffer.after })}>
+              <div className="lx-ba-row"><span>{tr('lx.reader.baNow')}</span><i style={{ width: '100%' }} /><b>{readOffer.before}</b></div>
+              <div className="lx-ba-row clean"><span>{tr('lx.reader.baClean')}</span><i style={{ width: `${Math.max(8, Math.round((readOffer.after / readOffer.before) * 100))}%` }} /><b>{readOffer.after}</b></div>
+              {readOffer.sample.length > 0 && (
+                <div className="lx-ba-strip">
+                  {readOffer.sample.map(p => <span key={p.id}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /><em aria-hidden="true">✕</em></span>)}
+                  {readOffer.size > 0 && <small>{tr('lx.reader.baFree', { size: formatBytes(readOffer.size, useStore.getState().locale) })}</small>}
+                </div>
+              )}
+            </div>
+          )}
           <div className="lx-decide-actions">
             <button className="lx-btn primary" onClick={() => { setReaderResult(null); setTab('days'); }}>{tr('lx.reader.see')}</button>
             {readOffer && <button className="lx-btn ghost" onClick={() => { setPaywallContext(readOffer.text); gatePremium('acceptAll'); }}>{tr('lx.feed.proGo')}</button>}

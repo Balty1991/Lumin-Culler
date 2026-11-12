@@ -262,6 +262,9 @@ export function LuminApp() {
   // Widgetul de pe ecranul telefonului urmează ziua: poza cea mai bună și ce mai așteaptă.
   // Lista vine cu ritm în timpul citirii (useLxPhotos.ts), ca rădăcina să nu se redeseneze la fiecare poză.
   const photos = usePacedPhotos();
+  // Bara de jos rămâne întreagă (cu Studio ascuns era dezechilibrată, raportat cu captură);
+  // modul de început simplifică doar ecranul Azi (vezi beginner.ts).
+  const tabs = TABS;
   useEffect(() => {
     if (!booted) return;
     const timer = window.setTimeout(() => {
@@ -479,7 +482,7 @@ export function LuminApp() {
             să nu se mai vadă prin bara sistemului (raportat: „Octombrie” apărea acolo). */}
         <div className="lx-dock-scrim" aria-hidden="true" />
         <nav className="lx-dock" aria-label={tr('lx.nav.label')} hidden={!booted}>
-          {TABS.slice(0, 2).map(x => (
+          {tabs.slice(0, 2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
             </button>
@@ -488,7 +491,7 @@ export function LuminApp() {
           <button className="lx-dock-add ask" onClick={() => { haptic('tick'); setAskOpen(true); }} aria-label={tr('lx.ask.title')}>
             <span><Icon name="sparkle" size={26} /></span>
           </button>
-          {TABS.slice(2).map(x => (
+          {tabs.slice(2).map(x => (
             <button key={x.id} className={tab === x.id ? 'on' : ''} onClick={() => { if (tab !== x.id) haptic('tick'); setTab(x.id); }} aria-current={tab === x.id ? 'page' : undefined}>
               <TabIcon name={x.icon} /><span>{tr(x.label)}</span>
             </button>

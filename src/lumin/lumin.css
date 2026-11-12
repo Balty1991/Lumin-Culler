@@ -2178,3 +2178,24 @@ button.lx-look-face.on canvas, button.lx-look-face.on .lx-face-img { box-shadow:
 
 /* Creatorul de filme: acțiunile de lângă „Ordinea” (după timp, alege de la zero). */
 .lx-fm-head-actions { display: inline-flex; gap: 14px; align-items: center; }
+
+/* Galerie: titlul lunii nu mai e tăiat de „60 de poze · 30 păstrate” (mutat dedesubt când nu încape). */
+.lx-wall-head { flex-wrap: wrap; row-gap: 2px; }
+.lx-wall-head > span { flex: 1 1 auto; overflow: visible; text-overflow: clip; }
+.lx-wall-head > small { flex: 0 1 auto; }
+/* „Cea mai bună din lună”: pe un singur rând. */
+.lx-hero-badge { white-space: nowrap; font-size: 10px; letter-spacing: .06em; }
+.lx-dock button { position: relative; }
+.lx-dock-new { position: absolute; top: 6px; right: calc(50% - 16px); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgb(6 7 10 / .8); }
+
+/* Azi, după prima citire: galeria înainte / după curățenie, pe pozele omului. */
+.lx-ba { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 2px; }
+.lx-ba-row { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-dim); }
+.lx-ba-row i { display: block; height: 10px; border-radius: 999px; background: rgb(255 255 255 / .18); }
+.lx-ba-row.clean i { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.lx-ba-row b { font-family: var(--mono); font-size: 13px; color: var(--text); }
+.lx-ba-strip { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.lx-ba-strip > span { position: relative; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; flex: none; }
+.lx-ba-strip > span img, .lx-ba-strip > span .lx-thumb-empty { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .55; filter: grayscale(.4); }
+.lx-ba-strip em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 16px; color: #fff; }
+.lx-ba-strip small { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--pick, #6fe3a1); margin-left: 6px; white-space: nowrap; }
