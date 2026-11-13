@@ -1,0 +1,30 @@
+name: Probe SCI
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pip install -q numpy pillow torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple 2>&1 | tail -1
+          git clone -q --depth 1 https://github.com/vis-opt-group/SCI sci
+          echo "== LICENSE =="; cat sci/CVPR/LICENSE | head -5
+          echo "== model.py =="; cat sci/CVPR/model.py
+          ls -la sci/CVPR/weights
+          cd sci/CVPR
+          python - <<'PY'
+          import torch, json, numpy as np
+          for n in ['easy','medium','difficult']:
+              sd=torch.load(f'weights/{n}.pt',map_location='cpu')
+              if not isinstance(sd,dict): sd=sd.state_dict()
+              print('==',n,{k:tuple(v.shape) for k,v in sd.items()})
+          sd=torch.load('weights/medium.pt',map_location='cpu')
+          if not isinstance(sd,dict): sd=sd.state_dict()
+          print('WEIGHTS_MEDIUM', json.dumps({k:[round(float(x),6) for x in v.flatten().tolist()] for k,v in sd.items() if v.dtype.is_floating_point}))
+          sd=torch.load('weights/difficult.pt',map_location='cpu')
+          if not isinstance(sd,dict): sd=sd.state_dict()
+          print('WEIGHTS_DIFFICULT', json.dumps({k:[round(float(x),6) for x in v.flatten().tolist()] for k,v in sd.items() if v.dtype.is_floating_point}))
+          PY
