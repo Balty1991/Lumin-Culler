@@ -126,6 +126,23 @@ async function openDayAction(action: 'share_pod' | 'see_day'): Promise<void> {
     useLx.getState().openViewer(list.map(p => p.id), 0);
     return;
   }
+  // Cu 3+ poze păstrate azi: un colaj al zilei, gata de trimis (cerut: „rezumatul de seară cu
+  // un colaj gata făcut, trimis dintr-o atingere”). Altfel, poza zilei, ca până acum.
+  if (day.kept.length >= 3) {
+    try {
+      const top = [...day.kept].sort((a, b) => b.aiScore - a.aiScore).slice(0, 7);
+      const [{ loadImage, shareCollage }, { collageBlob }] = await Promise.all([import('./collage'), import('./collageStudio')]);
+      const imgs = (await Promise.all(top.map(p => loadImage(p.id)))).filter((x): x is HTMLImageElement => !!x);
+      const locale = useStore.getState().locale;
+      const title = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).replace(/^./, c => c.toUpperCase());
+      const blob = imgs.length >= 3 ? await collageBlob(imgs, { model: 'bento', format: 'portrait', bg: 'blur', gap: 0.4, radius: 0.5, title, subtitle: '' }) : null;
+      if (blob) {
+        await shareCollage(blob, `cherrypic-ziua-${Date.now()}.jpg`, title);
+        void learnFromShare(top);
+        return;
+      }
+    } catch { /* cade pe poza zilei */ }
+  }
   const best = bestOfDay(day.kept) ?? bestOfDay(day.photos);
   if (!best) return;
   await useStore.getState().exportSelection('apps', [best.id]);

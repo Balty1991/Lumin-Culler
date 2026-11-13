@@ -114,3 +114,17 @@ export async function holdUntilLearned(ids?: string[]): Promise<number> {
   if (!hold.length) return 0;
   return useStore.getState().softenAutoKeeps(hold);
 }
+
+/**
+ * Oamenii cu nume (cei pe care omul i-a numit) nu sunt scoși niciodată de AI singur: o poză
+ * respinsă de AI cu cineva numit se întoarce la „de ales”. Excepție: cadrul mai slab dintr-o
+ * serie, unde există o poză aproape la fel păstrată (aceea rămâne).
+ */
+export async function protectNamedPeople(): Promise<number> {
+  const photos = useStore.getState().photos;
+  const keptInGroup = new Set(photos.filter(p => p.groupId && p.status === 'selected').map(p => p.groupId));
+  const ids = photos.filter(p => p.status === 'rejected' && p.aiDecided === true && !p.aside
+    && (p.personNames ?? []).length > 0 && !(p.groupId && keptInGroup.has(p.groupId))).map(p => p.id);
+  if (!ids.length) return 0;
+  return useStore.getState().softenAutoRejects(ids);
+}

@@ -8,7 +8,7 @@ import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
 import { userActive } from '../core/userIdle';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
-import { holdRejectsUntilTrained, holdUntilLearned, trainedEnough } from './trainingGate';
+import { holdRejectsUntilTrained, holdUntilLearned, protectNamedPeople, trainedEnough } from './trainingGate';
 import { readTasteQuizDone } from '../state/tasteQuiz';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 
@@ -325,6 +325,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         // galeria să o repartizeze la persoane”): fețele din pachetele citite primesc
         // amprenta și numele la fiecare ~200 de poze — după import, nu în paralel cu el.
         if (momentsNow && canEmbedFaces() && !stopRequested) await jankSpan('fete', () => placeFaces());
+        // Cine are nume nu e scos de AI singur (vezi trainingGate.protectNamedPeople).
+        if (momentsNow) await protectNamedPeople().catch(() => 0);
       }
       done = Math.min(missing.length, i + size);
       // Ultimele 3 luni sunt gata (primele citite): omul află că le poate folosi deja.

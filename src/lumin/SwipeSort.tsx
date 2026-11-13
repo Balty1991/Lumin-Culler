@@ -122,11 +122,13 @@ export function SwipeSort() {
     void setStatus(shown.id, keep ? 'selected' : 'rejected');
     recordPersonDecision(shown.personNames, keep);
     if ((ai === 'keep' && !keep) || (ai === 'drop' && keep)) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
-    if (ai !== 'unsure') {
-      const generic = shown.aiScore - (shown.aiPersonalDelta ?? 0);
-      recordDailyGuess({ personal: ai === 'keep', generic: generic >= MIDPOINT }, keep);
-      recordTwinDecision(ai === 'keep', keep);
-    }
+    // Și la pozele „nesigure” AI-ul are o înclinație (scorul față de mijloc), luată ÎNAINTE de
+    // alegerea omului. Fără ea, sesiunile (făcute mai ales din poze nesigure) nu numărau nimic,
+    // iar după 90 de alegeri tot scria „Antrenează-l” (raportat).
+    const aiKeep = ai === 'unsure' ? shown.aiScore >= MIDPOINT : ai === 'keep';
+    const generic = shown.aiScore - (shown.aiPersonalDelta ?? 0);
+    recordDailyGuess({ personal: aiKeep, generic: generic >= MIDPOINT }, keep);
+    recordTwinDecision(aiKeep, keep);
     if (peek && peek !== current?.id) { setPeek(null); return; }
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');

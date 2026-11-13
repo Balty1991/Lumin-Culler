@@ -2402,3 +2402,4 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 /* Alegerea pe card: poza se vede întreagă, iar golurile se umplu cu ea însăși, estompată. */
 .lx-card-photo .lx-card-img.lx-card-bg { position: absolute; inset: 0; object-fit: cover; filter: blur(22px) brightness(.6) saturate(1.2); transform: scale(1.15); }
 .lx-card-photo .lx-card-img.lx-card-whole { position: relative; object-fit: contain; }
+.lx-waiting-go { margin: 10px 0 4px; }

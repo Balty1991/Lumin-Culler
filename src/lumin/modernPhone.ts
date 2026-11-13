@@ -71,7 +71,7 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
 
     // La pornire: păstrările AI-ului pentru mâncare, locuri și obiecte trec la „de văzut” până
     // omul arată că le păstrează (vezi trainingGate.holdUntilLearned). Idempotent.
-    void import('./trainingGate').then(m => m.holdUntilLearned()).catch(() => 0);
+    void import('./trainingGate').then(async m => { await m.holdUntilLearned(); await m.protectNamedPeople(); }).catch(() => 0);
 
     // „Oprește” din notificarea de progres: oprește importul și cititorul galeriei.
     let stopCancel: (() => void) | undefined;

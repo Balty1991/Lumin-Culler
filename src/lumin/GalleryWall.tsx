@@ -1,4 +1,6 @@
 import { useHoldAnalysis } from './useHoldAnalysis';
+import { recordTwinDecision } from './twin';
+import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/scoreThresholds';
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { memo, useCallback, useContext, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
@@ -51,6 +53,16 @@ import { SCREEN_SIZE, ZOOM_SIZE, originalUri, sharpUrl, sizeFor } from './sharp'
 import { CleanupCard } from './Cleanup';
 import { intlTag, baseLocale } from '../i18n';
 import { selectBlinks, selectBlurry } from '../state/batchOps';
+
+/**
+ * Alegerea din vizualizator intră și ea în „Aleg ca tine în X%”: părerea AI-ului e luată înainte
+ * (statusul pus de el sau, la cele nehotărâte, scorul față de mijloc). Doar prima decizie a omului.
+ */
+function noteTwin(p: { status: string; aiScore: number; aiDecided?: boolean }, keep: boolean): void {
+  if (p.aiDecided === false) return;
+  const aiKeep = p.status === 'selected' ? true : p.status === 'rejected' ? false : p.aiScore >= (SELECT_THRESHOLD + REJECT_THRESHOLD) / 2;
+  recordTwinDecision(aiKeep, keep);
+}
 
 type Filter = 'all' | 'kept' | 'waiting' | 'notToday' | 'blinks' | 'blurry';
 /** „De ales”: nici păstrate, nici scoase (raportat: pozele apăreau doar la „Toate”). */
@@ -526,6 +538,14 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
       )}
       {/* Seriile de ordonat stau în Curățenie: aici galeria începe direct cu pozele (auditul de interfață). */}
       {filter === 'notToday' && plain && <CleanupCard photos={photos.filter(p => !p.aside)} />}
+      {/* „De ales”: le alegi pe rând, cele mai grele întâi (scor aproape de mijloc) — din ele
+          învață AI-ul cel mai mult. */}
+      {filter === 'waiting' && plain && list.length > 0 && (
+        <button className="lx-btn primary wide lx-waiting-go" onClick={() => {
+          const ids = [...list].filter(p => !p.aside).sort((a, b) => Math.abs(a.aiScore - 50) - Math.abs(b.aiScore - 50)).map(p => p.id);
+          useLx.getState().openSort(ids, tr('lx.wall.waitingGoTitle'));
+        }}>{tr('lx.wall.waitingGo', { count: list.length })}</button>
+      )}
       {list.length === 0 && <p className="lx-empty">{tr(filter === 'blinks' || filter === 'blurry' ? 'lx.wall.kindEmpty' : 'lx.wall.empty')}</p>}
       {months.map(m => {
         // Coperta lunii: doar dintre pozele păstrate, cu oamenii înaintea obiectelor
@@ -998,10 +1018,10 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
           </div>
         )}
         <div className="lx-viewer-decide">
-          <button className={p.status === 'rejected' ? 'lx-dbtn drop on' : 'lx-dbtn drop'} onClick={() => void setStatus(p.id, 'rejected')}>
+          <button className={p.status === 'rejected' ? 'lx-dbtn drop on' : 'lx-dbtn drop'} onClick={() => { noteTwin(p, false); void setStatus(p.id, 'rejected'); }}>
             <span><Icon name="x" /></span>{tr('lx.notToday')}
           </button>
-          <button className={p.status === 'selected' ? 'lx-dbtn keep on' : 'lx-dbtn keep'} onClick={() => void setStatus(p.id, 'selected')}>
+          <button className={p.status === 'selected' ? 'lx-dbtn keep on' : 'lx-dbtn keep'} onClick={() => { noteTwin(p, true); void setStatus(p.id, 'selected'); }}>
             <span><Icon name="check" /></span>{tr('lx.keep')}
           </button>
         </div>
