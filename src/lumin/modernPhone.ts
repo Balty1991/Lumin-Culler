@@ -71,7 +71,21 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
 
     // La pornire: păstrările AI-ului pentru mâncare, locuri și obiecte trec la „de văzut” până
     // omul arată că le păstrează (vezi trainingGate.holdUntilLearned). Idempotent.
-    void import('./trainingGate').then(async m => { await m.holdUntilLearned(); await m.protectNamedPeople(); await m.keepBestOfDays(); }).catch(() => 0);
+    void import('./trainingGate').then(async m => {
+      // O singură dată, după actualizarea din 13 nov.: deciziile AI-ului (nu ale omului) se reiau
+      // pe toată galeria cu regulile noi (momente, serii, oameni), fără o nouă citire. Doar cu
+      // galeria deja citită și fără citire în curs (altfel se reia la pornirea următoare).
+      const st = useStore.getState();
+      let again = false;
+      try { again = localStorage.getItem('cp.mig.rescore1113') !== '1'; } catch { /* fără stocare */ }
+      const { useLx } = await import('./lxStore');
+      if (again && st.photos.length > 0 && !st.progress && !useLx.getState().reader) {
+        try { localStorage.setItem('cp.mig.rescore1113', '1'); } catch { /* fără stocare */ }
+        await st.rescorePhotos().catch(() => undefined);
+        await useStore.getState().applyMoments().catch(() => undefined);
+      }
+      await m.holdUntilLearned(); await m.protectNamedPeople(); await m.keepBestOfDays();
+    }).catch(() => 0);
 
     // „Oprește” din notificarea de progres: oprește importul și cititorul galeriei.
     let stopCancel: (() => void) | undefined;
