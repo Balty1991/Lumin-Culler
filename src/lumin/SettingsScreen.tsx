@@ -24,6 +24,7 @@ import { refreshModels, useModelsState } from './aiModels';
 import { downloadAllEngines, enginesFor, downloadEngine, engineReady, refreshEngines, useEngines } from './engines';
 import { useTr } from './context';
 import { useEffect, useState } from 'react';
+import { LicensesSheet } from './LicensesSheet';
 import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 import { autoBackupAvailable, autoBackupOn, lastAutoBackupAt, setAutoBackup } from './autoBackup';
@@ -41,6 +42,7 @@ const MODE_ICON: Record<SortMode, string> = { everyday: '☀', parent: '♡', se
  */
 export function SettingsScreen() {
   const tr = useTr();
+  const [licOpen, setLicOpen] = useState(false);
   // „Date și unelte”: pliată implicit (ocupa mult loc); ținută minte.
   const [dataOpen, setDataOpen] = useState(() => { try { return localStorage.getItem('lx.settings.dataOpen') === '1'; } catch { return false; } });
   const toggleData = () => setDataOpen(o => { try { localStorage.setItem('lx.settings.dataOpen', o ? '0' : '1'); } catch { /* fără */ } return !o; });
@@ -207,6 +209,12 @@ export function SettingsScreen() {
         <span><b>💌 {tr('lx.recommend.title')}</b><small>{tr('lx.recommend.sub')}</small></span>
         <span className="lx-chev" aria-hidden="true">›</span>
       </button>
+
+      <button className="lx-row button" onClick={() => setLicOpen(true)}>
+        <span><b>📜 {tr('lx.lic.title')}</b><small>{tr('lx.lic.sub')}</small></span>
+        <span className="lx-chev" aria-hidden="true">›</span>
+      </button>
+      {licOpen && <LicensesSheet onClose={() => setLicOpen(false)} />}
 
       <p className="lx-foot">{tr('lx.settings.privacy')}<br />Cherrypic · {__APP_VERSION__} · {__BUILD_ID__}</p>
     </div>

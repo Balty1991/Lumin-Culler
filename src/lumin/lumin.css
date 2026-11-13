@@ -2491,3 +2491,13 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-compare-img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
 .lx-compare-pick { position: absolute; right: 12px; bottom: 12px; padding: 8px 14px; border-radius: 999px; background: rgb(6 7 10 / .62); backdrop-filter: blur(10px); color: #fff; font-weight: 700; font-size: 15px; }
 .lx-compare .lx-hint { text-align: center; margin: 0; }
+
+/* Licențe (Setări). */
+.lx-lic { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--lx-bg, #06070a); padding: calc(env(safe-area-inset-top) + 8px) 0 0; }
+.lx-lic-body, .lx-lic-text { flex: 1; overflow: auto; padding: 4px 16px calc(env(safe-area-inset-bottom) + 24px); }
+.lx-lic-body h3 { margin: 18px 0 8px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.lx-lic-body ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lx-lic-row { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--lx-line, rgb(255 255 255 / .08)); }
+.lx-lic-row small { opacity: .7; font-weight: 400; }
+.lx-lic-meta { font-size: 13px; opacity: .85; overflow-wrap: anywhere; }
+.lx-lic-text { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--font-mono, ui-monospace, monospace); }

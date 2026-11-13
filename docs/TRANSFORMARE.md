@@ -15,6 +15,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 | 1.4 | Tabelul complet de licențe pentru motoarele descărcabile; mențiunea OPUS-MT (CC BY 4.0) în Setări | ✅ FER+ (MIT) și MODNet (Apache 2.0) verificate la sursă pe 13 nov. | `docs/MODEL_LICENSES.md` | (acest commit) |
 | 1.5 | Măsurători de siguranță: cât de des omul e de acord cu ce scoate AI-ul; poze cu oameni salvate de om. Afișate în ecranul AI; „decide tot” se oprește singur sub 85% sau când omul salvează poze cu oameni | ✅ | `safety.test.ts` | (acest commit) |
 | 1.6 | Anulare și coș: existau deja (coșul sistemului Android, `createTrashRequest`, recuperabil 30 de zile; istoric de anulare) | ✅ | verificat în cod | — |
+| 1.8 | Ecranul „Licențe” în Setări: modelele AI, bibliotecile Android și cele 73 de biblioteci JavaScript (lista generată la fiecare build), cu textul licențelor. Cerut de MIT / Apache / BSD / CC BY | ✅ captură | (acest commit) |
 | 1.7 | „Cele mai frumoase” (amintiri, colaje, raport, anul, filme) ordonate și după gustul omului, când modelul lui e validat | ✅ | `beauty.test.ts` | (acest commit) |
 
 ## Etapa 2 — Redesign

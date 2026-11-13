@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { licensesPlugin } from './scripts/licensesPlugin';
 
 /**
  * Eticheta build-ului, aratata in Meniu -> Ajutor.
@@ -47,6 +48,7 @@ export default defineConfig({
   resolve: androidApk ? { alias: { '@vladmandic/human': humanStub } } : undefined,
   plugins: [
     react(),
+    licensesPlugin(),
     // Aplicatia se declara "AI local, functioneaza offline" — fara asta, afirmatia
     // era falsa in practica: nu exista niciun manifest/service worker, un reload
     // fara retea pierdea totul. Precache-uieste shell-ul + workerii + modelele TFJS
