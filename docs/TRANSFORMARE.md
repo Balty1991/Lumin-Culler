@@ -12,7 +12,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 | 1.1 | Scorul estetic LAION (strat antrenat pe date cu licență neclară) înlocuit cu un scor din perechile CLIP-IQA (doar CLIP, MIT) | ✅ | 90 de poze COCO în CI: poza clară vs. estompată AUC 0,97 (LAION 0,89), normală vs. întunecată 0,89 (LAION 0,71). Ordinea pozelor bune diferă de LAION (Spearman 0,1) | (acest commit) |
 | 1.2 | Greutățile LAION scoase din `clipLabels.json` | ✅ | testul verifică lipsa lor | (acest commit) |
 | 1.3 | Pozele deja citite: scorul refăcut din amprenta CLIP salvată, o singură dată, apoi rescorare | ✅ | `aestheticMigrate.ts`, cheia `cp.mig.aesthetic1113` | — |
-| 1.4 | Tabelul complet de licențe pentru motoarele descărcabile; mențiunea OPUS-MT (CC BY 4.0) în Setări | ✅ ⚠️ FER+ și MODNet rămân de confirmat | `docs/MODEL_LICENSES.md` | (acest commit) |
+| 1.4 | Tabelul complet de licențe pentru motoarele descărcabile; mențiunea OPUS-MT (CC BY 4.0) în Setări | ✅ FER+ (MIT) și MODNet (Apache 2.0) verificate la sursă pe 13 nov. | `docs/MODEL_LICENSES.md` | (acest commit) |
 | 1.5 | Măsurători de siguranță: cât de des omul e de acord cu ce scoate AI-ul; poze cu oameni salvate de om. Afișate în ecranul AI; „decide tot” se oprește singur sub 85% sau când omul salvează poze cu oameni | ✅ | `safety.test.ts` | (acest commit) |
 | 1.6 | Anulare și coș: existau deja (coșul sistemului Android, `createTrashRequest`, recuperabil 30 de zile; istoric de anulare) | ✅ | verificat în cod | — |
 | 1.7 | „Cele mai frumoase” (amintiri, colaje, raport, anul, filme) ordonate și după gustul omului, când modelul lui e validat | ✅ | `beauty.test.ts` | (acest commit) |
@@ -65,6 +65,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 
 ## Registru
 
+- **13 nov.** FER+ (MIT) și MODNet (Apache 2.0) verificate la sursă: rămân.
 - **13 nov.** Licențe verificate la sursă. SFace: Apache 2.0, păstrat. Zero-DCE: doar necomercial, scos și înlocuit cu SCI (MIT), scris direct în Kotlin și testat față de modelul original.
 - **13 nov.** Etapele 4–6 verificate: cea mai mare parte exista deja. Nou: căutarea pe matrice. Găsit: SFace și Zero-DCE sunt în APK-ul de Play cu licență neclară (decizie pentru proprietar).
 - **13 nov.** Etapa 3 gata: motorul de preferințe v2. Efect așteptat: procentul „ghicesc X%” poate scădea puțin, pentru că acum e măsurat cinstit, pe zile nevăzute.

@@ -61,9 +61,9 @@ Nu sunt în APK. Se descarcă la cerere, de pe pagina publică a modelului. Lice
 | clip | OpenAI CLIP ViT-B/32 (export Xenova) | MIT | ok |
 | search | clip-ViT-B-32-multilingual-v1 (sentence-transformers) | Apache 2.0 | ok |
 | describe | Florence-2-base-ft (Microsoft, export onnx-community) | MIT | ok |
-| joy | FER+ (`emotion-ferplus-8`, ONNX Model Zoo) | MIT pentru model și etichetele FER+; imaginile FER2013 de sub ele nu au o licență clară | ⚠️ de confirmat. Doar semnal de bucurie, opțional; se poate opri fără să strice trierea |
+| joy | FER+ (`emotion-ferplus-8`, ONNX Model Zoo) | MIT (README ONNX Model Zoo; etichetele FER+ de la Microsoft, tot MIT). Pozele FER2013 de sub ele vin de la concursul Kaggle, ai cărui termeni nu au fost citiți | ok, verificat pe 13 nov. (notă despre datele de antrenare, ca la SFace) |
 | select | SlimSAM-77 | Apache 2.0 | ok |
-| portrait | MODNet | de confirmat pe depozitul original | ⚠️ |
+| portrait | MODNet | Apache 2.0: „The code, models, and demos in this repository … are released under the Apache License 2.0” | ok, verificat pe 13 nov. |
 | portrait | Depth Anything V2 Small | Apache 2.0 (doar varianta Small) | ok |
 | eraser | MI-GAN | MIT | ok |
 | eraserHd | LaMa | Apache 2.0 | ok |
