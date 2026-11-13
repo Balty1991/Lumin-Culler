@@ -44,12 +44,12 @@ O poză care nu face parte dintr-o rafală nu trece prin modele în treapta 1. N
 
 Pe APK-ul de test, după ce rezultatul e deja pe ecran, un pas de fundal (concurență 1, numărat la treapta 2) pune embeddingul feței. Animalul (etichetă ML Kit, decupaj, MobileNet) rulează în același pas și pe release, fiindcă modelul e deja în APK și are licență Apache 2.0. `faceres` nu.
 
-## ⚠️ În APK-ul de Play, cu risc deschis (găsit pe 13 nov. 2026)
+## Verificate pe 13 nov. 2026
 
-| Model | Unde | Problema | Decizie necesară |
+| Model | Unde | Ce scrie la sursă | Decizie |
 | --- | --- | --- | --- |
-| SFace int8 (`face_sface_int8.onnx`, OpenCV Zoo) | recunoașterea fețelor (`FaceEmbedPlugin.kt`), descărcat în `release-android.yml` | Fișierul are licența Apache 2.0, dar modelul e antrenat pe seturi de fețe publicate pentru cercetare. E exact problema pentru care `faceres` nu intră în Play (mai sus). | păstrat (risc asumat), înlocuit cu un model cu drept comercial scris, sau scos (fără recunoașterea persoanelor) |
-| Zero-DCE 512 fp16 (`zerodce_512_fp16.tflite`, depozit personal pe Hugging Face) | luminarea pozelor întunecate în editor | fișa nu declară licența | de confirmat la autor sau de înlocuit |
+| SFace int8 (`face_sface_int8.onnx`, OpenCV Zoo) | recunoașterea fețelor (`FaceEmbedPlugin.kt`), în APK | README-ul OpenCV Zoo: „All files in this directory are licensed under Apache 2.0”. Nicio restricție comercială scrisă. Setul de antrenare al fișierului nu e numit; lucrarea SFace folosește CASIA-WebFace, VGGFace2, MS1M | **păstrat** (avem voie după licența declarată; rămâne o notă despre datele de antrenare) |
+| Zero-DCE (`zerodce_512_fp16.tflite`) | luminarea pozelor întunecate | depozitul autorilor: „for non-commercial use only”, CC BY-NC 4.0 | **scos**. Lumina se calculează acum fără model (lumină locală + curbă gamma, `EditModelsPlugin.lowLight`) |
 
 ## Motoarele descărcabile (Setări → Motoare AI)
 

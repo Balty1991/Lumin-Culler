@@ -18,7 +18,6 @@ import kotlin.math.min
 
 private const val MIGAN_FILE = "migan_fp16.tflite"
 private const val MIGAN_URL = "https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite"
-private const val ZERODCE_FILE = "zerodce_512_fp16.tflite"
 private const val SIDE = 512
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
@@ -131,7 +130,6 @@ class EditModelsPlugin : Plugin() {
     }
 
     private val migan = ReleasableModel<Interpreter>({ interpreter(MIGAN_FILE) }, { it.close() })
-    private val zeroDce = ReleasableModel<Interpreter>({ interpreter(ZERODCE_FILE) }, { it.close() })
     private val esrgan = ReleasableModel<Interpreter>({ interpreter(ESRGAN_FILE) }, { it.close() })
     private val u2net = ReleasableModel<Interpreter>({ interpreter(U2NET_FILE) }, { it.close() })
 
@@ -164,7 +162,7 @@ class EditModelsPlugin : Plugin() {
     fun available(call: PluginCall) {
         val out = JSObject()
         out.put("erase", true) // din APK, din cache sau descărcat la prima folosire
-        out.put("lowLight", hasAsset(ZERODCE_FILE))
+        out.put("lowLight", true)
         out.put("clarity", true) // din APK, din cache sau descărcat la prima folosire
         out.put("cutout", true)
         call.resolve(out)
@@ -265,7 +263,7 @@ class EditModelsPlugin : Plugin() {
     }
 
     /**
-     * Lumina pentru pozele întunecate (Zero-DCE). `strength` 0..1. Întoarce poza
+     * Lumina pentru pozele întunecate (calcul propriu, fără model). `strength` 0..1. Întoarce poza
      * la mărimea primită (până la `maxSide`), JPEG.
      */
     @PluginMethod
@@ -278,23 +276,16 @@ class EditModelsPlugin : Plugin() {
             val small = Bitmap.createScaledBitmap(src, SIDE, SIDE, true)
             val plane = SIDE * SIDE
             val px = IntArray(plane); small.getPixels(px, 0, SIDE, 0, 0, SIDE, SIDE)
-            val input = ByteBuffer.allocateDirect(4 * 3 * plane).order(ByteOrder.nativeOrder())
-            val fi = input.asFloatBuffer()
-            for (i in 0 until plane) {
-                fi.put(i * 3, ((px[i] shr 16) and 0xFF) / 255f)
-                fi.put(i * 3 + 1, ((px[i] shr 8) and 0xFF) / 255f)
-                fi.put(i * 3 + 2, (px[i] and 0xFF) / 255f)
+            // Fără model: lumina locală (luminanța estompată, ca în Retinex) ridicată pe o curbă
+            // gamma. Zonele întunecate primesc mult, cele luminoase aproape nimic, deci nu se ard.
+            // (Zero-DCE a ieșit: autorii îl dau doar pentru uz necomercial, CC BY-NC 4.0.)
+            val lum = FloatArray(plane) { i ->
+                (0.299f * ((px[i] shr 16) and 0xFF) + 0.587f * ((px[i] shr 8) and 0xFF) + 0.114f * (px[i] and 0xFF)) / 255f
             }
-            val output = ByteBuffer.allocateDirect(4 * 3 * plane).order(ByteOrder.nativeOrder())
-            zeroDce.use { it.run(input, output) }
-            output.rewind()
-            val fo = output.asFloatBuffer()
-            // Câștigul pe luminanță (nu pe canale: culoarea rămâne a pozei), 1..3,5.
-            val gain = FloatArray(plane)
-            for (i in 0 until plane) {
-                val li = 0.299f * fi.get(i * 3) + 0.587f * fi.get(i * 3 + 1) + 0.114f * fi.get(i * 3 + 2)
-                val lo = 0.299f * fo.get(i * 3) + 0.587f * fo.get(i * 3 + 1) + 0.114f * fo.get(i * 3 + 2)
-                gain[i] = ((lo + 0.03f) / (li + 0.03f)).coerceIn(1f, 3.5f)
+            val illum = boxBlur(boxBlur(lum, SIDE, 4), SIDE, 4)
+            val gain = FloatArray(plane) { i ->
+                val l = illum[i].coerceAtLeast(0.004f)
+                (Math.pow(l.toDouble(), 0.42).toFloat() / l).coerceIn(1f, 3.5f)
             }
             val smooth = boxBlur(boxBlur(gain, SIDE, 6), SIDE, 6)
             // Câștigul în tonuri de gri (1..3,5 → 0..255), întins la mărimea pozei cu filtrare.
