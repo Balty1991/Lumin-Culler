@@ -2481,6 +2481,7 @@ export const ro = {
   "lx.sample.fullNote": "Poți folosi aplicația între timp: mă opresc cât o atingi. Cel mai repede merge cu ecranul stins sau la încărcat.",
   "lx.sample.reading": "Prima privire: {done} din {total}",
   "lx.sample.readingSub": "Mă uit la cele mai noi poze, ca să-ți arăt ce pot face. Durează 2–3 minute.",
+  "lx.sample.doneSub": "Uite ce am găsit în cele mai noi poze.",
   "lx.work.title": "Lucrez la galeria ta",
   "lx.work.done": "Gata!",
   "lx.work.doneSub": "Toată galeria e citită și sortată.",

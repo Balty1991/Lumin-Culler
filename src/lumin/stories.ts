@@ -31,6 +31,11 @@ export interface Story {
 const DAY = 86_400_000;
 const score = (p: PhotoView) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
 const byScore = (a: PhotoView, b: PhotoView) => score(b) - score(a);
+/** Coperta unei povești: întâi o poză cu oameni (o captură de ecran nu are ce căuta acolo — raportat). */
+const coverOf = (list: readonly PhotoView[]): PhotoView => {
+  const people = list.filter(p => (p.faceCount ?? 0) > 0);
+  return [...(people.length ? people : list)].sort(byScore)[0];
+};
 
 export function buildStories(photos: readonly PhotoView[], now = Date.now(), ritualDoneToday = false): Story[] {
   const out: Story[] = [];
@@ -48,7 +53,7 @@ export function buildStories(photos: readonly PhotoView[], now = Date.now(), rit
   const todays = photos.filter(p => !p.aside && startOfDay(photoTime(p)) === today);
   if (todays.length >= 3 && !ritualDoneToday) {
     const list = [...todays].sort((a, b) => photoTime(a) - photoTime(b));
-    push({ id: 'today', kind: 'today', cover: [...list].sort(byScore)[0], photos: list });
+    push({ id: 'today', kind: 'today', cover: coverOf(list), photos: list });
   }
 
   // 1. Amintirea de azi (acum un an, doi…).
@@ -73,7 +78,7 @@ export function buildStories(photos: readonly PhotoView[], now = Date.now(), rit
   const waiting = photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate'));
   if (waiting.length) {
     const list = [...waiting].sort((a, b) => photoTime(b) - photoTime(a));
-    push({ id: 'waiting', kind: 'waiting', cover: [...list].sort(byScore)[0], photos: list });
+    push({ id: 'waiting', kind: 'waiting', cover: coverOf(list), photos: list });
   }
 
   // 4. Seriile: pozele în plus, aproape la fel.

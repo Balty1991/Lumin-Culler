@@ -208,6 +208,15 @@ public class MainActivity extends BridgeActivity {
         // conținutul în afara lor.
         androidx.activity.EdgeToEdge.enable(this);
 
+        // Analiza galeriei rulează în pagină (JS) și cheamă modelele native. Implicit, când
+        // aplicația iese de pe ecran, Android coboară prioritatea procesului de randare al
+        // WebView-ului și îl poate îngheța: analiza „nu rula sau rula foarte puțin” cu
+        // aplicația în fundal (raportat), deși serviciul cu notificare ținea aplicația vie.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            WebView rw = getBridge().getWebView();
+            if (rw != null) rw.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+        }
+
         // Fara acest listener, un crash al PROCESULUI DE RANDARE al WebView-ului
         // (ex. un driver GPU care pica la crearea unui context WebGL — vezi
         // comentariile din faceAnalysis.worker.ts despre exact acest tip de device

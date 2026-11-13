@@ -2395,6 +2395,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.sample.fullNote": "You can use the app meanwhile: I pause while you touch it. It's fastest with the screen off or while charging.",
   "lx.sample.reading": "First look: {done} of {total}",
   "lx.sample.readingSub": "Looking at your newest photos to show what I can do. Takes 2–3 minutes.",
+  "lx.sample.doneSub": "Here's what I found in your newest photos.",
   "lx.work.title": "Working on your gallery",
   "lx.work.done": "Done!",
   "lx.work.doneSub": "Your whole gallery is read and sorted.",

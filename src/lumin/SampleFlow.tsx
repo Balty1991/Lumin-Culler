@@ -69,9 +69,9 @@ export function SampleResultCard() {
       <b className="lx-sample-title">{tr('lx.sample.title', { total: sum.total, kept: sum.kept })}</b>
       {facts.length > 0 && <div className="lx-sample-facts">{facts.map(f => <span key={f}>{f}</span>)}</div>}
       {sum.best.length > 0 && (
-        <div className="lx-sample-best">
+        <div className="lx-sample-best" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
           {sum.best.map((p, i) => (
-            <button key={p.id} onClick={() => useLx.getState().openViewer(sum.best.map(x => x.id), i)}>
+            <button key={p.id} style={{ aspectRatio: '1', overflow: 'hidden', position: 'relative', padding: 0, border: 0, borderRadius: 14 }} onClick={() => useLx.getState().openViewer(sum.best.map(x => x.id), i)}>
               <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
             </button>
           ))}
@@ -111,10 +111,24 @@ export function WorkModeOverlay() {
   // Ritmul din ultimele poze (cel mult ~40), nu de la început: primele poze mergeau repede și
   // estimarea sărea de la „~6 min” la „~2 h” (raportat cu capturi).
   const samples = useRef<{ at: number; done: number }[]>([]);
+  const shownEta = useRef<number | null>(null);
   const started = useRef<{ at: number; done: number } | null>(null);
   const [finished, setFinished] = useState(false);
+  // Prima privire (1–3 min) se arată singură pe acest ecran, pe viteză maximă, ca omul să nu
+  // umble prin aplicație cât lucrează (cerut). „Folosesc aplicația între timp” o închide.
+  const sampling = useLx(s => s.sampling);
+  const sampleRun = useRef(false);
   useEffect(() => {
-    if (!open) { started.current = null; samples.current = []; setFinished(false); return; }
+    if (sampling && !sampleRun.current) { sampleRun.current = true; setWorkMode(true); }
+  }, [sampling, setWorkMode]);
+  const forSample = sampleRun.current;
+  const close = () => {
+    setWorkMode(false);
+    if (forSample && finished) useLx.getState().setTab('today');
+    sampleRun.current = sampling;
+  };
+  useEffect(() => {
+    if (!open) { started.current = null; samples.current = []; shownEta.current = null; setFinished(false); return; }
     // Cât e deschis, nimeni nu atinge aplicația: analiza merge plin.
     analysisPool.setGentle(false);
     analysisPool.setBackground(false);
@@ -135,17 +149,26 @@ export function WorkModeOverlay() {
     if (!reader && started.current) setFinished(true);
   }, [open, reader]);
   // Ultimele poze citite, ca „orbită” în jurul inelului.
-  const orbit = useMemo(() => photos.slice(-8).reverse(), [photos.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Pozele adevărate (nu capturile și documentele), cele mai noi citite.
+  const orbit = useMemo(() => {
+    const real = photos.filter(p => !p.aside);
+    return (real.length >= 8 ? real : photos).slice(-8).reverse();
+  }, [photos.length]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!open) return null;
   const done = reader?.done ?? 0;
   const total = reader?.total ?? 0;
   const pct = finished ? 100 : total ? Math.round((done / total) * 100) : 0;
   let eta = '';
-  const first = samples.current[0];
-  const last = samples.current[samples.current.length - 1];
-  if (reader && started.current && first && last && done - started.current.done >= 20 && last.at > first.at) {
-    const rate = (last.done - first.done) / ((last.at - first.at) / 60000);
-    const min = Math.max(1, Math.round((total - done) / Math.max(rate, 0.5)));
+  // Media de la deschiderea ecranului (nu doar ultimele poze: pachetele vin în rafale, iar
+  // capturile cu text merg mai încet, așa că estimarea sărea între 9 min și 2 h — raportat).
+  // Afișată abia după 30 de poze și un minut, și schimbată doar când diferă cu peste 30%.
+  const s0 = started.current;
+  if (reader && s0 && done - s0.done >= 30 && Date.now() - s0.at >= 60_000) {
+    const rate = (done - s0.done) / ((Date.now() - s0.at) / 60000);
+    const raw = Math.max(1, Math.round((total - done) / Math.max(rate, 0.5)));
+    const prev = shownEta.current;
+    const min = prev && Math.abs(raw - prev) / prev < 0.3 ? Math.min(prev, raw) : raw;
+    shownEta.current = min;
     // Rotunjit cum vorbește un om: minute până la o oră și jumătate, apoi ore întregi.
     eta = min >= 90 ? tr('lx.work.etaH', { hours: Math.round(min / 60) }) : tr('lx.work.etaMin', { minutes: min < 10 ? min : Math.round(min / 5) * 5 });
   } else if (reader && !finished) {
@@ -158,16 +181,16 @@ export function WorkModeOverlay() {
         <div className="lx-work-ring" style={{ ['--p' as string]: `${pct}` }}>
           <div className="lx-work-orbit" aria-hidden="true">
             {orbit.map((p, i) => (
-              <span key={p.id} style={{ ['--i' as string]: `${i}` }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></span>
+              <span key={p.id} style={{ ['--i' as string]: `${i}` }}><i><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></i></span>
             ))}
           </div>
           <b>{pct}%</b>
         </div>
-        <h2>{finished ? tr('lx.work.done') : tr('lx.work.title')}</h2>
-        <p>{finished ? tr('lx.work.doneSub') : total ? tr('lx.work.count', { done, total }) : tr('lx.work.starting')}</p>
-        {!finished && eta && <p className="lx-work-eta">{eta}</p>}
-        {!finished && <p className="lx-work-tip">{tr('lx.work.tip')}</p>}
-        <button className={finished ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={() => setWorkMode(false)}>
+        <h2>{finished ? tr('lx.work.done') : tr(forSample ? 'lx.sample.eyebrow' : 'lx.work.title')}</h2>
+        <p>{finished ? tr(forSample ? 'lx.sample.doneSub' : 'lx.work.doneSub') : total ? tr('lx.work.count', { done, total }) : tr('lx.work.starting')}</p>
+        {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
+        {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
+        <button className={finished ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={close}>
           {finished ? tr('lx.work.see') : tr('lx.work.useApp')}
         </button>
       </div>

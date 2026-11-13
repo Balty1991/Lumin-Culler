@@ -76,7 +76,7 @@ export function TodayScreen() {
   // Cât stă pe ecran rezultatul primei priviri, el e singurul pas: restul cardurilor spuneau
   // același lucru în alte cuvinte (raportat cu video: „ecranul de acasă e prea încărcat”).
   const liveSample = useLx(s => s.sampleResult);
-  const focusSample = !reader && (!!liveSample || !!storedSampleResult());
+  const focusSample = sampling || (!reader && (!!liveSample || !!storedSampleResult()));
   const setReaderResult = useLx(s => s.setReaderResult);
   const gatePremium = useStore(s => s.gatePremium);
   const setAutoResult = useLx(s => s.setAutoResult);

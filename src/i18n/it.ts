@@ -360,6 +360,7 @@ export const dict: Record<string, string> = {
   "lx.sample.fullNote": "Puoi usare l'app nel frattempo: mi fermo quando la tocchi. È più veloce a schermo spento o in carica.",
   "lx.sample.reading": "Primo sguardo: {done} di {total}",
   "lx.sample.readingSub": "Guardo le foto più recenti per mostrarti cosa so fare. 2–3 minuti.",
+  "lx.sample.doneSub": "Ecco cosa ho trovato nelle tue foto più recenti.",
   "lx.work.title": "Lavoro sulla tua galleria",
   "lx.work.done": "Fatto!",
   "lx.work.doneSub": "Tutta la galleria è letta e ordinata.",

@@ -81,6 +81,13 @@ export function startJankLog(): void {
   // Cât aplicația stă în fundal, „blocajul” e doar timpul cât a fost înghețată de Android
   // (raportul din 12 nov.: „max 67948 ms”) — nu se numără.
   const hidden = () => typeof document !== 'undefined' && document.visibilityState !== 'visible';
+  // Un cadru care a început înainte de ultima revenire pe ecran a cuprins și timpul cât aplicația
+  // a stat în fundal (raportul din 12 nov.: „blocaje” de 52, 128 și 256 s) — nu se numără.
+  let shownAt = 0;
+  try {
+    document.addEventListener('visibilitychange', () => { if (!hidden()) shownAt = performance.now(); });
+  } catch { /* fără document */ }
+  const spansHidden = (startTime: number) => startTime < shownAt;
   // Long Animation Frames (Chrome 123+): cine a rulat în cadrul blocat — funcția, fișierul,
   // cine a chemat-o (timer, promisiune, eveniment) — și cât a ținut desenarea. Fără el,
   // blocajele se puteau doar lega de pașii care rulau atunci.
@@ -88,13 +95,13 @@ export function startJankLog(): void {
     if ((PerformanceObserver.supportedEntryTypes ?? []).includes('long-animation-frame')) {
       new PerformanceObserver(l => {
         if (hidden()) return;
-        for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime, loafDetail(e as LoafEntry));
+        for (const e of l.getEntries()) { if (!spansHidden(e.startTime)) recordJank(e.duration, Date.now(), e.startTime, loafDetail(e as LoafEntry)); }
       }).observe({ type: 'long-animation-frame', buffered: false });
       return;
     }
   } catch { /* cade pe „longtask” */ }
   try {
-    new PerformanceObserver(l => { if (hidden()) return; for (const e of l.getEntries()) recordJank(e.duration, Date.now(), e.startTime); }).observe({ entryTypes: ['longtask'] });
+    new PerformanceObserver(l => { if (hidden()) return; for (const e of l.getEntries()) { if (!spansHidden(e.startTime)) recordJank(e.duration, Date.now(), e.startTime); } }).observe({ entryTypes: ['longtask'] });
   } catch { /* WebView fără „longtask”: fără jurnal */ }
 }
 

@@ -338,7 +338,10 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       }
       // Cu ecranul la vedere, telefonul respiră între pachete (aplicația rămâne fluidă);
       // în spate nu are pentru cine.
-      await sleep(document.visibilityState === 'visible' ? 800 : 50);
+      // În fundal, fără niciun temporizator: Chromium le rărește la unul pe minut în paginile
+      // ascunse, iar fiecare pachet aștepta un minut întreg (raportat: „ieșeam din aplicație
+      // și nu rula”).
+      if (document.visibilityState === 'visible') await sleep(800);
     }
 
     if (stopRequested) { void useStore.getState().applyMoments().catch(() => {}); return; } // oprit de om: fără rezumat
