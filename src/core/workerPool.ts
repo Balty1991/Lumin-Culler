@@ -730,7 +730,7 @@ export class AnalysisPool {
   analyzesFromUri(): boolean { return this.nativeMode && !ANDROID_IDENTITY_EMBEDDINGS; }
 
   /** Analizează o fotografie. Bitmap-ul e transferat (nu copiat) și închis în worker — sau, pe native, închis direct în nativeAnalysis.ts. `mediaUri` (Android, poze din galerie) lasa partea nativa sa citeasca imaginea singura, fara nimic peste punte. */
-  async analyze(photoId: string, bitmap: ImageBitmap, mediaUri?: string): Promise<AnalysisRecord> {
+  async analyze(photoId: string, bitmap: ImageBitmap, mediaUri?: string, opts?: { skipOcr?: boolean }): Promise<AnalysisRecord> {
     if (this.nativeMode) {
       // Asteptarea la rand, masurata separat — vezi 'queue' in core/stageTiming.ts.
       // Statea inauntrul lui 'analysis' fara sa fie a nimanui, si iesea la
@@ -759,7 +759,8 @@ export class AnalysisPool {
             this.knownPersons,
             // content:// din galerie, cand exista — vezi analyzeNative: cu el,
             // imaginea nu mai trece deloc peste puntea Capacitor.
-            mediaUri
+            mediaUri,
+            opts
           ),
           ANALYZE_TIMEOUT_MS,
           'Analiza acestei fotografii a durat prea mult (posibil fisier problematic) — sarita.'

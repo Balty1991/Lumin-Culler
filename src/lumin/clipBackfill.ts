@@ -94,6 +94,7 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
     await recheckSpecies();
+    await paperTextPass();
     await deepPass();
   } catch {
     // CLIP e un bonus: dacă ceva nu merge, aplicația rămâne exact ca înainte.
@@ -213,4 +214,32 @@ async function recheckSpecies(): Promise<void> {
     useStore.setState(s => ({ photos: s.photos.map(p => (changed.has(p.id) ? { ...p, sceneTags: changed.get(p.id) } : p)) }));
   }
   try { localStorage.setItem(SPECIES_KEY, '1'); } catch { /* data viitoare */ }
+}
+
+/**
+ * Textul bonurilor și documentelor, citit după galerie, nu în timpul ei: la citire, hârtia
+ * recunoscută din prima trecere sare peste OCR (vezi analyzeNative skipOcr), ca un șir de
+ * bonuri să nu țină toată galeria pe loc. Aici se citesc, câte una, ca să rămână căutabile.
+ */
+async function paperTextPass(): Promise<void> {
+  const { detectTextNative, isNativeTextRecognitionAvailable } = await import('../core/nativeTextRecognition');
+  if (!isNativeTextRecognitionAvailable()) return;
+  const { photoTextFromBlocks } = await import('../core/photoText');
+  const { useLx } = await import('./lxStore');
+  // Cât citește galeria, nu: bonurile au fost sărite tocmai ca citirea să nu stea după ele.
+  if (useLx.getState().reader) return;
+  const papers = useStore.getState().photos.filter(p => p.aside === 'document' && p.mediaUri).map(p => p.id);
+  for (const id of papers) {
+    if (useLx.getState().reader) return;
+    while (useStore.getState().progress) await sleep(3000);
+    await waitForUserIdle();
+    const [photo, analysis] = await Promise.all([db.photos.get(id), db.analyses.get(id)]);
+    if (!photo?.mediaUri || !analysis || analysis.textCoverage !== undefined || analysis.ocrText !== undefined) continue;
+    try {
+      const ocr = await detectTextNative({ uri: photo.mediaUri, maxSide: 1600 });
+      const text = photoTextFromBlocks(ocr.blocks);
+      await db.analyses.update(id, { textCoverage: ocr.textCoverage, ...(text ? { ocrText: text } : {}) });
+    } catch { /* o poză care nu se citește nu oprește restul */ }
+    await sleep(PAUSE_MS);
+  }
 }

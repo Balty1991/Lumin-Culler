@@ -2308,16 +2308,23 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 /* —— „Lucrez la galeria ta”: ecran opțional, cu viteză maximă —— */
 .lx-work { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; overflow: hidden;
   background: #07060c; color: #fff; padding: calc(24px + var(--safe-top, 0px)) 24px calc(24px + var(--safe-bottom, 0px)); }
-.lx-work-aurora { position: absolute; inset: -30%; filter: blur(60px); opacity: .55;
-  background: conic-gradient(from 0deg, #ff4f7f, #c86bff, #6bd6ff, #ffb36b, #ff4f7f); animation: lx-work-spin 18s linear infinite; }
+/* Aurora fără `filter: blur`: raportul din 13 nov. arăta cadre de ~1 s pe acest ecran cât rulau
+   modelele (estomparea de 60 px pe 160% din ecran se refăcea la fiecare cadru, pe același GPU).
+   Degradeurile radiale sunt moi de la sine; rotirea e doar o transformare pe compozitor. */
+.lx-work-aurora { position: absolute; inset: -30%; opacity: .6; will-change: transform; animation: lx-work-spin 18s linear infinite;
+  background:
+    radial-gradient(closest-side at 30% 30%, rgb(255 79 127 / .9), transparent),
+    radial-gradient(closest-side at 72% 32%, rgb(200 107 255 / .85), transparent),
+    radial-gradient(closest-side at 70% 72%, rgb(107 214 255 / .8), transparent),
+    radial-gradient(closest-side at 28% 70%, rgb(255 179 107 / .8), transparent); }
 .lx-work-core { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; max-width: 360px; width: 100%; }
 .lx-work-ring { --p: 0; position: relative; width: 220px; height: 220px; border-radius: 50%; display: grid; place-items: center; margin: 60px 0 76px; /* orbita iese ~56 px din inel: nu mai trece peste titlu */
   background: conic-gradient(#ff4f7f calc(var(--p) * 1%), rgb(255 255 255 / .1) 0); transition: background .6s; }
 .lx-work-ring::before { content: ""; position: absolute; inset: 10px; border-radius: 50%; background: rgb(7 6 12 / .92); }
 .lx-work-ring > b { position: relative; font-size: 46px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.lx-work-orbit { position: absolute; inset: -34px; animation: lx-work-spin 24s linear infinite; }
+.lx-work-orbit { position: absolute; inset: -34px; will-change: transform; animation: lx-work-spin 24s linear infinite; }
 .lx-work-orbit span { --i: 0; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 12px; overflow: hidden;
-  border: 2px solid rgb(255 255 255 / .85); box-shadow: 0 8px 20px -8px rgb(0 0 0 / .8);
+  border: 2px solid rgb(255 255 255 / .85);
   transform: rotate(calc(var(--i) * 45deg)) translateY(-144px) rotate(calc(var(--i) * -45deg)); }
 .lx-work-orbit span .lx-thumb, .lx-work-orbit span img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lx-work h2 { margin: 6px 0 0; font-size: 24px; font-weight: 800; }

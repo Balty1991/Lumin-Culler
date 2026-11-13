@@ -82,8 +82,14 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
     }).then(fn => { stopCancel = fn; });
     let stopShown: (() => void) | undefined;
     void onNativeShown(hidden => { document.documentElement.classList.toggle('cp-offscreen', hidden); }).then(fn => { stopShown = fn; });
+    // Revenirea se vede imediat: semnalul nativ poate întârzia cât firul paginii e ocupat cu
+    // analiza (raportat: ecranul de lucru stătea fără animație o clipă la intrare).
+    const onScreen = () => document.documentElement.classList.remove('cp-offscreen');
+    window.addEventListener('focus', onScreen);
+    window.addEventListener('pageshow', onScreen);
+    document.addEventListener('pointerdown', onScreen, { capture: true, passive: true });
 
     const timer = window.setTimeout(() => { void offerUpdate(); }, 8000);
-    return () => { stop?.(); stopCancel?.(); stopShown?.(); unsub(); window.clearTimeout(timer); };
+    return () => { stop?.(); stopCancel?.(); stopShown?.(); window.removeEventListener('focus', onScreen); window.removeEventListener('pageshow', onScreen); document.removeEventListener('pointerdown', onScreen, { capture: true }); unsub(); window.clearTimeout(timer); };
   }, [booted, runImport]);
 }

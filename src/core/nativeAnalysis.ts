@@ -515,7 +515,13 @@ export async function analyzeNative(
    * fara base64, fara MB de JSON — de 4-7 ori per poza. Absent (selector de
    * fisiere, RAW decodat in JS) = calea veche, cu blob, neschimbata.
    */
-  mediaUri?: string
+  mediaUri?: string,
+  /**
+   * skipOcr: hârtia recunoscută deja din prima trecere (bonuri, documente) nu mai așteaptă
+   * citirea textului aici — o face trecerea de după citire (clipBackfill.deepPass). Raportat:
+   * ~8 poze/min pe un șir de bonuri, cu OCR de până la 10 s pe poză.
+   */
+  opts?: { skipOcr?: boolean }
 ): Promise<AnalysisRecord> {
   /** Cap-coada, ca sa se poata scadea prep/valuri/assemble — vezi core/stageTiming.ts. */
   const bodyStart = performance.now();
@@ -707,7 +713,7 @@ export async function analyzeNative(
   // ...si cu un plafon al lui, sub cel al pozei. Vezi NATIVE_OCR_TIMEOUT_MS:
   // fara el, o singura citire de text lunga trecea poza intreaga peste
   // ANALYZE_TIMEOUT_MS si o pierdea cu tot ce se calculase deja.
-  const ocrFn = () => faces.length === 0
+  const ocrFn = () => !opts?.skipOcr && faces.length === 0
     && (!pickFolderSceneTag(sceneTags) || hasManufacturedTag(sceneTags))
     ? cuPlafon(
         timed('mOcr', async () => detectTextNative(

@@ -32,7 +32,7 @@ import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
 import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, type StageOneNativeResult } from './stageOneNative';
 import { SERIES_CANDIDATE_HAMMING, isSeriesCandidate, stageOneKey, stageOneTime } from './twoStagePlan';
-import { asideOf, decideIsolate, paperScoreFromRgba, statusFromScore } from './singletonVerdict';
+import { asideOf, decideIsolate, PAPER_DOCUMENT_MIN, paperScoreFromRgba, statusFromScore } from './singletonVerdict';
 import { seriesVerdict } from './seriesVerdict';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
 import { MESH_BLINK_THRESHOLD, TEST_IDENTITY_EMBEDDINGS } from './faceEngine';
@@ -1028,7 +1028,9 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     // (raportul de blocaje de pe telefon, 12 nov.). Se trimit doar dimensiunile.
     if (!bitmap && mediaUri && !isRaw && analysisPool.analyzesFromUri()) bitmap = sizeOnly(w, h);
     if (!bitmap) bitmap = await jankSpan('decodare', () => decode(file, mediaUri));
-    analysis = await jankSpan('analiza-nativa', () => analysisPool.analyze(id, bitmap!, isRaw ? undefined : mediaUri));
+    // Hârtie sigură din prima trecere: fără OCR acum (textul vine după citire, pentru căutare).
+    const paper = (prepared.paperScore ?? 0) >= PAPER_DOCUMENT_MIN;
+    analysis = await jankSpan('analiza-nativa', () => analysisPool.analyze(id, bitmap!, isRaw ? undefined : mediaUri, { skipOcr: paper }));
   } else {
     try { prepared.bitmap?.close(); } catch { /* deja închis */ }
     analysis = lightAnalysis(id, { sharpness, exposure });

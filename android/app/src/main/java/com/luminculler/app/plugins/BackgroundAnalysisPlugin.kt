@@ -122,6 +122,9 @@ class BackgroundAnalysisPlugin : Plugin() {
         super.handleOnStart()
         AnalysisPriority.aplicatiaAscunsa(false)
         notifyListeners("shown", JSObject().put("hidden", false))
+        // Și direct în pagină, fără să aștepte coada de evenimente a punții (care stă cât
+        // pagina e ocupată cu analiza): animațiile pornesc odată cu ecranul.
+        runCatching { bridge?.webView?.evaluateJavascript("document.documentElement.classList.remove('cp-offscreen')", null) }
     }
 
     /** Ecranul „Lucrez la galeria ta” / prima privire: analiza pe prioritate plină. */
