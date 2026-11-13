@@ -152,6 +152,8 @@ export { SELECT_THRESHOLD, REJECT_THRESHOLD } from './scoreThresholds';
  * putea diverge silentios.
  */
 export const TEXT_DOMINANT_THRESHOLD = 0.15;
+/** Cu cât sub pragul de păstrare se păstrează singură o poză reușită cu oameni (fără defect). */
+export const GOOD_PEOPLE_MARGIN = 12;
 
 /** Câte îmbogățiri de după primul rezultat (ochi, persoane, animale) rulează deodată. */
 const POST_CONCURRENCY = 4;
@@ -350,6 +352,20 @@ export function decidePhotoStatus(
   thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
   if (score <= thresholds.reject && !showsKnownPerson(analysis) && hasNamedDefect(analysis)) return 'rejected';
+  // O copie a ta păstrează o poză reușită cu oameni chiar dacă nu e „de expoziție”: fețe clare,
+  // ochii deschiși, fără defect numit și un scor decent. Duplicatele le taie regula seriilor
+  // (rămâne cel mai bun cadru). Raportat: 40 de poze bune cu copilul respinse, 7 păstrate.
+  if (
+    analysis.faceCount > 0
+    // „Strict” (prag de păstrare peste cel implicit) înseamnă mai puține poze: fără excepție.
+    && thresholds.select <= FIXED_THRESHOLDS.select
+    && score >= thresholds.select - GOOD_PEOPLE_MARGIN
+    && analysis.allEyesOpen !== false
+    && !hasNamedDefect(analysis)
+    && !subjectConfirmedOutOfFocus(analysis)
+    && !hasNoRecognizableSubject(analysis)
+    && !onlyManufacturedSubject(analysis)
+  ) return 'selected';
   if (
     score >= thresholds.select
     && !hasNoRecognizableSubject(analysis)

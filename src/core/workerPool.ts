@@ -514,6 +514,10 @@ export class AnalysisPool {
       // „zbor 6”), iar pe total nu mergea mai repede: procesorul era oricum plin.
       if (this.focus) return Math.min(thermal, 2);
     }
+    // Citirea galeriei (și cu ecranul stins): cel mult 2 poze în lucru. Cu 6, memoria se umplea,
+    // Android închidea aplicația („Închidere neașteptată la: ImageLabeling”, raportul din 13 nov.,
+    // „zbor 6”) și citirea o lua de la capăt; la revenire, ecranul stătea blocat 20–38 s.
+    if (this.background || this.gentle || this.focus) return Math.min(thermal, 2);
     return thermal;
   }
 
@@ -755,7 +759,7 @@ export class AnalysisPool {
         // cadre de ~900 ms cu doar ~90 ms de cod: ecranul aștepta procesorul ocupat de
         // modele, nu codul aplicației. Cu ecranul stins, fără pauză.
         clearInFlight(mediaUri);
-        const rest = restAfterPhoto(this.gentle || this.background, performance.now() - bodyStart);
+        const rest = restAfterPhoto(this.gentle, performance.now() - bodyStart);
         if (rest > 0) await new Promise(r => setTimeout(r, rest));
         this.releaseNativePermit();
       }

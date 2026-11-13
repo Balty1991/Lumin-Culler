@@ -251,8 +251,9 @@ describe('decidePhotoStatus cu praguri adaptate', () => {
   const BUNA_PENTRU_LOTUL_ASTA = 61;
 
   it('propune pozele bune ale lotului, pe care pragul fix le-ar fi trimis toate la revizuire', () => {
-    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1 }))).toBe('review');
-    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 1 }), adaptate)).toBe('selected');
+    // Fără oameni (cu oameni, o poză reușită se păstrează oricum — vezi testul de mai jos).
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 0, sceneTags: ['dog'] }))).toBe('review');
+    expect(decidePhotoStatus(BUNA_PENTRU_LOTUL_ASTA, baseAnalysis({ faceCount: 0, sceneTags: ['dog'] }), adaptate)).toBe('selected');
   });
 
   it('nu coboara pragul sub podeaua absoluta, oricat de slab ar fi lotul', () => {
@@ -260,7 +261,13 @@ describe('decidePhotoStatus cu praguri adaptate', () => {
     const t = deriveThresholds(totSlab);
     expect(t.select).toBe(55);
     // cea mai buna poza din lot (50) tot nu se auto-selecteaza — ramane la revizuire
-    expect(decidePhotoStatus(50, baseAnalysis({ faceCount: 1 }), t)).toBe('review');
+    expect(decidePhotoStatus(50, baseAnalysis({ faceCount: 0, sceneTags: ['dog'] }), t)).toBe('review');
+  });
+
+  it('păstrează o poză reușită cu oameni chiar sub pragul de păstrare (copia ta nu aruncă poze bune cu copilul)', () => {
+    expect(decidePhotoStatus(SELECT_THRESHOLD - 10, baseAnalysis({ faceCount: 1 }))).toBe('selected');
+    // dar nu una cu ochii închiși
+    expect(decidePhotoStatus(SELECT_THRESHOLD - 10, baseAnalysis({ faceCount: 1, allEyesOpen: false }))).toBe('review');
   });
 
   it('se comporta exact ca inainte cand nu i se dau praguri', () => {

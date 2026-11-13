@@ -18,11 +18,11 @@ describe('pachetele cititorului de galerie', () => {
 });
 
 describe('ritmul citirii', () => {
-  it('viteză maximă doar la încărcat și cu ecranul nefolosit', () => {
+  it('viteză maximă cu ecranul nefolosit, și fără încărcător', () => {
     expect(readerPace({ charging: true, visible: false, active: false })).toBe('full');
     expect(readerPace({ charging: true, visible: true, active: false })).toBe('full');
     expect(readerPace({ charging: true, visible: true, active: true })).toBe('gentle');
-    expect(readerPace({ charging: false, visible: false, active: false })).toBe('gentle');
+    expect(readerPace({ charging: false, visible: false, active: false })).toBe('full');
   });
 });
 

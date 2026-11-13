@@ -172,7 +172,10 @@ export function oldPhoneMode(memoryGb: number, missing: number): boolean {
 }
 
 export function readerPace(s: { charging: boolean; visible: boolean; active: boolean }): 'full' | 'gentle' {
-  return s.charging && (!s.visible || !s.active) ? 'full' : 'gentle';
+  // Nefolosit 20 s (sau ecranul stins): viteză maximă, și fără încărcător. Înainte cerea
+  // încărcătorul, iar cu aplicația pe ecran citea ~13 poze pe minut (raportat: „foarte lentă,
+  // aici utilizatorii erau pa”). O atingere o oprește oricum pe loc (AnalysisPool).
+  return !s.visible || !s.active ? 'full' : 'gentle';
 }
 async function isCharging(): Promise<boolean> {
   try {
@@ -234,10 +237,14 @@ export async function readWholeGallery(byUser = false): Promise<void> {
 
     const beforeIds = new Set(useStore.getState().photos.map(p => p.id));
     const locale = useStore.getState().locale;
-    const bgText = (d: number) => t(locale, 'lx.reader.title', { done: d, total: missing.length });
+    // Progresul se arată din toată galeria, nu din runda de acum: după o repornire, contorul o lua
+    // de la „1%” deși pozele citite rămăseseră (raportat). La prima privire, din cele 150.
+    const base = sampling ? 0 : Math.max(0, list.photos.length - allMissing.length);
+    const all = base + missing.length;
+    const bgText = (d: number) => t(locale, 'lx.reader.title', { done: base + d, total: all });
     // Câteva poze (ex. una salvată din editor) se citesc fără notificare: raportat
     // „a apărut 0 din o poză citite, deși nu era nimic”.
-    if (missing.length >= 5) { await holdBackgroundAnalysis(missing.length, bgText(0)); holding = true; }
+    if (missing.length >= 5) { await holdBackgroundAnalysis(all, bgText(0)); holding = true; }
     let done = 0;
     let lastNotified = 0;
     let recentAnnounced = false;
@@ -246,7 +253,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
     const slowPhone = hasBattery && !ignoreBattery && oldPhoneMode(MEMORY_GB, missing.length);
     const yearAgo = Date.now() - 365 * 86_400_000;
     let yearAnnounced = false;
-    lx.setReader({ done, total: missing.length });
+    lx.setReader({ done: base + done, total: all });
     for (let i = 0; i < missing.length; i += chunkSizeAt(i)) {
       const size = chunkSizeAt(i);
       // Așteaptă: alt import, aplicația în spate, bateria slabă.
@@ -254,7 +261,9 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       // Nu mai așteaptă cât aplicația e în spate: serviciul din fundal (cu notificarea
       // lui) ține analiza pornită, cât îi permite telefonul — vezi Setări → Lucru în fundal.
       // Editorul deschis: pachetul următor așteaptă, ca tragerea de reglaje să rămână fluidă.
-      while (!stopRequested && analysisPool.uiHeld()) await sleep(700);
+      // Editorul deschis ține citirea doar cât aplicația e pe ecran: plecat din aplicație cu o poză
+      // deschisă, citirea stătea pe loc la nesfârșit (raportat: „în fundal tot nu a mers”).
+      while (!stopRequested && analysisPool.uiHeld() && document.visibilityState === 'visible') await sleep(700);
       // Cu aplicația pe ecran, un pachet întreg (citirea fișierelor, salvarea, seriile) pornește
       // abia după 8 s fără atingeri, nu doar analiza din el (video 12 nov.: derularea greoaie și
       // poza care abia se deschidea, cât citea galeria). Cu ecranul stins merge ca până acum.
@@ -262,7 +271,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       while (!stopRequested && (importBusy() || await lowBattery())) {
         // Alt import (ales de om) are întâietate; cititorul spune că așteaptă, nu pare blocat.
         const paused = importBusy() ? 'import' as const : await lowBattery() ? 'battery' as const : undefined;
-        useLx.getState().setReader({ done, total: missing.length, ...(paused ? { paused } : {}) });
+        useLx.getState().setReader({ done: base + done, total: all, ...(paused ? { paused } : {}) });
         await sleep(4000);
       }
       if (stopRequested) break;
@@ -272,7 +281,7 @@ export async function readWholeGallery(byUser = false): Promise<void> {
           useStore.getState().setNotice(t(useStore.getState().locale, 'lx.reader.yearDone', { left: missing.length - i }));
         }
         while (!stopRequested && !(await isCharging())) {
-          useLx.getState().setReader({ done, total: missing.length, paused: 'charging' });
+          useLx.getState().setReader({ done: base + done, total: all, paused: 'charging' });
           await sleep(15_000);
         }
         if (stopRequested) break;
@@ -283,20 +292,20 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       analysisPool.setGentle(!fast);
       analysisPool.setBackground(!focus);
       analysisPool.setFocus(focus);
-      useLx.getState().setReader({ done, total: missing.length, fast });
+      useLx.getState().setReader({ done: base + done, total: all, fast });
       const files = await jankSpan('citire-fisiere', () => readPhotoFiles(missing.slice(i, i + size)));
       if (files.length) {
         const notice = useStore.getState().notice;
         // Bara urcă poză cu poză, nu din 24 în 24: altfel pare blocată.
-        const base = i;
+        const chunkStart = i;
         const unsub = useStore.subscribe(s => {
           const p = s.progress;
           if (p && p.total > 0 && p.phase !== 'finalizat') {
-            const d = Math.min(missing.length, base + Math.round((p.done / p.total) * files.length));
-            useLx.getState().setReader({ done: d, total: missing.length });
+            const d = Math.min(missing.length, chunkStart + Math.round((p.done / p.total) * files.length));
+            useLx.getState().setReader({ done: base + d, total: all });
             // Notificarea urmează cifra din aplicație (raportat: 985 în aplicație, 936 în notificare),
             // cel mult o dată la 2 s, ca să nu încarce telefonul.
-            if (holding && Date.now() - lastNotified >= 2000) { lastNotified = Date.now(); void updateHeldBackground(d, missing.length, bgText(d)); }
+            if (holding && Date.now() - lastNotified >= 2000) { lastNotified = Date.now(); void updateHeldBackground(base + d, all, bgText(d)); }
           }
         });
         // Momentele (cele mai bune 1–3 din fiecare) trec prin toată biblioteca:
@@ -322,8 +331,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         recentAnnounced = true;
         useStore.getState().setNotice(t(useStore.getState().locale, 'lx.reader.recentDone', { left: missing.length - done }));
       }
-      useLx.getState().setReader({ done, total: missing.length });
-      if (holding) void updateHeldBackground(done, missing.length, bgText(done));
+      useLx.getState().setReader({ done: base + done, total: all });
+      if (holding) void updateHeldBackground(base + done, all, bgText(done));
       // Primele ~40 de poze sunt gata: pauză, ca omul să-l antreneze pe ele înainte de
       // restul galeriei. Continuă singur după test (sau când omul alege să continue fără).
       // Doar când antrenamentul chiar are din ce face perechi: dacă primele poze sunt capturi
@@ -333,11 +342,11 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         skipTraining = false;
         analysisPool.setGentle(false);
         while (!stopRequested && !skipTraining && !readTasteQuizDone() && !(await trainedEnough())) {
-          useLx.getState().setReader({ done, total: missing.length, paused: 'training' });
+          useLx.getState().setReader({ done: base + done, total: all, paused: 'training' });
           await sleep(1200);
         }
         analysisPool.setGentle(true);
-        useLx.getState().setReader({ done, total: missing.length });
+        useLx.getState().setReader({ done: base + done, total: all });
       }
       // Cu ecranul la vedere, telefonul respiră între pachete (aplicația rămâne fluidă);
       // în spate nu are pentru cine.

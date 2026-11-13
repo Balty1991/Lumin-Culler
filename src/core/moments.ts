@@ -22,6 +22,8 @@ export interface MomentPhoto {
   aside?: string;
   /** true = decizia e a omului (vezi core/aiDecision.ts:lockedFromAutoDecision). */
   locked: boolean;
+  /** false = ora vine din fișier (descărcare, copiere), nu de la aparat: nu formează momente. */
+  capturedAtExact?: boolean;
   /** Are în ea pe cineva la care ții (core/personTaste.ts) sau, în modul părinte, o față. */
   priority?: boolean;
   /** Claritatea, 0..100 — pentru modul vânzător, unde contează mai mult decât restul. */
@@ -55,7 +57,10 @@ export function keepPerMoment(size: number, strictness: CullingStrictness): numb
 }
 
 export function splitMoments<P extends MomentPhoto>(photos: readonly P[]): P[][] {
-  const timed = photos.filter(p => p.capturedAt !== undefined && !p.aside).sort((a, b) => a.capturedAt! - b.capturedAt!);
+  // Doar pozele cu ora reală a fotografierii (EXIF): una descărcată sau primită pe WhatsApp are
+  // ora copierii pe telefon, iar 47 de poze diferite (plajă, zăpadă, aniversare) deveneau un
+  // singur „moment” din care rămâneau 7 (raportat: 40 de poze bune cu copilul respinse).
+  const timed = photos.filter(p => p.capturedAt !== undefined && !p.aside && p.capturedAtExact !== false).sort((a, b) => a.capturedAt! - b.capturedAt!);
   const moments: P[][] = [];
   for (const p of timed) {
     const current = moments[moments.length - 1];
@@ -85,6 +90,11 @@ export function momentChanges(photos: readonly MomentPhoto[], strictness: Cullin
         b.aiScore - a.aiScore);
     for (const p of ranked) {
       if (p.status === 'selected' && free > 0) { free--; continue; }
+      // Pozele cu oameni nu se aruncă după oră: le hotărăște omul (aproape identicele le prinde
+      // regula seriilor). Copia ta AI nu aruncă singură poze bune cu copilul tău.
+      // Excepția: un cadru cu ochii închiși, când momentul are deja unul păstrat cu toți treji.
+      const betterKept = moment.some(q => q !== p && q.status === 'selected' && eyesOk(q) === 1 && (q.faceCount ?? 0) > 0) || ranked.some(q => q !== p && eyesOk(q) === 1 && ranked.indexOf(q) < ranked.indexOf(p));
+      if ((p.faceCount ?? 0) > 0 && !(eyesOk(p) === 0 && betterKept)) continue;
       // Locurile momentului sunt ocupate: restul nu mai merită păstrat sau întrebat.
       if (free === 0) out.set(p.id, 'rejected');
     }

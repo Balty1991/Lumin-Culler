@@ -4403,7 +4403,7 @@ export const useStore = create<AppState>((set, get) => ({
       const view = byId.get(r.id);
       const loved = (view?.personNames ?? []).some(n => favorites.has(n));
       return {
-        id: r.id, capturedAt: view?.capturedAt, status: r.status, aiScore: view?.aiScore ?? 0,
+        id: r.id, capturedAt: view?.capturedAt, capturedAtExact: r.capturedAtExact, status: r.status, aiScore: view?.aiScore ?? 0,
         aside: view?.aside, groupId: view?.groupId, locked: lockedFromAutoDecision(r),
         sharpness: view?.sharpness,
         faceCount: view?.faceCount,
@@ -4412,6 +4412,26 @@ export const useStore = create<AppState>((set, get) => ({
         priority: loved || (mode === 'parent' && (view?.faceCount ?? 0) > 0)
       };
     });
+    // O singură dată: pozele cu oameni respinse de AI înainte de regula de mai sus (după oră,
+    // nu după cum arată) se întorc la „de văzut” — omul hotărăște, nu momentul.
+    const restored: string[] = [];
+    try {
+      if (localStorage.getItem('cp.mig.momentFaces') !== '1') {
+        const grouped = new Set(input.filter(p => p.groupId).map(p => p.id));
+        for (const r of records) {
+          const v = byId.get(r.id);
+          if (r.status === 'rejected' && r.aiDecided === true && !lockedFromAutoDecision(r) && (v?.faceCount ?? 0) > 0 && !grouped.has(r.id) && !v?.aside) restored.push(r.id);
+        }
+        localStorage.setItem('cp.mig.momentFaces', '1');
+      }
+    } catch { /* fără stocare */ }
+    if (restored.length) {
+      const ids = new Set(restored);
+      await db.photos.where('id').anyOf(restored).modify({ status: 'review' });
+      set(state => ({ photos: state.photos.map(p => (ids.has(p.id) ? { ...p, status: 'review' as const } : p)) }));
+      for (const r of records) if (ids.has(r.id)) r.status = 'review';
+      for (const p of input) if (ids.has(p.id)) p.status = 'review';
+    }
     const changes = momentChanges(input, get().cullingStrictness, {
       priorityBonus: 1,
       ...(mode === 'seller' || mode === 'creator' ? { maxPerMoment: 1 } : {}),
