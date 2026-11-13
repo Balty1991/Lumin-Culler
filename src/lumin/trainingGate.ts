@@ -55,6 +55,32 @@ export function trainingSample(photos: readonly PhotoView[], n = 20): string[] {
   return out.map(p => p.id);
 }
 
+/**
+ * Antrenamentul cu poze tipice (TypiClust pe amprenta CLIP): câte una din fiecare „fel” de
+ * poză din galerie, ca 20 de alegeri să acopere toată galeria. Fără destule amprente,
+ * alegerea veche (pe scor și zile).
+ */
+export async function typicalTrainingSample(photos: readonly PhotoView[], n = 20): Promise<string[]> {
+  const pool = photos.filter(p => !p.aside && (p.status === 'review' || p.status === 'pending' || p.status === 'candidate' || p.status === 'rejected'));
+  if (pool.length <= n) return pool.map(p => p.id);
+  try {
+    // Cel mult 1500 de poze în calcul (pe telefon rămâne sub o secundă).
+    const step = Math.max(1, Math.ceil(pool.length / 1500));
+    const probe = pool.filter((_, i) => i % step === 0);
+    const { db } = await import('../core/db');
+    const rows = await db.analyses.bulkGet(probe.map(p => p.id));
+    const have = probe.map((p, i) => ({ p, e: rows[i]?.clipEmbedding })).filter((x): x is { p: PhotoView; e: number[] } => !!x.e && x.e.length > 0);
+    if (have.length < n * 3) return trainingSample(photos, n);
+    const { typicalPicks } = await import('../core/learning/typiclust');
+    const picks = typicalPicks(have.map(x => x.e), n, have.length);
+    const out = picks.map(i => have[i].p.id);
+    for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+    return out;
+  } catch {
+    return trainingSample(photos, n);
+  }
+}
+
 /** La prag: o singură dată, AI-ul reia deciziile pe toată biblioteca. */
 export async function redecideIfJustTrained(): Promise<boolean> {
   try { if (localStorage.getItem(REDECIDED_KEY) === '1') return false; } catch { return false; }

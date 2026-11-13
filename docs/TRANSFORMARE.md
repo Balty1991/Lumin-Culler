@@ -32,11 +32,11 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ dec
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 3.1 | Perechi din alegerile în serii (Bradley–Terry) | ⏳ |
-| 3.2 | Validare pe evenimente lăsate deoparte + calibrare Platt | ⏳ |
-| 3.3 | Prior global + capul personal | ⏳ |
-| 3.4 | Pornire cu poze reprezentative, apoi dueluri | ⏳ |
-| 3.5 | Model candidat rulat în umbră, promovat doar dacă se potrivește mai bine cu omul | ⏳ |
+| 3.1 | Perechi „asta, nu aia” (Bradley–Terry), învățate cu aceleași greutăți ca pozele păstrate/scoase | ✅ test |
+| 3.2 | Validare pe zile lăsate deoparte (testul dovedește că nu mai e păcălită de poze aproape identice) + calibrare Platt | ✅ test |
+| 3.3 | Prior: cu puține exemple, părerea e trasă spre scorul general (la 30 de exemple jumătate-jumătate) | ✅ test |
+| 3.4 | Antrenament cu poze tipice (TypiClust pe CLIP), apoi compararea din alegeri | ✅ test |
+| 3.5 | Modelul nou în umbră: îl înlocuiește pe cel vechi doar dacă ghicește zilele nevăzute cel puțin la fel de bine (v1, testat fără grupuri, e înlocuit) | ✅ test |
 
 ## Etapa 4 — Oameni, momente, revenire
 
@@ -64,6 +64,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ dec
 
 ## Registru
 
+- **13 nov.** Etapa 3 gata: motorul de preferințe v2. Efect așteptat: procentul „ghicesc X%” poate scădea puțin, pentru că acum e măsurat cinstit, pe zile nevăzute.
 - **13 nov.** Build #835 (etapa 1) verde. Etapa 2: alegerile primesc glisarea în sus și compararea.
 - **13 nov.** Etapa 1 gata. Scorul nou prinde mai bine pozele stricate. Pentru „cea mai frumoasă” dintre pozele bune judecă altfel decât LAION, iar descrieri suplimentare (frumusețe, lumină, moment) nu au schimbat asta. De aceea ordinea de frumusețe folosește și gustul învățat al omului.
 - **13 nov.** Pornit etapa 1. Comparația scorului vechi cu cel nou rulează în CI pe ~90 de poze COCO plus variante estompate și întunecate.

@@ -3,7 +3,7 @@ import { useStore } from '../state/store';
 import { useLx } from './lxStore';
 import { useTr } from './context';
 import { useLxPhotos } from './useLxPhotos';
-import { MIN_LESSONS, countLessons, redecideIfJustTrained, trainingSample } from './trainingGate';
+import { MIN_LESSONS, countLessons, redecideIfJustTrained, typicalTrainingSample } from './trainingGate';
 
 /**
  * lumin/TrainingCard.tsx
@@ -40,7 +40,7 @@ export function TrainingCard() {
       <b>{tr('lx.train.title', { total: photos.length, need: MIN_LESSONS })}</b>
       <span>{tr('lx.train.sub', { done: lessons, left })}</span>
       <div className="lx-progress small"><i style={{ width: `${Math.round((lessons / MIN_LESSONS) * 100)}%` }} /></div>
-      <button className="lx-btn primary" onClick={() => openSort(trainingSample(photos, Math.min(20, Math.max(10, left))), tr('lx.train.sortTitle'))}>
+      <button className="lx-btn primary" onClick={() => { void typicalTrainingSample(photos, Math.min(20, Math.max(10, left))).then(ids => openSort(ids, tr('lx.train.sortTitle'))); }}>
         {tr('lx.train.go')}
       </button>
     </section>
