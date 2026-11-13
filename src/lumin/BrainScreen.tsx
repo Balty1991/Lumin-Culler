@@ -1,4 +1,5 @@
 import { usePacedPhotos } from './useLxPhotos';
+import { TastePortrait } from './TastePortrait';
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { db } from '../core/db';
@@ -84,6 +85,7 @@ export function BrainScreen({ embedded = false }: { embedded?: boolean }) {
       )}
 
       <TwinHero />
+      <TastePortrait />
 
       <section className="lx-group">
         <h2>{tr('lx.twin.autonomy')}</h2>

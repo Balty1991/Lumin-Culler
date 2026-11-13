@@ -98,6 +98,23 @@ export function zeroShot(e: ArrayLike<number>): { key: string; p: number }[] {
   return t.keys.map((key, k) => ({ key, p: ex[k] / sum })).sort((a, b) => b.p - a.p);
 }
 
+/**
+ * Ce a învățat modelul de gust personal, în cuvinte: direcția învățată (w) comparată cu
+ * descrierile CLIP ale etichetelor. Pozitive = ce păstrează omul, negative = ce scoate.
+ * Cheile cu „-” sunt doar repere și nu se spun.
+ */
+export function tasteConcepts(w: ArrayLike<number>): { key: string; score: number }[] {
+  const t = load();
+  let wn = 0;
+  for (let i = 0; i < DIM; i++) wn += w[i] * w[i];
+  wn = Math.sqrt(wn) || 1;
+  return t.keys.map((key, k) => {
+    let d = 0;
+    for (let i = 0; i < DIM; i++) d += w[i] * t.text[k * DIM + i];
+    return { key, score: d / wn };
+  }).filter(x => !x.key.includes('-')).sort((a, b) => b.score - a.score);
+}
+
 const ANIMALS = new Set(['dog', 'cat', 'bird', 'horse', 'bear', 'cow', 'sheep', 'duck', 'fish', 'elephant']);
 /** Etichetele ML Kit de animale (vezi smartFolders „pets”). */
 const ANIMAL_TAGS = new Set(['cat', 'dog', 'bird', 'horse', 'kitten', 'puppy', 'rabbit', 'hamster', 'parrot', 'cow', 'sheep', 'goat', 'duck', 'chicken', 'fish', 'pet', 'animal']);
