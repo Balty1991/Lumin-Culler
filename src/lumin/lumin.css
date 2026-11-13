@@ -2475,3 +2475,8 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-taste-row { display: flex; flex-direction: column; gap: 6px; }
 .lx-taste-row > span { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; }
 .lx-taste small { color: var(--text-faint); font-size: 12px; }
+
+/* Siguranța AI-ului, sub inelul copiei. */
+.lx-safety { margin: -4px 4px 12px; padding: 10px 12px; border-radius: 14px; background: var(--lx-surface-2, rgba(127,127,127,.08)); }
+.lx-safety.ok { border-left: 3px solid var(--lx-good, #2fa36b); }
+.lx-safety.warn { border-left: 3px solid var(--lx-warn, #d08a1e); }

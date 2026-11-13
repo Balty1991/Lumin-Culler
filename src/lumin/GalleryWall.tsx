@@ -58,10 +58,10 @@ import { selectBlinks, selectBlurry } from '../state/batchOps';
  * Alegerea din vizualizator intră și ea în „Aleg ca tine în X%”: părerea AI-ului e luată înainte
  * (statusul pus de el sau, la cele nehotărâte, scorul față de mijloc). Doar prima decizie a omului.
  */
-function noteTwin(p: { status: string; aiScore: number; aiDecided?: boolean }, keep: boolean): void {
+function noteTwin(p: { status: string; aiScore: number; aiDecided?: boolean; faceCount?: number }, keep: boolean): void {
   if (p.aiDecided === false) return;
   const aiKeep = p.status === 'selected' ? true : p.status === 'rejected' ? false : p.aiScore >= (SELECT_THRESHOLD + REJECT_THRESHOLD) / 2;
-  recordTwinDecision(aiKeep, keep);
+  recordTwinDecision(aiKeep, keep, { firm: p.status === 'selected' || p.status === 'rejected', people: (p.faceCount ?? 0) > 0 });
 }
 
 type Filter = 'all' | 'kept' | 'waiting' | 'notToday' | 'blinks' | 'blurry';

@@ -25,6 +25,7 @@ import { EnhanceSheet } from './Enhance';
 import { CollageCreator } from './CollageCreator';
 import { BrainScreen } from './BrainScreen';
 import type { PhotoView } from '../state/store';
+import { beautyScore } from './beauty';
 
 /**
  * lumin/Studio.tsx
@@ -223,7 +224,7 @@ export function StudioTab() {
   // Poza din vitrină: una dintre cele mai reușite, alta în fiecare zi — editorul se deschide pe ea.
   const all = useLxPhotos();
   const star = useMemo(() => {
-    const top = all.filter(p => !p.aside && p.status !== 'rejected').sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 12);
+    const top = all.filter(p => !p.aside && p.status !== 'rejected').sort((a, b) => beautyScore(b) - beautyScore(a)).slice(0, 12);
     return top.length ? top[Math.floor(Date.now() / 86_400_000) % top.length] : null;
   }, [all]);
   const openEditor = () => {

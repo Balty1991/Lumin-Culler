@@ -6,6 +6,7 @@ import { blobToBase64, cover, loadImage } from './collage';
 import { photoTime } from './days';
 import { bestSpread } from './momentAlbums';
 import { makePdf, type PdfPage } from './pdf';
+import { beautyScore } from './beauty';
 
 /**
  * lumin/yearBook.ts
@@ -187,7 +188,7 @@ export async function makeJournal(
   onProgress?: (done: number, total: number) => void
 ): Promise<Blob | null> {
   const byMonth = new Map<number, PhotoView>();
-  const score = (x: PhotoView) => (x.status === 'selected' ? 3 : 0) + (x.aesthetic ?? x.aiScore / 12);
+  const score = (x: PhotoView) => (x.status === 'selected' ? 3 : 0) + beautyScore(x);
   for (const p of photos) {
     if (p.aside) continue;
     const d = new Date(photoTime(p));

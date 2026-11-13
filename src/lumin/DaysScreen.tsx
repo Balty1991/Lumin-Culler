@@ -37,6 +37,7 @@ import { decideRestIfAllowed } from './autoSort';
 import { readWholeGallery } from './galleryReader';
 import type { PhotoView } from '../state/store';
 import { intlTag, plural } from '../i18n';
+import { beautyScore } from './beauty';
 
 const MAIN_VIEWS: GalleryView[] = ['wall', 'moments', 'people', 'days'];
 const MORE_VIEWS: GalleryView[] = ['aside', 'months', 'map'];
@@ -726,7 +727,7 @@ function SharePersonButton({ name, list }: { name: string; list: PhotoView[] }) 
   const tr = useTr();
   const [busy, setBusy] = useState(false);
   const best = useMemo(() => list.filter(p => p.status === 'selected' && !p.aside)
-    .sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 6), [list]);
+    .sort((a, b) => beautyScore(b) - beautyScore(a)).slice(0, 6), [list]);
   if (best.length < 3) return null;
   return (
     <button className="lx-btn ghost wide" disabled={busy} onClick={() => {

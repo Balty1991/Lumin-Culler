@@ -43,3 +43,27 @@ Nu există un checkpoint public de MobileFaceNet pe care să-l băgăm în Play 
 O poză care nu face parte dintr-o rafală nu trece prin modele în treapta 1. Nu i se scriu `highlightClipping`, `shadowClipping`, `horizonTiltDeg`, `ruleOfThirds` și `faceCount` înainte de primul rezultat. Coada „se poate salva” nu o propune. Seriile trec prin analiza completă.
 
 Pe APK-ul de test, după ce rezultatul e deja pe ecran, un pas de fundal (concurență 1, numărat la treapta 2) pune embeddingul feței. Animalul (etichetă ML Kit, decupaj, MobileNet) rulează în același pas și pe release, fiindcă modelul e deja în APK și are licență Apache 2.0. `faceres` nu.
+
+## Motoarele descărcabile (Setări → Motoare AI)
+
+Nu sunt în APK. Se descarcă la cerere, de pe pagina publică a modelului. Licențele sunt cele declarate pe fișa modelului. „De confirmat” înseamnă că fișa nu spune clar pe ce date a fost antrenat modelul, sau că licența datelor diferă de cea a fișierului.
+
+| Motor | Model | Licență declarată | Stare |
+| --- | --- | --- | --- |
+| clip | OpenAI CLIP ViT-B/32 (export Xenova) | MIT | ok |
+| search | clip-ViT-B-32-multilingual-v1 (sentence-transformers) | Apache 2.0 | ok |
+| describe | Florence-2-base-ft (Microsoft, export onnx-community) | MIT | ok |
+| joy | FER+ (`emotion-ferplus-8`, ONNX Model Zoo) | MIT pentru model și etichetele FER+; imaginile FER2013 de sub ele nu au o licență clară | ⚠️ de confirmat. Doar semnal de bucurie, opțional; se poate opri fără să strice trierea |
+| select | SlimSAM-77 | Apache 2.0 | ok |
+| portrait | MODNet | de confirmat pe depozitul original | ⚠️ |
+| portrait | Depth Anything V2 Small | Apache 2.0 (doar varianta Small) | ok |
+| eraser | MI-GAN | MIT | ok |
+| eraserHd | LaMa | Apache 2.0 | ok |
+| clarity | Real-ESRGAN general x4v3 | BSD-3-Clause | ok |
+| cutout | U²-Net-p | Apache 2.0 | ok |
+| film | RIFE 4.9 | MIT | ok |
+| translate_* | OPUS-MT (Helsinki-NLP) | CC BY 4.0: cere menționarea autorilor | ok, cu mențiune în „Despre” |
+
+## Scorul estetic
+
+Capul liniar LAION (`sa_0_4_vit_b_32_linear`) a ieșit pe 13 nov. 2026. Codul lui are licență deschisă, dar datele pe care a fost antrenat nu au o licență clară pentru folosire comercială. Scorul estetic se calculează acum doar din CLIP (MIT), din perechi de descrieri scrise de noi (CLIP-IQA: clar/mișcat, bine expus/întunecat, reușit/nereușit, intenționat/accidental). Pozele deja citite primesc scorul nou din amprenta salvată, o singură dată.

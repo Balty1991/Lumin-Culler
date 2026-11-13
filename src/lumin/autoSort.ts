@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import { autopilotKeeps } from '../state/batchOps';
 import { useStore } from '../state/store';
 import { groupDays, photoTime } from './days';
-import { readAutonomy } from './twin';
+import { readSafety, readAutonomy } from './twin';
 
 /**
  * lumin/autoSort.ts
@@ -36,6 +36,9 @@ export function autoSortEnabled(): boolean {
 export async function decideRestIfAllowed(scope: 'today' | 'library' = 'today'): Promise<number> {
   const store = useStore.getState();
   if (readAutonomy() !== 'all' || store.premiumLocked) return 0;
+  // Frâna de siguranță: „decide tot” doar cât AI-ul s-a dovedit sigur pe alegerile omului.
+  const safety = readSafety();
+  if (safety.rejectPrecision !== null && !safety.safe) return 0;
   const pool = scope === 'library'
     ? store.photos.filter(p => !p.aside && p.status === 'review')
     : (groupDays(store.photos).find(d => d.start === startOfDay())?.waiting.filter(p => p.status === 'review') ?? []);

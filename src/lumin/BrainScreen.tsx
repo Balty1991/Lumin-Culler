@@ -11,7 +11,7 @@ import { favoritePeople } from '../core/personTaste';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { useTr } from './context';
 import { CloudSection } from './CloudParts';
-import { AutonomyPicker, FreedCard, TwinHero } from './TwinParts';
+import { AutonomyPicker, FreedCard, SafetyLine, TwinHero } from './TwinParts';
 import { Housekeeping } from './Housekeeping';
 import { VideoCleanup } from './VideoCleanup';
 import { baseLocale, plural } from '../i18n';
@@ -85,6 +85,7 @@ export function BrainScreen({ embedded = false }: { embedded?: boolean }) {
       )}
 
       <TwinHero />
+      <SafetyLine />
       <TastePortrait />
 
       <section className="lx-group">

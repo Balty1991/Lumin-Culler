@@ -85,6 +85,14 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
         await st.rescorePhotos().catch(() => undefined);
         await useStore.getState().applyMoments().catch(() => undefined);
       }
+      // O dată: scorul estetic fără capul LAION, refăcut din amprenta CLIP salvată, apoi rescorare.
+      const am = await import('./aestheticMigrate');
+      let aesthAgain = false;
+      try { aesthAgain = localStorage.getItem(am.AESTHETIC_MIG_KEY) !== '1'; } catch { /* fără stocare */ }
+      if (aesthAgain && useStore.getState().photos.length > 0 && !useStore.getState().progress && !useLx.getState().reader) {
+        try { localStorage.setItem(am.AESTHETIC_MIG_KEY, '1'); } catch { /* fără stocare */ }
+        if (await am.migrateAesthetic().catch(() => 0) > 0) await useStore.getState().rescorePhotos().catch(() => undefined);
+      }
       await m.holdUntilLearned(); await m.protectNamedPeople(); await m.keepBestOfDays();
       // Gustul învățat din alegerile omului (model pe amprenta CLIP), la pornire.
       await (await import('./tasteApply')).trainAndApplyTaste();

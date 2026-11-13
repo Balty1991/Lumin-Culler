@@ -7,6 +7,7 @@
 import type { PhotoView } from '../state/store';
 import { startOfDay } from '../core/todayDigest';
 import { photoTime } from './days';
+import { beautyScore } from './beauty';
 
 const SEEN_KEY = 'cherrypic.morning.seen';
 export const MORNING_MIN_PHOTOS = 5;
@@ -19,7 +20,7 @@ export function buildMorningReport(photos: readonly PhotoView[], now = Date.now(
   const day = startOfDay(y.getTime());
   const list = photos.filter(p => !p.aside && startOfDay(photoTime(p)) === day);
   if (list.length < MORNING_MIN_PHOTOS) return null;
-  const score = (p: PhotoView) => p.aesthetic ?? p.aiScore / 12;
+  const score = (p: PhotoView) => beautyScore(p);
   return {
     day, total: list.length,
     kept: list.filter(p => p.status === 'selected').sort((a, b) => score(b) - score(a)),

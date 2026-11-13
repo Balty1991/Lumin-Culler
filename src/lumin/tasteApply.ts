@@ -33,8 +33,16 @@ export async function trainAndApplyTaste(): Promise<TasteRun | null> {
     const model = fresh ?? readTasteModel();
     if (!usableTaste(model)) return { trained: !!fresh, accuracy: (model as { accuracy?: number } | null)?.accuracy ?? 0, n: samples.length, kept: 0, dropped: 0 };
 
+    // Gustul fiecărei poze (și a celor hotărâte), ținut în memorie: „cele mai frumoase” din
+    // amintiri, colaje și raportul de dimineață le alege după gustul omului, nu doar după CLIP.
+    const all = st.photos;
+    const allA = await db.analyses.bulkGet(all.map(p => p.id));
+    const tasteById = new Map<string, number>();
+    all.forEach((p, i) => { const e = allA[i]?.clipEmbedding; if (e?.length) tasteById.set(p.id, Math.round(predictTaste(model, e) * 1000) / 1000); });
+    if (tasteById.size) useStore.setState(s => ({ photos: s.photos.map(p => (tasteById.has(p.id) ? { ...p, tasteP: tasteById.get(p.id) } : p)) }));
+
     const open = st.photos.filter(p => p.aiDecided !== false && !p.aside);
-    const openA = await db.analyses.bulkGet(open.map(p => p.id));
+    const openA = open.map(p => allA[all.indexOf(p)]);
     const keep: string[] = [], toReview: string[] = [], drop: string[] = [];
     open.forEach((p, i) => {
       const e = openA[i]?.clipEmbedding;

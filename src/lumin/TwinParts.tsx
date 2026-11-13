@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../state/store';
 import { useTr } from './context';
 import { Orb } from './Orb';
-import { formatBytes, freedSummary, readAutonomy, readTwin, writeAutonomy, type Autonomy } from './twin';
+import { formatBytes, freedSummary, readAutonomy, readSafety, readTwin, writeAutonomy, type Autonomy } from './twin';
 import { renderFreedCard, shareCard } from './shareCards';
 
 /**
@@ -28,6 +28,20 @@ export function TwinHero({ compact = false }: { compact?: boolean }) {
         {twin.trend !== null && twin.trend > 0 && <span className="lx-twin-trend">▲ {tr('lx.twin.trend', { points: twin.trend })}</span>}
       </div>
     </section>
+  );
+}
+
+/** Siguranța, în cuvinte: cât de des ai fost de acord cu ce a scos AI-ul și câți dragi ai salvat. */
+export function SafetyLine() {
+  const tr = useTr();
+  const s = readSafety();
+  if (s.rejectPrecision === null) return <p className="lx-hint lx-safety">{tr('lx.safety.learning', { count: s.rejects, need: 15 })}</p>;
+  return (
+    <p className={s.safe ? 'lx-hint lx-safety ok' : 'lx-hint lx-safety warn'}>
+      {tr('lx.safety.precision', { percent: Math.round(s.rejectPrecision * 100), count: s.rejects })}
+      {' '}{s.peopleRescued > 0 ? tr('lx.safety.rescued', { count: s.peopleRescued }) : tr('lx.safety.noneLost')}
+      {!s.safe && <> {tr('lx.safety.brake')}</>}
+    </p>
   );
 }
 

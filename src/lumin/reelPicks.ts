@@ -6,6 +6,7 @@
  */
 import type { PhotoView } from '../state/store';
 import { photoTime } from './days';
+import { beautyScore } from './beauty';
 
 const DAY = 86_400_000;
 
@@ -20,7 +21,7 @@ export function reelPicks(photos: readonly PhotoView[], max = 12, now = Date.now
 
 /** Cele mai bune `max` dintr-o listă (una din fiecare serie), în ordinea timpului. */
 export function bestForReel(pool: readonly PhotoView[], max = 12): string[] {
-  const score = (p: PhotoView) => (p.status === 'selected' ? 1 : 0) + (p.aesthetic ?? p.aiScore / 12) + (p.faceCount > 0 ? 0.6 : 0) + (p.bestSmile ?? 0);
+  const score = (p: PhotoView) => (p.status === 'selected' ? 1 : 0) + beautyScore(p) + (p.faceCount > 0 ? 0.6 : 0) + (p.bestSmile ?? 0);
   // Din serii, o singură poză: altfel Reel-ul arată de trei ori același cadru.
   const seenGroup = new Set<string>();
   const best = [...pool].filter(p => p.status !== 'rejected' && !p.aside).sort((a, b) => score(b) - score(a)).filter(p => {

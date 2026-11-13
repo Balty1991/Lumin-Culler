@@ -19,7 +19,16 @@ const MAX_LOG = 400;
 /** Sub atâtea decizii, procentul ar fi zgomot. */
 export const MIN_DECISIONS = 12;
 
-export interface TwinEntry { t: number; same: boolean }
+export interface TwinEntry {
+  t: number;
+  same: boolean;
+  /** AI-ul avea o decizie fermă (păstrat / scos), nu doar o înclinație. */
+  firm?: boolean;
+  aiKeep?: boolean;
+  userKeep?: boolean;
+  /** Poza avea oameni. */
+  people?: boolean;
+}
 
 function readLog(): TwinEntry[] {
   try {
@@ -29,8 +38,8 @@ function readLog(): TwinEntry[] {
 }
 
 /** Notează o decizie: `aiKeep` = ce credea AI-ul înainte, `userKeep` = ce ai ales tu. */
-export function recordTwinDecision(aiKeep: boolean, userKeep: boolean, now = Date.now()): void {
-  const log = [...readLog(), { t: now, same: aiKeep === userKeep }].slice(-MAX_LOG);
+export function recordTwinDecision(aiKeep: boolean, userKeep: boolean, extra: { firm?: boolean; people?: boolean } = {}, now = Date.now()): void {
+  const log = [...readLog(), { t: now, same: aiKeep === userKeep, aiKeep, userKeep, firm: extra.firm, people: extra.people }].slice(-MAX_LOG);
   try { localStorage.setItem(LOG_KEY, JSON.stringify(log)); } catch { /* fără stocare */ }
 }
 
@@ -55,6 +64,32 @@ export function twinFrom(log: readonly TwinEntry[], pairs = { hits: 0, total: 0 
     : null;
   const level = percent === null ? 'learning' : percent < 60 ? 'little' : percent < 75 ? 'getting' : percent < 88 ? 'close' : 'twin';
   return { percent, trend, decisions: log.length + pairs.total, level };
+}
+
+/**
+ * Siguranța, măsurată pe alegerile omului (etapa 1 a transformării):
+ *  - `rejectPrecision`: din pozele scoase ferm de AI și văzute de om, câte a scos și omul;
+ *  - `peopleRescued`: poze cu oameni scoase de AI pe care omul le-a păstrat (cei dragi
+ *    pe care AI-ul i-ar fi pierdut). Ținta: zero.
+ * Doar intrările noi (cu `firm`) contează; jurnalul vechi nu știa ce era ferm.
+ */
+export interface SafetyState { rejects: number; rejectPrecision: number | null; peopleRejects: number; peopleRescued: number; safe: boolean }
+export const MIN_REJECTS = 15;
+export const SAFE_PRECISION = 0.85;
+
+export function safetyFrom(log: readonly TwinEntry[]): SafetyState {
+  const firmRejects = log.slice(-WINDOW * 2).filter(e => e.firm && e.aiKeep === false);
+  const agreed = firmRejects.filter(e => e.userKeep === false).length;
+  const people = firmRejects.filter(e => e.people);
+  const peopleRescued = people.filter(e => e.userKeep === true).length;
+  const rejectPrecision = firmRejects.length >= MIN_REJECTS ? agreed / firmRejects.length : null;
+  // Sigur = destule dovezi, precizie bună și cel mult o poză cu oameni salvată la 20.
+  const safe = rejectPrecision !== null && rejectPrecision >= SAFE_PRECISION && peopleRescued * 20 <= Math.max(people.length, 1);
+  return { rejects: firmRejects.length, rejectPrecision, peopleRejects: people.length, peopleRescued, safe };
+}
+
+export function readSafety(): SafetyState {
+  return safetyFrom(readLog());
 }
 
 export function readTwin(): TwinState {

@@ -7,11 +7,12 @@
 import type { PhotoView } from '../state/store';
 import { ageAt, type Birthday } from './birthdays';
 import { photoTime } from './days';
+import { beautyScore } from './beauty';
 
 export interface GrowthStep { key: number; label: { years: number } | { year: number }; photo: PhotoView }
 
 function score(p: PhotoView): number {
-  return (p.status === 'selected' ? 1000 : 0) + (p.faceCount === 1 ? 300 : 0) + (p.allEyesOpen ? 50 : 0) + (p.aesthetic ?? p.aiScore / 12) * 10;
+  return (p.status === 'selected' ? 1000 : 0) + (p.faceCount === 1 ? 300 : 0) + (p.allEyesOpen ? 50 : 0) + beautyScore(p) * 10;
 }
 
 export function growthTimeline(list: readonly PhotoView[], birthday?: Birthday): GrowthStep[] {

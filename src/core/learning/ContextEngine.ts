@@ -302,10 +302,9 @@ export const PRIOR_WEIGHTS: FeatureVector = {
   subjectInFocus: 0.6,
   bokehQuality: 0.2,
   colorHarmony: 0.25,
-  // Predictorul estetic LAION peste CLIP (core/clip/clipEngine.ts): antrenat pe
-  // sute de mii de note date de oameni, deci cel mai „uman” semnal de frumusețe
-  // pe care îl avem. Pondere bună, dar sub claritate și ochi deschiși: o poză
-  // frumoasă dar mișcată tot nu e de păstrat.
+  // Scorul estetic din CLIP (core/clip/clipEngine.ts, perechi CLIP-IQA: clar, bine
+  // expus, reușit, intenționat). Pondere bună, dar sub claritate și ochi deschiși:
+  // o poză frumoasă dar mișcată tot nu e de păstrat.
   aesthetic: 0.6,
   // Ca subjectAffinity: pornit mic, își câștigă ponderea dacă chiar prezice.
   clipAffinity: 0.25,
@@ -399,7 +398,7 @@ const PRIOR_FEATURE_STATS: Record<string, { mean: number; std: number }> = {
   lightSoft: { mean: 0.25, std: 0.43 },
   goldenHour: { mean: 0.12, std: 0.33 },
   colorHarmony: { mean: 0.6, std: 0.2 },
-  // (LAION − 4) / 3: pozele de telefon stau în jur de 5,5 → 0,5.
+  // (estetic − 4) / 3: pozele de telefon stau în jur de 5,5 → 0,5.
   aesthetic: { mean: 0.5, std: 0.2 },
   clipAffinity: { mean: 0.5, std: 0.15 },
   clipQuality: { mean: 0.6, std: 0.2 },

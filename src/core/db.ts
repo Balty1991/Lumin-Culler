@@ -538,7 +538,7 @@ export interface AnalysisRecord {
    */
   imageEmbedding?: number[];
   /**
-   * Cât de frumoasă e poza, după predictorul estetic LAION peste CLIP
+   * Cât de frumoasă e poza, din perechile CLIP-IQA
    * (core/clip/clipEngine.ts), scara 1–10. Doar Android, după ce modelul CLIP
    * s-a descărcat; absent = necunoscut (neutru în ContextEngine).
    */

@@ -57,6 +57,7 @@ import { dataMode, enginesWaitWaived, setDataMode, waiveEnginesWait } from './da
 import { isClipPlatform } from '../core/clip/clipEngine';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { TodayStories, useStories } from './TodayStories';
+import { beautyScore } from './beauty';
 
 export function TodayScreen() {
   const tr = useTr();
@@ -579,7 +580,7 @@ function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string;
     if (mem && mem.photos.length) return { photos: mem.photos, title: dayLabel(photoTime(mem.photos[0]), locale), badgeKey: mem.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', years: mem.years };
     const weekAgo = Date.now() - 7 * 86_400_000;
     const kept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= weekAgo);
-    const score = (p: (typeof photos)[number]) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
+    const score = (p: (typeof photos)[number]) => beautyScore(p) + (p.personNames?.length ? 0.6 : 0);
     if (kept.length >= 2) {
       const best = [...kept].sort((a, b) => score(b) - score(a));
       return { photos: best.slice(0, 12), title: dayLabel(photoTime(best[0]), locale), badgeKey: 'lx.hero.weekBest' };

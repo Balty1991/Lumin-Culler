@@ -22,6 +22,7 @@ import { Icon } from './icons';
 import { intlTag } from '../i18n';
 import { readRitualDays } from '../core/ritualStreak';
 import { startOfDay } from '../core/todayDigest';
+import { beautyScore } from './beauty';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -128,7 +129,7 @@ export function SwipeSort() {
     const aiKeep = ai === 'unsure' ? shown.aiScore >= MIDPOINT : ai === 'keep';
     const generic = shown.aiScore - (shown.aiPersonalDelta ?? 0);
     recordDailyGuess({ personal: aiKeep, generic: generic >= MIDPOINT }, keep);
-    recordTwinDecision(aiKeep, keep);
+    recordTwinDecision(aiKeep, keep, { firm: ai !== 'unsure', people: (shown.faceCount ?? 0) > 0 });
     if (peek && peek !== current?.id) { setPeek(null); return; }
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');
@@ -280,7 +281,7 @@ function DayRecap({ ids, seconds }: { ids: readonly string[]; seconds: number | 
   const top = useMemo(() => {
     const set = new Set(ids);
     return photos.filter(p => set.has(p.id) && p.status === 'selected')
-      .sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12)).slice(0, 3);
+      .sort((a, b) => beautyScore(b) - beautyScore(a)).slice(0, 3);
   }, [ids, photos]);
   // Ultimele 7 zile, de la stânga (acum 6 zile) la dreapta (azi).
   const week = useMemo(() => {

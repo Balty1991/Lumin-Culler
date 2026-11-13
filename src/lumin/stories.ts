@@ -9,6 +9,7 @@ import { startOfDay } from '../core/todayDigest';
 import { photoTime } from './days';
 import { onThisDay } from './momentAlbums';
 import { yearSeason, yearStats } from './yearStats';
+import { beautyScore } from './beauty';
 
 export type StoryKind = 'year' | 'today' | 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
 export interface Story {
@@ -29,7 +30,7 @@ export interface Story {
 }
 
 const DAY = 86_400_000;
-const score = (p: PhotoView) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
+const score = (p: PhotoView) => beautyScore(p) + (p.personNames?.length ? 0.6 : 0);
 const byScore = (a: PhotoView, b: PhotoView) => score(b) - score(a);
 /** Coperta unei povești: întâi o poză cu oameni (o captură de ecran nu are ce căuta acolo — raportat). */
 const coverOf = (list: readonly PhotoView[]): PhotoView => {

@@ -8,6 +8,7 @@ import { photoTime } from './days';
 import { useLxPhotos } from './useLxPhotos';
 import { Icon } from './icons';
 import { makeCollage, shareCollage } from './collage';
+import { beautyScore } from './beauty';
 
 /**
  * lumin/FamilyPick.tsx
@@ -31,7 +32,7 @@ export function familyRound(photos: readonly PhotoView[], now = Date.now()): Pho
   const recent = photos.filter(p => !p.aside && p.mediaUri !== undefined && photoTime(p) > now - 60 * 86_400_000);
   const pool = recent.length >= 10 ? recent : photos.filter(p => !p.aside);
   const perHour = new Map<number, PhotoView>();
-  const score = (p: PhotoView) => p.aesthetic ?? p.aiScore / 12;
+  const score = (p: PhotoView) => beautyScore(p);
   for (const p of pool) {
     const k = Math.floor(photoTime(p) / 3_600_000);
     const cur = perHour.get(k);

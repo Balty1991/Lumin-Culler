@@ -6,6 +6,7 @@
  */
 import type { PhotoView } from '../state/store';
 import { photoTime } from './days';
+import { beautyScore } from './beauty';
 
 export interface YearStats { year: number; total: number; kept: number; days: number; topMonth: number | null; topPerson: string | null; best: PhotoView[] }
 
@@ -23,7 +24,7 @@ export function yearStats(photos: readonly PhotoView[], year: number): YearStats
   }
   for (const p of kept) for (const n of p.personNames ?? []) people.set(n, (people.get(n) ?? 0) + 1);
   const top = [...people.entries()].sort((a, b) => b[1] - a[1])[0];
-  const score = (p: PhotoView) => (p.aesthetic ?? p.aiScore / 12) + (p.personNames?.length ? 0.6 : 0);
+  const score = (p: PhotoView) => beautyScore(p) + (p.personNames?.length ? 0.6 : 0);
   // Cele mai bune trei, din luni diferite când se poate: anul, nu o singură zi.
   const sorted = [...(kept.length >= 3 ? kept : list)].sort((a, b) => score(b) - score(a));
   const best: PhotoView[] = [];

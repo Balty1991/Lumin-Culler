@@ -3,8 +3,8 @@
  * CLIP ViT-B/32 pe telefon (ClipPlugin.kt): din cele 512 numere ale unei poze
  * scoatem două lucruri, fără server:
  *
- *  - scorul estetic LAION (aesthetic-predictor, MIT): un strat liniar peste
- *    embedding, pe scara 1–10 (poze de telefon obișnuite: ~4–6,5);
+ *  - un scor estetic pe scara 1–10, din perechile CLIP-IQA de mai jos (doar CLIP,
+ *    licență MIT; capul LAION, cu date de antrenare neclare, a ieșit din aplicație);
  *  - etichete zero-shot: comparăm poza cu descrieri scrise („a photo of a teddy
  *    bear”), ale căror embedding-uri sunt calculate o dată, în CI, și puse în
  *    clipLabels.json. Așa deosebim ursulețul de pluș de câine, apusul de amiază.
@@ -41,7 +41,7 @@ function half(h: number): number {
 }
 
 const DIM = 512;
-let tables: { keys: string[]; text: Float32Array; aw: Float32Array; ab: number; qkeys: string[]; q: Float32Array } | null = null;
+let tables: { keys: string[]; text: Float32Array; qkeys: string[]; q: Float32Array } | null = null;
 function halves(s: string): Float32Array {
   const raw = b64(s);
   const u16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
@@ -51,17 +51,20 @@ function halves(s: string): Float32Array {
 }
 function load() {
   if (tables) return tables;
-  const awb = b64(data.aw);
-  tables = { keys: data.keys, text: halves(data.text), aw: new Float32Array(awb.buffer, awb.byteOffset, DIM), ab: data.ab, qkeys: data.qkeys, q: halves(data.q) };
+  tables = { keys: data.keys, text: halves(data.text), qkeys: data.qkeys, q: halves(data.q) };
   return tables;
 }
 
-/** Scorul estetic LAION (1–10) pentru un embedding normalizat. */
+/**
+ * Scorul estetic (≈3,5–7,5 pe scara 1–10, ca vechiul LAION, ca restul motorului să nu se mute):
+ * cât de clară, bine expusă, reușită și intenționată pare poza, din perechile CLIP-IQA.
+ * Fără strat antrenat pe date terțe: doar CLIP (MIT) și descrieri scrise de noi.
+ */
 export function aestheticOf(e: ArrayLike<number>): number {
-  const t = load();
-  let z = t.ab;
-  for (let i = 0; i < DIM; i++) z += e[i] * t.aw[i];
-  return Math.round(z * 100) / 100;
+  const { parts } = qualityOf(e);
+  const keys = ['sharp', 'exposure', 'quality', 'accident'].filter(k => parts[k] !== undefined);
+  const m = keys.reduce((a, k) => a + parts[k], 0) / Math.max(1, keys.length);
+  return Math.round((3.5 + 4 * m) * 100) / 100;
 }
 
 /**

@@ -9,6 +9,7 @@ import { applyFilters, fixNames, parseQuery, type ParsedQuery } from './assistan
 import type { PhotoView } from '../state/store';
 import { fold, searchPhotos } from './textSearch';
 import { photoTime } from './days';
+import { beautyScore } from './beauty';
 
 export type AssistantReply =
   | { kind: 'results'; query: string; photos: PhotoView[]; best: boolean; filters?: ParsedQuery; /** Găsite doar cu o parte din cuvinte. */ approx?: boolean }
@@ -114,7 +115,7 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
     }
     return { kind: 'none', query: input.trim(), partial, filters: pq };
   }
-  if (best) found = [...found].sort((a, b) => (b.aesthetic ?? b.aiScore / 12) - (a.aesthetic ?? a.aiScore / 12));
+  if (best) found = [...found].sort((a, b) => beautyScore(b) - beautyScore(a));
   else if (pq.newest || (!terms.length && filtered)) found = [...found].sort((a, b) => photoTime(b) - photoTime(a));
   if (pq.limit) found = found.slice(0, pq.limit);
   return { kind: 'results', query: terms.join(' ') || input.trim(), photos: found, best, filters: pq };

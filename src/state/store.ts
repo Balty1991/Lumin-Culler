@@ -160,8 +160,10 @@ export interface PhotoView {
    */
   aiDecided?: boolean;
   aiScore: number;
-  /** Frumusețea pozei după CLIP + LAION (1–10), când a trecut prin CLIP. */
+  /** Frumusețea pozei după CLIP (1–10), când a trecut prin CLIP. */
   aesthetic?: number;
+  /** Cât de probabil păstrează omul poza, după modelul lui de gust (0..1); doar cu model validat. */
+  tasteP?: number;
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
   faceCount: number;

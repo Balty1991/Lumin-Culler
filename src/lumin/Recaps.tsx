@@ -11,6 +11,7 @@ import { Thumb } from './Thumb';
 import { StoryButton } from './Story';
 import { makeCalendar, makeFamilyAlbum, makeYearBook, missingMonths, shareYearBook } from './yearBook';
 import { intlTag } from '../i18n';
+import { beautyScore } from './beauty';
 
 const DAY_MS = 86_400_000;
 
@@ -39,7 +40,7 @@ export function Recaps() {
   const kept = useMemo(() => photos.filter(p => p.status === 'selected' && !p.aside), [photos]);
   const week = useMemo(() => bestPer(kept.filter(p => photoTime(p) >= startOfDay(now) - 6 * DAY_MS), p => startOfDay(photoTime(p)), 7), [kept, now]);
   const year = new Date(now).getFullYear();
-  // „Cele mai frumoase”: ultimele 30 de zile, după frumusețea văzută de AI (CLIP + LAION),
+  // „Cele mai frumoase”: ultimele 30 de zile, după frumusețea văzută de AI (CLIP),
   // cel mult una pe oră (o rafală nu umple colajul cu aceeași scenă).
   const { beauty, beautyMonth } = useMemo(() => {
     const pick = (from: number, to: number) => {
@@ -49,9 +50,9 @@ export function Recaps() {
         if (p.aesthetic === undefined || t < from || t >= to) continue;
         const k = Math.floor(t / 3_600_000);
         const cur = best.get(k);
-        if (!cur || (p.aesthetic ?? 0) > (cur.aesthetic ?? 0)) best.set(k, p);
+        if (!cur || beautyScore(p) > beautyScore(cur)) best.set(k, p);
       }
-      return [...best.values()].sort((a, b) => (b.aesthetic ?? 0) - (a.aesthetic ?? 0)).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
+      return [...best.values()].sort((a, b) => beautyScore(b) - beautyScore(a)).slice(0, 10).sort((a, b) => photoTime(a) - photoTime(b));
     };
     const recent = pick(startOfDay(now) - 30 * DAY_MS, Infinity);
     if (recent.length >= 6) return { beauty: recent, beautyMonth: null as number | null };
@@ -65,7 +66,7 @@ export function Recaps() {
     return { beauty: recent, beautyMonth: null as number | null };
   }, [kept, now]);
   const beautyMonthName = beautyMonth !== null ? new Date(beautyMonth).toLocaleDateString(intlTag(locale), { month: 'long', year: 'numeric' }) : '';
-  // Retrospectiva anului: câte două pe lună, cele mai frumoase (CLIP + LAION), în ordine.
+  // Retrospectiva anului: câte două pe lună, cele mai frumoase (CLIP), în ordine.
   const yearFilm = useMemo(() => {
     const byMonth = new Map<number, PhotoView[]>();
     for (const p of kept) {
@@ -73,7 +74,7 @@ export function Recaps() {
       if (d.getFullYear() !== year) continue;
       byMonth.set(d.getMonth(), [...(byMonth.get(d.getMonth()) ?? []), p]);
     }
-    const sc = (p: PhotoView) => p.aesthetic ?? p.aiScore / 12;
+    const sc = (p: PhotoView) => beautyScore(p);
     return [...byMonth.keys()].sort((a, b) => a - b).flatMap(m => {
       const list = byMonth.get(m)!.sort((a, b) => sc(b) - sc(a));
       const out: PhotoView[] = [];

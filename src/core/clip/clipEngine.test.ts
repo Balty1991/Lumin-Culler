@@ -36,10 +36,11 @@ describe('clipEngine', () => {
   it('nu adaugă repere (-person) ca etichete', () => {
     expect(refineTags([], row('-person'))).not.toContain('-person');
   });
-  it('scorul estetic e pe scara LAION', () => {
+  it('scorul estetic e pe scara 1–10, fără capul LAION', () => {
     const a = aestheticOf(row('landscape'));
-    expect(a).toBeGreaterThan(0);
-    expect(a).toBeLessThan(10);
+    expect(a).toBeGreaterThanOrEqual(3.5);
+    expect(a).toBeLessThanOrEqual(7.5);
+    expect((data as Record<string, unknown>).aw).toBeUndefined();
   });
   it('calitatea e 0..1 pe fiecare pereche', () => {
     const q = qualityOf(row('landscape'));
