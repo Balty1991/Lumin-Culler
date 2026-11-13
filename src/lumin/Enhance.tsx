@@ -1288,6 +1288,10 @@ async function renderEditedUrl(src: string, edits: EditAdjustments): Promise<str
 }
 
 const QUICK = 640;
+/** Cadrele din timpul tragerii, pe worker. */
+const LIVE = 1000;
+/** Cel mai mic cadru rapid pe firul principal (sub atât, poza se vedea estompată). */
+const QUICK_FLOOR = 0.56;
 /** Treptele cadrului rapid, ca fracțiune din 640 px. */
 const QUICK_STEPS = [1, 0.75, 0.56, 0.42, 0.32];
 let quickScale = 1;
@@ -1332,6 +1336,21 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
     return c;
   }, [img]);
 
+  // Sursa cadrelor din timpul tragerii: ~1000 px, cât să pară clară pe ecran și să meargă repede.
+  const live = useMemo(() => {
+    if (!img) return null;
+    const k = Math.min(1, LIVE / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }, [img]);
+  const drawStamp = useRef(0);
+  const sharpStamp = useRef(0);
+  const liveBusy = useRef(false);
+  const pendingLive = useRef<{ edits: EditAdjustments; stamp: number } | null>(null);
+
   useEffect(() => {
     let alive = true;
     const el = new Image();
@@ -1350,11 +1369,30 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       const ctx = out.getContext('2d');
       if (ctx) try { drawAdjusted(ctx, source, w, h, o.width, o.height, edits); } catch { /* fără memorie: rămâne ultima */ }
     };
-    // Cadrul rapid se adaptează la telefon: dacă desenul durează mai mult de un cadru
-    // și jumătate, următorul se face mai mic (și se întinde pe aceeași pânză); dacă
-    // merge ușor, crește la loc. Claritatea deplină vine oricum când te oprești.
-    const frame = requestAnimationFrame(() => {
-      const k = quickScale;
+    const stamp = ++drawStamp.current;
+    // Cât tragi de slider: cadrul se calculează pe worker, la ~1000 px (clar, nu estompat),
+    // și se arată mereu cel mai nou gata; firul principal nu desenează nimic, deci nu sacadează.
+    // Cerut cu video: „să se vadă în timp real efectul, fără acel blur, dar să nu sacadeze”.
+    let frame = 0;
+    if (live && canRenderOff(edits)) {
+      pendingLive.current = { edits, stamp };
+      const pump = () => {
+        if (liveBusy.current || !pendingLive.current) return;
+        const job = pendingLive.current; pendingLive.current = null;
+        liveBusy.current = true;
+        renderOff(live, job.edits).then(bitmap => {
+          // Un cadru rapid întârziat nu acoperă poza clară deja pusă pentru aceleași reglaje.
+          if (job.stamp > sharpStamp.current) {
+            if (out.width !== bitmap.width || out.height !== bitmap.height) { out.width = bitmap.width; out.height = bitmap.height; }
+            out.getContext('2d')?.drawImage(bitmap, 0, 0);
+          }
+          bitmap.close();
+        }).catch(() => undefined).finally(() => { liveBusy.current = false; pump(); });
+      };
+      pump();
+    } else frame = requestAnimationFrame(() => {
+      // Fără worker (gumă, fundal estompat): cadrul rapid pe firul principal, cel mult de 2× mai mic.
+      const k = Math.max(QUICK_FLOOR, quickScale);
       const t0 = performance.now();
       if (k >= 1) draw(small, small.width, small.height);
       else {
@@ -1383,6 +1421,7 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       if (!canRenderOff(edits)) { onMain(); return; }
       renderOff(screen ?? img, edits).then(bitmap => {
         if (alive) {
+          sharpStamp.current = stamp;
           if (out.width !== bitmap.width || out.height !== bitmap.height) { out.width = bitmap.width; out.height = bitmap.height; }
           out.getContext('2d')?.drawImage(bitmap, 0, 0);
         }
@@ -1390,7 +1429,7 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
       }).catch(() => { if (alive) onMain(); });
     }, 350);
     return () => { alive = false; cancelAnimationFrame(frame); window.clearTimeout(full); };
-  }, [img, small, screen, edits]);
+  }, [img, small, live, screen, edits]);
 
   return <canvas ref={canvas} className="lx-enhance-canvas" />;
 }
