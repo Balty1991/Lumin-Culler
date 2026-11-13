@@ -44,6 +44,13 @@ O poză care nu face parte dintr-o rafală nu trece prin modele în treapta 1. N
 
 Pe APK-ul de test, după ce rezultatul e deja pe ecran, un pas de fundal (concurență 1, numărat la treapta 2) pune embeddingul feței. Animalul (etichetă ML Kit, decupaj, MobileNet) rulează în același pas și pe release, fiindcă modelul e deja în APK și are licență Apache 2.0. `faceres` nu.
 
+## ⚠️ În APK-ul de Play, cu risc deschis (găsit pe 13 nov. 2026)
+
+| Model | Unde | Problema | Decizie necesară |
+| --- | --- | --- | --- |
+| SFace int8 (`face_sface_int8.onnx`, OpenCV Zoo) | recunoașterea fețelor (`FaceEmbedPlugin.kt`), descărcat în `release-android.yml` | Fișierul are licența Apache 2.0, dar modelul e antrenat pe seturi de fețe publicate pentru cercetare. E exact problema pentru care `faceres` nu intră în Play (mai sus). | păstrat (risc asumat), înlocuit cu un model cu drept comercial scris, sau scos (fără recunoașterea persoanelor) |
+| Zero-DCE 512 fp16 (`zerodce_512_fp16.tflite`, depozit personal pe Hugging Face) | luminarea pozelor întunecate în editor | fișa nu declară licența | de confirmat la autor sau de înlocuit |
+
 ## Motoarele descărcabile (Setări → Motoare AI)
 
 Nu sunt în APK. Se descarcă la cerere, de pe pagina publică a modelului. Licențele sunt cele declarate pe fișa modelului. „De confirmat” înseamnă că fișa nu spune clar pe ce date a fost antrenat modelul, sau că licența datelor diferă de cea a fișierului.

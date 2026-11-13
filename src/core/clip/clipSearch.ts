@@ -62,15 +62,46 @@ export async function prepareClipSearch(anyNetwork = false): Promise<boolean> {
   } catch { return false; }
 }
 
-let index: { ids: string[]; vecs: number[][]; at: number } | null = null;
-async function loadIndex() {
-  if (index && Date.now() - index.at < 60_000) return index;
-  const ids: string[] = [], vecs: number[][] = [];
-  await db.analyses.each(a => {
-    if (a.clipEmbedding?.length === 512) { ids.push(a.photoId); vecs.push(a.clipEmbedding); }
-  });
-  index = { ids, vecs, at: Date.now() };
-  return index;
+/**
+ * Indexul de căutare: toate amprentele într-o singură matrice Float32 (512 coloane), nu câte o
+ * listă JS pe poză. Pe 20.000 de poze: ~40 MB în loc de ~80+ MB și o trecere mult mai rapidă.
+ * Se reface doar când numărul de poze analizate se schimbă (sau după 10 minute).
+ */
+interface SearchIndex { ids: string[]; m: Float32Array; at: number; count: number }
+let index: SearchIndex | null = null;
+let building: Promise<SearchIndex> | null = null;
+async function loadIndex(): Promise<SearchIndex> {
+  const count = await db.analyses.count();
+  if (index && index.count === count && Date.now() - index.at < 600_000) return index;
+  if (building) return building;
+  building = (async () => {
+    const ids: string[] = [];
+    let m = new Float32Array(Math.max(1, count) * 512);
+    await db.analyses.each(a => {
+      const e = a.clipEmbedding;
+      if (e?.length !== 512) return;
+      if ((ids.length + 1) * 512 > m.length) { const g = new Float32Array(m.length * 2); g.set(m); m = g; }
+      m.set(e, ids.length * 512);
+      ids.push(a.photoId);
+    });
+    const built: SearchIndex = { ids, m: m.subarray(0, ids.length * 512), at: Date.now(), count };
+    index = built;
+    return built;
+  })().finally(() => { building = null; });
+  return building;
+}
+
+/** Scorurile tuturor pozelor față de textele întrebării (cel mai bun dintre ele). */
+export function scoreMatrix(m: Float32Array, n: number, texts: readonly Float32Array[]): Float32Array {
+  const out = new Float32Array(n).fill(-1);
+  for (const t of texts) {
+    for (let i = 0, off = 0; i < n; i++, off += 512) {
+      let z = 0;
+      for (let k = 0; k < 512; k++) z += m[off + k] * t[k];
+      if (z > out[i]) out[i] = z;
+    }
+  }
+  return out;
 }
 
 /**
@@ -93,15 +124,8 @@ export async function clipSearch(query: string, limit = 120): Promise<string[]> 
     if (!idx.ids.length) return [];
     const texts = [project(pooled, d)];
     if (enOut) texts.push(project(enOut.pooled, d));
-    const scored = idx.vecs.map((v, i) => {
-      let s = -1;
-      for (const t of texts) {
-        let z = 0;
-        for (let k = 0; k < 512; k++) z += v[k] * t[k];
-        if (z > s) s = z;
-      }
-      return { id: idx.ids[i], s };
-    }).sort((a, b) => b.s - a.s);
+    const sc = scoreMatrix(idx.m, idx.ids.length, texts);
+    const scored = idx.ids.map((id, i) => ({ id, s: sc[i] })).sort((a, b) => b.s - a.s);
     const best = scored[0].s;
     const floor = Math.max(FLOOR, best - BAND);
     return scored.filter(x => x.s >= floor).slice(0, limit).map(x => x.id);

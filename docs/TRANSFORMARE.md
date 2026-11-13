@@ -3,7 +3,7 @@
 Evidența pas cu pas a transformării (planul din cercetarea din 13 nov. 2026). Fiecare pas are
 data, ce s-a schimbat, cum s-a verificat și commitul. Se completează la fiecare livrare.
 
-Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ decizie / risc deschis
+Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ amânat, cu motiv · ⚠️ decizie / risc deschis
 
 ## Etapa 1 — Licențe curate și siguranță
 
@@ -42,28 +42,29 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ dec
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 4.1 | Gruparea fețelor | ⏳ |
-| 4.2 | „Cine e?” cu o singură întrebare | ⏳ |
-| 4.3 | Widget | ⏳ |
-| 4.4 | Bucla lunară pentru bunici | ⏳ |
-| 4.5 | Filmul săptămânii | ⏳ |
+| 4.1 | Gruparea fețelor | ✅ exista (`faceIdentity.ts`, SFace) · ⚠️ licența SFace, vezi `MODEL_LICENSES.md` |
+| 4.2 | „Cine e?” cu o singură întrebare | ✅ exista (`WhoIsThis.tsx`) |
+| 4.3 | Widget | ✅ existau două, cu fixare pe ecranul principal |
+| 4.4 | Bucla lunară pentru bunici | ✅ exista („Luna noastră”) |
+| 4.5 | Filmul săptămânii | ✅ exista (povestea „cele mai bune din săptămână”, film din ea) |
 
 ## Etapa 5 — Căutare locală mai bună
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 5.1 | SigLIP2, doar dacă licența e confirmată | ⏳ ⚠️ |
-| 5.2 | Căutare semantică locală pe matrice fp16 | ⏳ |
+| 5.1 | SigLIP2 | ⏸️ amânat: înseamnă un model nou (~400 MB), refacerea amprentelor pentru toată galeria și recalibrarea etichetelor, a calității și a căutării. Merită doar după o comparație pe telefon real |
+| 5.2 | Căutare: toate amprentele într-o singură matrice Float32, refăcută doar când se schimbă numărul de poze | ✅ test |
 
 ## Etapa 6 — Explicații și rezumatul anului
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 6.1 | Explicații cu un model vizual mic, descărcat la cerere, doar la încărcare | ⏳ |
-| 6.2 | Rezumatul anului | ⏳ |
+| 6.1 | Explicații cu un model vizual mic | ⏸️ amânat: Florence-2 descrie deja pozele; un model ca SmolVLM2 / Gemma 3n înseamnă 0,5–3 GB și trebuie măsurat întâi pe telefon |
+| 6.2 | Rezumatul anului | ✅ exista (`yearBook`, `yearStats`, `EmotionYear`) |
 
 ## Registru
 
+- **13 nov.** Etapele 4–6 verificate: cea mai mare parte exista deja. Nou: căutarea pe matrice. Găsit: SFace și Zero-DCE sunt în APK-ul de Play cu licență neclară (decizie pentru proprietar).
 - **13 nov.** Etapa 3 gata: motorul de preferințe v2. Efect așteptat: procentul „ghicesc X%” poate scădea puțin, pentru că acum e măsurat cinstit, pe zile nevăzute.
 - **13 nov.** Build #835 (etapa 1) verde. Etapa 2: alegerile primesc glisarea în sus și compararea.
 - **13 nov.** Etapa 1 gata. Scorul nou prinde mai bine pozele stricate. Pentru „cea mai frumoasă” dintre pozele bune judecă altfel decât LAION, iar descrieri suplimentare (frumusețe, lumină, moment) nu au schimbat asta. De aceea ordinea de frumusețe folosește și gustul învățat al omului.
