@@ -16,6 +16,23 @@ import { photoTime } from './days';
  */
 let running = false;
 
+/** Din fiecare serie: fiecare poză păstrată de om față de fiecare poză scoasă de om (cel mult 6 pe serie). */
+export function seriesPairs(photos: readonly { id: string; groupId?: string | null; status: string; aiDecided?: boolean; aside?: unknown }[]): { w: string; l: string }[] {
+  const groups = new Map<string, { kept: string[]; dropped: string[] }>();
+  for (const p of photos) {
+    if (!p.groupId || p.aiDecided !== false || p.aside) continue;
+    const g = groups.get(p.groupId) ?? { kept: [], dropped: [] };
+    if (p.status === 'selected') g.kept.push(p.id); else if (p.status === 'rejected') g.dropped.push(p.id);
+    groups.set(p.groupId, g);
+  }
+  const out: { w: string; l: string }[] = [];
+  for (const g of groups.values()) {
+    let n = 0;
+    for (const w of g.kept) for (const l of g.dropped) if (n++ < 6) out.push({ w, l });
+  }
+  return out;
+}
+
 export interface TasteRun { trained: boolean; accuracy: number; n: number; kept: number; dropped: number }
 
 export async function trainAndApplyTaste(): Promise<TasteRun | null> {
@@ -33,7 +50,8 @@ export async function trainAndApplyTaste(): Promise<TasteRun | null> {
       if (e?.length) samples.push({ x: e, y: p.status === 'selected' ? 1 : 0, g: day(p) });
     });
     // Perechile „asta, nu aia” din compararea cadrelor.
-    const rawPairs = readPairs();
+    // Plus perechile implicite din serii: în aceeași rafală, ce a păstrat omul față de ce a scos.
+    const rawPairs = [...readPairs(), ...seriesPairs(st.photos)];
     const pairIds = [...new Set(rawPairs.flatMap(p => [p.w, p.l]))];
     const pairA = pairIds.length ? await db.analyses.bulkGet(pairIds) : [];
     const embOf = new Map(pairIds.map((id, i) => [id, pairA[i]?.clipEmbedding]));

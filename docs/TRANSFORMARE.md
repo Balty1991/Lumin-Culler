@@ -36,6 +36,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 | 3.2 | Validare pe zile lăsate deoparte (testul dovedește că nu mai e păcălită de poze aproape identice) + calibrare Platt | ✅ test |
 | 3.3 | Prior: cu puține exemple, părerea e trasă spre scorul general (la 30 de exemple jumătate-jumătate) | ✅ test |
 | 3.4 | Antrenament cu poze tipice (TypiClust pe CLIP), apoi compararea din alegeri | ✅ test |
+| 3.1b | Perechi implicite din serii: în aceeași rafală, poza păstrată de om față de cea scoasă de om (fără să apese „Compară”) | ✅ test |
 | 3.5 | Modelul nou în umbră: îl înlocuiește pe cel vechi doar dacă ghicește zilele nevăzute cel puțin la fel de bine (v1, testat fără grupuri, e înlocuit) | ✅ test |
 
 ## Etapa 4 — Oameni, momente, revenire
