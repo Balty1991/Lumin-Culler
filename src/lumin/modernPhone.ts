@@ -77,10 +77,11 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
       // galeria deja citită și fără citire în curs (altfel se reia la pornirea următoare).
       const st = useStore.getState();
       let again = false;
-      try { again = localStorage.getItem('cp.mig.rescore1113b') !== '1'; } catch { /* fără stocare */ }
+      try { again = localStorage.getItem('cp.mig.rescore1113c') !== '1'; } catch { /* fără stocare */ }
       const { useLx } = await import('./lxStore');
       if (again && st.photos.length > 0 && !st.progress && !useLx.getState().reader) {
-        try { localStorage.setItem('cp.mig.rescore1113b', '1'); } catch { /* fără stocare */ }
+        try { localStorage.setItem('cp.mig.rescore1113c', '1'); } catch { /* fără stocare */ }
+        await st.dissolveWeakSeries().catch(() => 0);
         await st.rescorePhotos().catch(() => undefined);
         await useStore.getState().applyMoments().catch(() => undefined);
       }

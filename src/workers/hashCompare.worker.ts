@@ -299,6 +299,13 @@ function cosineSimilarity(a: number[], b: number[]): number {
  * Vezi migrarea v12 din core/db.ts, care il deduce retroactiv acolo unde se
  * poate.
  */
+/** Două ore exacte de captură la peste 12 ore distanță: nu e aceeași serie. */
+function farApartInTime(photo: HashInput, other: HashInput): boolean {
+  if (photo.capturedAt === undefined || other.capturedAt === undefined) return false;
+  if (photo.capturedAtExact === false || other.capturedAtExact === false) return false;
+  return Math.abs(other.capturedAt - photo.capturedAt) > 12 * 3_600_000;
+}
+
 function closeInTimeTo(photo: HashInput, other: HashInput, windowMs: number): boolean {
   if (photo.capturedAt === undefined || other.capturedAt === undefined) return false;
   if (photo.capturedAtExact === false || other.capturedAtExact === false) return false;
@@ -610,7 +617,10 @@ export class HashCompareService {
           if (acceptate.has(m.bucket)) continue; // bucket-ul e deja luat, nu-l re-evaluam
           const distance = hammingDistance(photo.hash, m.photo.hash);
           // 1. asemanare vizuala stransa — acceptata mereu, indiferent de timp
-          if (distance <= SIMILARITY_THRESHOLD) { acceptate.add(m.bucket); motive.legatVizual++; continue; }
+          //    ...dar nu peste scene sau zile diferite: amprenta de 64 de biți a două portrete cu
+          //    copilul în centru ieșea „aproape la fel” (raportat: la școală vs. în parc, toamna).
+          //    Doar copiile aproape identice (≤4 biți) trec oricum.
+          if (distance <= SIMILARITY_THRESHOLD && (distance <= 4 || (!sceneContradicts(photo, m.photo) && !farApartInTime(photo, m.photo)))) { acceptate.add(m.bucket); motive.legatVizual++; continue; }
           // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
           if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTimeTo(photo, m.photo, BURST_WINDOW_MS)) {
             acceptate.add(m.bucket); motive.legatRafala++; continue;

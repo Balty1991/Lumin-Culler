@@ -193,10 +193,13 @@ export function similarByContent(photos: readonly PhotoView[], id: string, limit
 }
 
 /** Schimbă ceva cu tranziție animată între stări, unde telefonul o are (View Transitions). */
+/**
+ * Schimbarea filtrului se face direct, fără View Transition: cu telefonul ocupat (citire, reluarea
+ * deciziilor), tranziția rămânea pe ecran cu o captură veche — bara de filtre tăiată pe jumătate,
+ * fără butoanele de sus (raportat cu captură). Câștigul vizual era mic, riscul nu.
+ */
 function withTransition(change: () => void) {
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-  if (doc.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) doc.startViewTransition(() => flushSync(change));
-  else change();
+  change();
 }
 
 export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** Butoanele din dreapta căutării (ex. „+”): antetul galeriei stă pe un singur rând. */ actions?: ReactNode }) {

@@ -3,6 +3,7 @@
  * Managementul starii (Zustand) — separat de UI. Include fluxul de comparare
  * a seriilor: alegi cea mai buna poza dintr-un grup de cadre similare.
  */
+import { hamming64 } from '../core/dhash';
 import { jankMark } from '../core/jankLog';
 import { create } from 'zustand';
 import { recordFreed } from '../core/freedSpace';
@@ -867,6 +868,8 @@ interface AppState {
   promoteAutoPicks: (ids: string[]) => Promise<number>;
   /** Pozele care nu mai sunt în galeria telefonului ies și din aplicație (vezi syncGalleryDeletions). */
   forgetGonePhotos: (ids: string[]) => Promise<number>;
+  /** Scoate din serie pozele care nu sunt chiar aproape la fel cu cea păstrată (vezi mai jos). */
+  dissolveWeakSeries: () => Promise<number>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
@@ -4090,6 +4093,34 @@ export const useStore = create<AppState>((set, get) => ({
     const set_ = new Set(soft);
     set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'review' } : p)) }));
     return soft.length;
+  },
+
+  dissolveWeakSeries: async () => {
+    // Seriile făcute înainte de regula din hashCompare.worker (scene sau zile diferite): o poză
+    // rămâne în serie doar dacă e aproape la fel cu cadrul ales (≤8 biți), sau ≤14 biți și la
+    // cel mult 12 ore distanță (ore exacte). Altfel iese din serie; dacă AI-ul o scosese ca
+    // „mai e una aproape la fel”, revine la „de văzut”. Raportat: școala și parcul, „aproape la fel”.
+    const recs = (await db.photos.where('groupId').above('').toArray()).filter(r => r.groupId);
+    const groups = new Map<string, PhotoRecord[]>();
+    for (const r of recs) { const g = groups.get(r.groupId!); if (g) g.push(r); else groups.set(r.groupId!, [r]); }
+    const out: { id: string; status?: PhotoRecord['status'] }[] = [];
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      const lead = g.find(r => r.status === 'selected') ?? g[0];
+      for (const r of g) {
+        if (r === lead || !r.dHash || !lead.dHash) continue;
+        const d = hamming64(r.dHash, lead.dHash);
+        const exact = r.capturedAtExact !== false && lead.capturedAtExact !== false && r.capturedAt !== undefined && lead.capturedAt !== undefined;
+        const near = d <= 8 || (d <= 14 && exact && Math.abs((r.capturedAt ?? 0) - (lead.capturedAt ?? 0)) <= 12 * 3_600_000);
+        if (near) continue;
+        out.push({ id: r.id, ...(r.status === 'rejected' && r.aiDecided === true ? { status: 'review' as const } : {}) });
+      }
+    }
+    if (!out.length) return 0;
+    await Promise.all(out.map(o => db.photos.update(o.id, { groupId: '', ...(o.status ? { status: o.status } : {}) })));
+    const byId = new Map(out.map(o => [o.id, o]));
+    set(state => ({ photos: state.photos.map(p => { const o = byId.get(p.id); return o ? { ...p, groupId: undefined, ...(o.status ? { status: o.status } : {}) } : p; }) }));
+    return out.length;
   },
 
   forgetGonePhotos: async ids => {
