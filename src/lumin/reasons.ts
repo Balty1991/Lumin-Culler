@@ -4,6 +4,8 @@
  * mișcată, ochi închiși, zâmbet), nu un scor. Primele 3 motive, cele bune
  * și cele rele separat colorate.
  */
+import { isMoment } from '../core/momentKind';
+
 export interface ReasonInput {
   sharpness: number;
   exposure: number;
@@ -14,6 +16,8 @@ export interface ReasonInput {
   goldenHourDetected?: boolean;
   aside?: string;
   capturedAt?: number;
+  sceneTags?: string[];
+  joy?: number;
 }
 
 export interface Reason {
@@ -28,6 +32,8 @@ export function reasonsFor(p: ReasonInput): Reason[] {
   if (p.sharpness < 40) out.push({ key: 'lx.reason.blurry', tone: 'bad' });
   if (p.exposure < 28) out.push({ key: 'lx.reason.dark', tone: 'bad' });
   else if (p.exposure > 78) out.push({ key: 'lx.reason.bright', tone: 'bad' });
+  // Momentul întâi: e motivul pentru care omul ține la poză (tortul, joaca, râsul).
+  if (isMoment(p)) out.push({ key: 'lx.reason.moment', tone: 'good' });
   if (p.faceCount > 0 && p.bestSmile >= 0.6) out.push({ key: 'lx.reason.smile', tone: 'good' });
   if (p.faceCount > 1 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesAll', tone: 'good' });
   else if (p.faceCount > 0 && p.allEyesOpen) out.push({ key: 'lx.reason.eyesOpen', tone: 'good' });

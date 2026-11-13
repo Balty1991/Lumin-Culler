@@ -27,3 +27,12 @@ describe('blinkVerdict', () => {
     expect(eyesOpenFromFlags([{ ...face(0.9, 0.9, 0, 0.3), isBlinking: false }, { ...face(0.1, 0.1, 0, 0.05), isBlinking: true }])).toBe(true);
   });
 });
+
+describe('privirea în jos', () => {
+  it('capul aplecat cu pleoape lăsate nu e clipit', () => {
+    expect(faceBlinks({ pitch: -25, eyesOpen: { left: 0.3, right: 0.3 } }, 0.5)).toBe(false);
+  });
+  it('capul aplecat cu ochii chiar lipiți rămâne clipit', () => {
+    expect(faceBlinks({ pitch: -25, eyesOpen: { left: 0.05, right: 0.05 } }, 0.5)).toBe(true);
+  });
+});

@@ -23,6 +23,7 @@ export interface MeshFaceBox {
   boundingBox?: { left: number; top: number; width: number; height: number };
   eyesOpen: { left: number; right: number };
   smile?: number;
+  pitch?: number;
 }
 
 export interface EnrichInput {
@@ -109,7 +110,7 @@ function insightsFromMesh(faces: MeshFaceBox[], width: number, height: number, b
       faceScore: 1,
       smile: face.smile ?? 0,
       eyesOpen: { left, right },
-      isBlinking: faceBlinks({ smile: face.smile ?? 0, eyesOpen: { left, right } }, blinkThreshold),
+      isBlinking: faceBlinks({ smile: face.smile ?? 0, pitch: face.pitch, eyesOpen: { left, right } }, blinkThreshold),
       personId: null,
       personName: null,
       similarity: 0
@@ -138,7 +139,7 @@ export async function enrichAfterFirstResult(input: EnrichInput, deps: EnrichDep
       const mesh = await deps.mesh(input.mediaUri);
       measuredFaces = mesh.faces.length;
       const iw = mesh.imageWidth || 0;
-      eyesClosed = photoEyesClosed(mesh.faces.map(f => ({ smile: f.smile ?? 0, eyesOpen: f.eyesOpen, box: f.boundingBox && iw > 0 ? [0, 0, f.boundingBox.width / iw, 0] : undefined })), deps.blinkThreshold);
+      eyesClosed = photoEyesClosed(mesh.faces.map(f => ({ smile: f.smile ?? 0, pitch: f.pitch, eyesOpen: f.eyesOpen, box: f.boundingBox && iw > 0 ? [0, 0, f.boundingBox.width / iw, 0] : undefined })), deps.blinkThreshold);
       if (deps.testIdentity && mesh.faces.length) {
         const faces = insightsFromMesh(mesh.faces, mesh.imageWidth ?? 0, mesh.imageHeight ?? 0, deps.blinkThreshold);
         if (faces.length) {

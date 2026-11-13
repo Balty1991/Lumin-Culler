@@ -35,6 +35,8 @@ export interface NativeFaceMeshInsight {
   emotionSurprise: number;
   emotionNegative: number;
   eyesOpen: { left: number; right: number };
+  /** Înclinarea capului sus/jos, în grade (absentă pe pluginuri mai vechi). */
+  pitch?: number;
   mouthOpen: boolean;
   genuineSmile: boolean;
   awkwardExpression: boolean;

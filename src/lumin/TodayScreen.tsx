@@ -186,10 +186,17 @@ export function TodayScreen() {
             <p className="lx-sub">{tr('lx.today.newSub')}</p>
             <button className="lx-btn primary" onClick={() => void sortToday()}>{tr('lx.today.letAi')}</button>
           </div>
+        ) : today && today.photos.length > 0 && today.photos.length === today.aside.length ? (
+          // Azi doar capturi de ecran/documente: „Din 27 de poze, am ales 0” părea o greșeală
+          // (raportat cu captură). Spus pe față, cu unde stau.
+          <div className="lx-hero-text">
+            <h1 className="lx-h1">{tr('lx.today.onlyAside', { count: today.aside.length })}</h1>
+            <p className="lx-sub">{tr('lx.today.onlyAsideSub')}</p>
+          </div>
         ) : today && today.photos.length > 0 ? (
           <div className="lx-hero-text">
             <h1 className="lx-h1">
-              {tr(plural(today.photos.length, 'lx.today.from.one', 'lx.today.from'), { count: today.photos.length })}{' '}
+              {tr(plural(today.photos.length - today.aside.length, 'lx.today.from.one', 'lx.today.from'), { count: today.photos.length - today.aside.length })}{' '}
               <em>{tr(plural(today.kept.length, 'lx.today.kept.one', 'lx.today.kept'), { count: today.kept.length })}</em>
             </h1>
             {today.waiting.length === 0 && <p className="lx-sub">{tr('lx.today.allDone')}</p>}

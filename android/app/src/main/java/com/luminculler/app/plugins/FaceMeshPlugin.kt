@@ -143,6 +143,9 @@ class FaceMeshPlugin : Plugin() {
             if (i < matricesPerFace.size) {
                 val pose = FaceMeshMath.headPoseFromMatrix(matricesPerFace[i])
                 faceObj.put("eyeContact", FaceMeshMath.eyeContactScore(pose.yaw, pose.pitch))
+                // Înclinarea capului, în grade: privirea în jos (la tort, la o jucărie) coboară
+                // pleoapele și semăna cu un clipit (raportat). Partea de JS o folosește la verdict.
+                faceObj.put("pitch", Math.toDegrees(pose.pitch))
             }
 
             facesArray.put(faceObj)

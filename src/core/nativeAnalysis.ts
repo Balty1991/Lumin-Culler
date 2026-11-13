@@ -366,7 +366,7 @@ function fromLandmarker(
       faceScore: 1,
       smile: f.smile,
       eyesOpen: f.eyesOpen,
-      isBlinking: faceBlinks(f, MESH_BLINK_THRESHOLD),
+      isBlinking: faceBlinks(f, MESH_BLINK_THRESHOLD), // f.pitch: privirea în jos nu e clipit
       mouthOpen: f.mouthOpen,
       eyeContact: f.eyeContact,
       emotion: {

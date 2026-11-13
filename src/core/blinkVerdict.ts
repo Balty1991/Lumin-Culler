@@ -12,6 +12,8 @@ export interface EyeFace {
   /** [x, y, w, h], fracții din imagine. */
   box?: readonly number[];
   smile?: number;
+  /** Înclinarea capului sus/jos, în grade, când se știe. */
+  pitch?: number;
   eyesOpen: { left: number; right: number };
 }
 
@@ -22,8 +24,14 @@ const MINOR_FACE = 0.55;
 /** Fețele sub 5% din lățimea pozei nu decid poza (dacă nu e singura). */
 const TINY_FACE = 0.05;
 
-export function faceBlinks(f: EyeFace, threshold: number): boolean {
+/** Peste atâtea grade sus/jos, pleoapele par lăsate fără să fie închise. */
+export const TILT_DEG = 15;
+
+export function faceBlinks(f: EyeFace, rawThreshold: number): boolean {
   const { left, right } = f.eyesOpen;
+  // Privirea în jos (la tort, la o jucărie): pleoapele coboară și par închise. Cu capul înclinat,
+  // „închis” înseamnă doar ochi aproape lipiți (raportat: copilul aplecat peste tort, „ochi închiși”).
+  const threshold = Math.abs(f.pitch ?? 0) >= TILT_DEG ? rawThreshold * 0.45 : rawThreshold;
   // Clipitul închide ambii ochi; cu unul singur sub prag, celălalt trebuie să fie și el aproape.
   const both = left < threshold && right < threshold;
   const oneDeep = Math.min(left, right) < threshold * 0.5 && Math.max(left, right) < threshold * 1.4;

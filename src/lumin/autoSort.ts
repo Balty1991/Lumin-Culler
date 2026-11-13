@@ -54,6 +54,8 @@ export function summarizeToday(added: number): AutoSortResult | null {
   const day = startOfDay();
   const today = groupDays(useStore.getState().photos).find(d => d.start === day);
   if (!today || added <= 0) return null;
+  // Doar capturi azi: fără „Am sortat 3 poze noi și am păstrat 0” (părea o greșeală).
+  if (today.photos.length === today.aside.length) return null;
   return { day, added, kept: today.kept.length, waiting: today.waiting.length };
 }
 

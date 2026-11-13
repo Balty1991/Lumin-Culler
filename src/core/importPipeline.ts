@@ -32,6 +32,7 @@ import { derivativesOffMain } from './previewOffThread';
 import { loadStageOne, saveStageOne } from './stageOneCache';
 import { base64ToBlob, fingerprintBatch, fingerprintUri, isStageOneAvailable, type StageOneNativeResult } from './stageOneNative';
 import { SERIES_CANDIDATE_HAMMING, isSeriesCandidate, stageOneKey, stageOneTime } from './twoStagePlan';
+import { isMoment, MOMENT_MARGIN } from './momentKind';
 import { asideOf, decideIsolate, PAPER_DOCUMENT_MIN, paperScoreFromRgba, statusFromScore } from './singletonVerdict';
 import { seriesVerdict } from './seriesVerdict';
 import { analyzeFaceMeshNative, isNativeFaceMeshAvailable } from './nativeFaceMesh';
@@ -351,7 +352,17 @@ export function decidePhotoStatus(
     | 'sharpness' | 'exposure' | 'highlightClipping' | 'shadowClipping' | 'allEyesOpen' | 'groupEyesOpenRatio'>,
   thresholds: Thresholds = FIXED_THRESHOLDS
 ): PhotoRecord['status'] {
-  if (score <= thresholds.reject && !showsKnownPerson(analysis) && hasNamedDefect(analysis)) return 'rejected';
+  const moment = isMoment(analysis as Parameters<typeof isMoment>[0]);
+  if (score <= thresholds.reject && !showsKnownPerson(analysis) && !moment && hasNamedDefect(analysis)) return 'rejected';
+  // Momentele (tortul, joaca, râsul): păstrate cu o marjă mai largă, cât poza nu e chiar ratată.
+  if (
+    moment
+    && thresholds.select <= FIXED_THRESHOLDS.select
+    && score >= thresholds.select - MOMENT_MARGIN
+    && analysis.allEyesOpen !== false
+    && !subjectConfirmedOutOfFocus(analysis)
+    && !hasNoRecognizableSubject(analysis)
+  ) return 'selected';
   // O copie a ta păstrează o poză reușită cu oameni chiar dacă nu e „de expoziție”: fețe clare,
   // ochii deschiși, fără defect numit și un scor decent. Duplicatele le taie regula seriilor
   // (rămâne cel mai bun cadru). Raportat: 40 de poze bune cu copilul respinse, 7 păstrate.
