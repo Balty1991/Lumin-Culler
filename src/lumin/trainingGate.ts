@@ -62,6 +62,7 @@ export async function redecideIfJustTrained(): Promise<boolean> {
   try { localStorage.setItem(REDECIDED_KEY, '1'); } catch { /* fără stocare */ }
   await useStore.getState().rescorePhotos();
   await holdUntilLearned();
+  await protectNamedPeople();
   return true;
 }
 
@@ -116,15 +117,20 @@ export async function holdUntilLearned(ids?: string[]): Promise<number> {
 }
 
 /**
- * Oamenii cu nume (cei pe care omul i-a numit) nu sunt scoși niciodată de AI singur: o poză
- * respinsă de AI cu cineva numit se întoarce la „de ales”. Excepție: cadrul mai slab dintr-o
- * serie, unde există o poză aproape la fel păstrată (aceea rămâne).
+ * Plasa de siguranță pentru pozele cu oameni (raportat 13 nov., cu capturi: toate cele 24 de poze
+ * din octombrie cu fetița, clare și zâmbitoare, ajunseseră la „Nu păstrez” — „nu iese în evidență”).
+ * O copie a ta nu aruncă singură o poză cu cei dragi. AI-ul are voie să scoată o poză cu oameni
+ * doar dacă (a) e cadrul mai slab dintr-o serie în care altul, aproape la fel, e păstrat, sau
+ * (b) e cu adevărat ratată (foarte mișcată). Restul se întoarce la „De ales”. Ce a scos omul rămâne.
  */
+const SEVERE_BLUR = 27;
 export async function protectNamedPeople(): Promise<number> {
   const photos = useStore.getState().photos;
   const keptInGroup = new Set(photos.filter(p => p.groupId && p.status === 'selected').map(p => p.groupId));
   const ids = photos.filter(p => p.status === 'rejected' && p.aiDecided === true && !p.aside
-    && (p.personNames ?? []).length > 0 && !(p.groupId && keptInGroup.has(p.groupId))).map(p => p.id);
+    && ((p.personNames ?? []).length > 0 || (p.faceCount ?? 0) > 0)
+    && !(p.groupId && keptInGroup.has(p.groupId))
+    && !((p.sharpness ?? 100) < SEVERE_BLUR)).map(p => p.id);
   if (!ids.length) return 0;
   return useStore.getState().softenAutoRejects(ids);
 }

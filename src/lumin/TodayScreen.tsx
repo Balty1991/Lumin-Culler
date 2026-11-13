@@ -214,7 +214,9 @@ export function TodayScreen() {
       </section>}
 
       <TrialEndCard />
-      {!sortingActive && !focusSample && <MorningReportCard />}
+      {/* Redesign (video 13 nov.: 6–7 carduri care spuneau același lucru): câte unul, pe rând.
+          Raportul de dimineață doar dimineața și nu peste rezultatul citirii. */}
+      {!sortingActive && !focusSample && !readerResult && new Date().getHours() < 12 && <MorningReportCard />}
       <EnginesWaitCard />
       {reader && reader.paused === 'training' && (
         <section className="lx-card lx-reader lx-train-pause" role="status">
@@ -273,7 +275,8 @@ export function TodayScreen() {
         </section>
       )}
 
-      {autoResult && autoResult.day === todayStart && !busy && !focusSample && (
+      {/* „Am sortat N poze noi” repeta titlul de sus („Din N poze azi, am ales…”): doar fără el. */}
+      {autoResult && autoResult.day === todayStart && !busy && !focusSample && !(today && today.photos.length > 0) && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setAutoResult(null)} aria-label={tr('lx.close')}>✕</button>
           <span className="lx-eyebrow">{tr('lx.auto.eyebrow')}</span>
@@ -346,7 +349,8 @@ export function TodayScreen() {
         </section>
       )}
 
-      {!sortingActive && !focusSample && <TrainingCard />}
+      {/* Antrenamentul doar când nu e deja altceva de făcut aici (citirea, rezultatul, pozele de azi). */}
+      {!sortingActive && !focusSample && !reader && !readerResult && !(today && today.waiting.length > 0) && <TrainingCard />}
 
       {!sortingActive && !beginner && (
         <>

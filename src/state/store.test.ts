@@ -1547,8 +1547,8 @@ describe('acceptDayPicks („Acceptă tot”)', () => {
   it('turns the day\'s review photos into "not today" and leaves the AI picks alone', async () => {
     const photos = [
       { ...makePhoto(1), id: 'keep', status: 'selected' },
-      { ...makePhoto(2), id: 'r1', status: 'review' },
-      { ...makePhoto(3), id: 'r2', status: 'review' }
+      { ...makePhoto(2), id: 'r1', status: 'review', faceCount: 0 },
+      { ...makePhoto(3), id: 'r2', status: 'review', faceCount: 0 }
     ] as PhotoView[];
     useStore.setState({ photos });
     const changed = await useStore.getState().acceptDayPicks(['r1', 'r2']);
@@ -1557,6 +1557,12 @@ describe('acceptDayPicks („Acceptă tot”)', () => {
     expect(byId.get('keep')).toBe('selected');
     expect(byId.get('r1')).toBe('rejected');
     expect(byId.get('r2')).toBe('rejected');
+  });
+
+  it('nu scoate singur pozele cu oameni: rămân de ales', async () => {
+    useStore.setState({ photos: [{ ...makePhoto(1), id: 'p', status: 'review', faceCount: 2 }] as PhotoView[] });
+    expect(await useStore.getState().acceptDayPicks(['p'])).toBe(0);
+    expect(useStore.getState().photos[0].status).toBe('review');
   });
 
   it('opens the paywall instead when Pro is locked', async () => {

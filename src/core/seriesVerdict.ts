@@ -48,8 +48,14 @@ export function seriesVerdict(
   const changes = new Map<string, PhotoStatus>();
   for (const m of members) {
     if (m.aiDecided === false) continue;
+    // Celelalte cadre se scot doar când chiar rămâne unul păstrat. Altfel o serie întreagă
+    // ajungea la „Nu păstrez”, cu cel mai bun cadru doar „de văzut” (raportat: o lună cu
+    // fetița, 24 de poze, 0 păstrate). Cât cel mai bun e nesigur, fiecare rămâne cu verdictul ei.
+    const keepSelected = keep.score > thresholds.reject;
+    // Fără cadru păstrat, celelalte nu sunt împinse nicăieri: își păstrează verdictul lor.
+    if (!keepSelected && m.id !== keep.id) continue;
     const next: PhotoStatus = m.id === keep.id
-      ? (m.score > thresholds.reject ? 'selected' : 'review')
+      ? (keepSelected ? 'selected' : 'review')
       : 'rejected';
     if (next !== m.status) changes.set(m.id, next);
   }

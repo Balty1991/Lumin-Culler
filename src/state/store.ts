@@ -4505,7 +4505,9 @@ export const useStore = create<AppState>((set, get) => ({
     const byId = new Map(get().photos.map(p => [p.id, p]));
     const ids = reviewIds.filter(id => {
       const p = byId.get(id);
-      return p?.status === 'review' && autopilotKeeps(p) !== 'family';
+      // „Decide tot” nu scoate poze cu oameni: rămân la „De ales” (o copie a ta nu aruncă singură
+      // pozele cu cei dragi — raportat: o lună întreagă cu fetița la „Nu păstrez”).
+      return p?.status === 'review' && autopilotKeeps(p) !== 'family' && !((p.faceCount ?? 0) > 0);
     });
     if (!ids.length) return 0;
     const changes = ids.map(id => ({ photoId: id, previousStatus: byId.get(id)?.status ?? 'pending' as PhotoRecord['status'] }));
