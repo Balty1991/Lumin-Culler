@@ -22,6 +22,7 @@ import { FilmCreator } from './FilmCreator';
 import { photoTime } from './days';
 import { Recaps } from './Recaps';
 import { EnhanceSheet } from './Enhance';
+import { CollageCreator } from './CollageCreator';
 import { BrainScreen } from './BrainScreen';
 import type { PhotoView } from '../state/store';
 
@@ -32,7 +33,7 @@ import type { PhotoView } from '../state/store';
  * „ar trebui prezentare altfel, mai profesională”). Pe Azi rămâne doar o bandă
  * cu dalele, iar „Vezi tot” deschide Studio.
  */
-type ToolId = 'recaps' | 'yearMin' | 'growth' | 'reel' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
+type ToolId = 'collage' | 'recaps' | 'yearMin' | 'growth' | 'reel' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
 type Cat = 'films' | 'family' | 'memories' | 'games';
 interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
 
@@ -45,6 +46,7 @@ const TOOLS: Tool[] = [
   { id: 'firsts', cat: 'family', glyph: <Icon name="flag" size={26} />, person: true },
   { id: 'links', cat: 'family', glyph: <Icon name="similar" size={26} /> },
   { id: 'together', cat: 'family', glyph: <Icon name="heart" size={26} /> },
+  { id: 'collage', cat: 'memories', glyph: <Icon name="collage" size={26} /> },
   { id: 'recaps', cat: 'memories', glyph: <Icon name="square" size={24} /> },
   { id: 'capsule', cat: 'memories', glyph: <Icon name="lock" size={24} /> },
   { id: 'joy', cat: 'memories', glyph: <Icon name="smile" size={26} /> },
@@ -72,6 +74,7 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
   const [person, setPerson] = useState<string | null>(null);
   if (tool.person && !person) return <PersonPick toolId={tool.id} onPick={setPerson} onClose={onClose} />;
   switch (tool.id) {
+    case 'collage': return <CollageCreator onClose={onClose} />;
     case 'recaps': return <RecapsSheet onClose={onClose} />;
     case 'yearMin': return <YearMinuteSheet onClose={onClose} />;
     case 'growth': return <GrowthSheet name={person!} list={photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(person!))} onClose={onClose} />;
@@ -196,7 +199,7 @@ export function StudioScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-const STUDIO_ORDER: ToolId[] = ['reel', 'film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
+const STUDIO_ORDER: ToolId[] = ['reel', 'collage', 'film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
 
 /** Tab-ul Studio: editorul, filmele și amintirile, în ordinea în care se folosesc. */
 export function StudioTab() {

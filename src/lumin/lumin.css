@@ -2352,3 +2352,39 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
    Panoul derulează în interior; poza ia restul ecranului. */
 .lx-enhance .lx-viewer-info { max-height: 42dvh; }
 .lx-enhance .lx-enhance-stage { min-height: 46dvh; }
+
+/* Creatorul de colaje (Studio): previzualizarea sus, panoul dedesubt, ca editorul. */
+.lx-cc { position: fixed; inset: 0; z-index: 1100; background: #07070b; color: #fff; display: flex; flex-direction: column; }
+.lx-cc-top { display: flex; align-items: center; gap: 10px; padding: calc(10px + var(--safe-top, 0px)) 14px 8px; }
+.lx-cc-top > b { flex: 1; font-size: 17px; }
+.lx-cc-stage { flex: 1; min-height: 40dvh; display: grid; place-items: center; padding: 6px 14px; }
+.lx-cc-canvas { max-width: 100%; max-height: 100%; border-radius: 14px; box-shadow: 0 18px 50px -18px rgb(0 0 0 / .8); }
+.lx-cc-stage { overflow: hidden; }
+.lx-cc-stage .lx-cc-canvas { max-height: calc(100dvh - 44dvh - 70px); width: auto; height: auto; }
+.lx-cc-panel { max-height: 44dvh; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 16px calc(14px + var(--safe-bottom, 0px)); background: rgb(14 16 24 / .96); border-radius: 22px 22px 0 0; border-top: 1px solid var(--lx-line); }
+.lx-cc-panel > * { flex-shrink: 0; }
+.lx-cc-models { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.lx-cc-models button { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; color: var(--text-dim); padding: 0; }
+.lx-cc-mthumb { width: 72px; aspect-ratio: 4 / 5; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: var(--surface-2); outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .2s, transform .2s; }
+.lx-cc-mthumb.f-story { aspect-ratio: 9 / 16; width: 58px; }
+.lx-cc-mthumb.f-square { aspect-ratio: 1; }
+.lx-cc-mthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-cc-models button.on .lx-cc-mthumb { outline-color: #ff4f7f; transform: translateY(-2px); }
+.lx-cc-models button.on small { color: #fff; font-weight: 700; }
+.lx-cc-models small { font-size: 12px; }
+.lx-cc-row { display: flex; flex-direction: column; gap: 6px; }
+.lx-cc-row > span, .lx-cc-slider > span { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+.lx-cc-row .lx-seg button { height: 34px; font-size: 13px; }
+.lx-cc-slider { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 10px; }
+.lx-cc-slider input { width: 100%; accent-color: #ff4f7f; }
+.lx-cc-text { width: 100%; box-sizing: border-box; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--lx-line); background: var(--surface-2); color: #fff; font-size: 15px; font-weight: 700; }
+.lx-cc-text.small { font-weight: 500; font-size: 14px; height: 40px; }
+.lx-cc-actions { position: sticky; bottom: 0; }
+.lx-cc-picker { position: absolute; inset: 0; z-index: 2; background: #07070b; display: flex; flex-direction: column; }
+.lx-cc-picker .lx-hint { padding: 0 16px; margin: 0 0 8px; }
+.lx-cc-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 0 3px calc(12px + var(--safe-bottom, 0px)); }
+.lx-cc-grid button { position: relative; aspect-ratio: 1; padding: 0; border: 0; overflow: hidden; background: var(--surface-2); }
+.lx-cc-grid button .lx-thumb, .lx-cc-grid button img { width: 100%; height: 100%; object-fit: cover; }
+.lx-cc-grid button.on { outline: 3px solid #ff4f7f; outline-offset: -3px; }
+.lx-cc-grid em { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: #ff4f7f; color: #fff; font-style: normal; font-weight: 800; font-size: 13px; display: grid; place-items: center; }
