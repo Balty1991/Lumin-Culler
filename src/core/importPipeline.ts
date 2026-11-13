@@ -346,6 +346,8 @@ export function hasNamedDefect(
  * adaptare se comporta exact ca inainte. Vezi core/scoreThresholds.ts pentru
  * cand si cat de mult se pot misca.
  */
+const PET_TAG = /^(cat|kitten|dog|puppy|pet|animal|bird|horse|rabbit|hamster)$/i;
+
 export function decidePhotoStatus(
   score: number,
   analysis: Pick<AnalysisRecord, 'faceCount' | 'knownFaceCount' | 'sceneTags' | 'textCoverage' | 'subjectInFocus'
@@ -354,6 +356,13 @@ export function decidePhotoStatus(
 ): PhotoRecord['status'] {
   const moment = isMoment(analysis as Parameters<typeof isMoment>[0]);
   if (score <= thresholds.reject && !showsKnownPerson(analysis) && !moment && hasNamedDefect(analysis)) return 'rejected';
+  // Fără oameni și fără animale, plasa „nu arunca” nu se aplică: o captură cu un joc, o imagine
+  // promoțională, un desen fotografiat nu sunt amintiri (raportat: 250 de poze „de ales”, printre
+  // ele capturi „TOTAL CÂȘTIG” și grafice). Scor mic sau fără un subiect real → „Nu păstrez”.
+  if (analysis.faceCount === 0 && !(analysis.sceneTags ?? []).some(t => PET_TAG.test(t))) {
+    if (score <= thresholds.reject) return 'rejected';
+    if (score < thresholds.select && (hasNoRecognizableSubject(analysis) || onlyManufacturedSubject(analysis))) return 'rejected';
+  }
   // Momentele (tortul, joaca, râsul): păstrate cu o marjă mai largă, cât poza nu e chiar ratată.
   if (
     moment
