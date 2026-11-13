@@ -249,16 +249,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
   if (!lit) auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
   // Ce fel de poză e, și ce e stricat la ea (lumină, culoare, ceață, zgomot, cer, ten).
   const scene = sceneTune(img, auto, a);
-  if (lit) {
-    tameAfterLowLight(auto);
-    // Cât mai trebuie ca fețele (sau poza) să se vadă bine, măsurat pe poza deja luminată, până
-    // la +24 (cerut cu capturi: „așa ar trebui să fie”, Luminozitate +21 pusă de mână peste).
-    // Gândit pentru intensitatea de pornire a stilului (LIT_MAX_AMOUNT), care îl scalează.
-    const want = Math.max(0, Math.min(LIT_TARGET_EXPOSURE, brightnessLift(img, a?.faces)));
-    auto.exposure = Math.max(auto.exposure, Math.round(want / LIT_MAX_AMOUNT) - STYLE_ADD.natural.exposure!);
-    // Lumina în plus ar arde ce e deja luminos (fumul, grătarul): zonele luminoase se recuperează.
-    auto.highlights = Math.min(auto.highlights, -Math.round(want * 0.6 / LIT_MAX_AMOUNT));
-  }
+  if (lit) tameAfterLowLight(auto);
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -280,8 +271,6 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
 
 /** Cât de tare poate merge stilul peste o poză deja luminată pe telefon. */
 export const LIT_MAX_AMOUNT = 0.45;
-/** Lumina finală cel mult adăugată după luminarea de pe telefon. */
-export const LIT_TARGET_EXPOSURE = 20;
 
 /**
  * După lumina de pe telefon (SCI), corectura automată doar finisează: fără lumină, contrast
