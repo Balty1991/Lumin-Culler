@@ -2422,3 +2422,52 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-today .lx-card.lx-auto-result::before, .lx-today .lx-card.lx-sample::before, .lx-today .lx-card.lx-train-pause::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--lx-grad); }
 .lx-today .lx-today-group { background: var(--surface, #12131b); }
+
+/* ───────────────────────── Sistem de design (redesign, 13 nov.) ─────────────────────────
+   Cerut: „aspect mai modern, mai profesional”. Un singur set de reguli peste toate ecranele:
+   tipografie, butoane, carduri, mișcare, ecrane goale. Ultimul în fișier, deci câștigă. */
+.lx {
+  --lx-fs-title: 28px; --lx-fs-h2: 17px; --lx-fs-body: 15px; --lx-fs-small: 13px;
+  --lx-gap: 16px; --lx-pad: 16px; --lx-r: 22px; --lx-r-sm: 14px;
+  --lx-focus: 0 0 0 3px rgb(var(--accent-rgb) / .45);
+  --lx-shadow-1: 0 1px 0 rgb(255 255 255 / .04) inset, 0 10px 30px -18px rgb(0 0 0 / .7);
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+/* Tipografie: titluri sigure pe ele, puține mărimi. */
+.lx .lx-title { font-size: var(--lx-fs-title); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+.lx .lx-h1 { font-weight: 700; letter-spacing: -0.03em; }
+.lx .lx-section-head h2, .lx .lx-group > h2 { font-size: var(--lx-fs-h2); font-weight: 700; letter-spacing: -0.01em; }
+.lx .lx-card b { font-weight: 650; letter-spacing: -0.005em; }
+.lx .lx-card > div > span, .lx .lx-sub { font-size: var(--lx-fs-small); line-height: 1.45; }
+.lx .lx-eyebrow { letter-spacing: .1em; font-size: 11px; }
+/* Ritm: aceleași spații între blocuri. */
+.lx .lx-screen { gap: var(--lx-gap); }
+.lx .lx-card { padding: var(--lx-pad); border-radius: var(--lx-r); box-shadow: var(--lx-shadow-1); }
+/* Butoane: aceeași înălțime și aceleași colțuri; răspuns la atingere; focus vizibil. */
+.lx .lx-btn { height: 48px; border-radius: var(--lx-r-sm); font-weight: 650; letter-spacing: -0.005em; }
+.lx .lx-btn.small { height: 36px; border-radius: 11px; }
+.lx .lx-btn:active:not(:disabled), .lx .lx-chip-btn:active, .lx .lx-card:is(button):active { transform: scale(.975); }
+.lx .lx-chip-btn, .lx .lx-card:is(button) { transition: transform .16s var(--lx-spring), background .2s, border-color .2s; }
+.lx :is(button, a, input, [tabindex]):focus-visible { outline: none; box-shadow: var(--lx-focus); }
+/* Intrarea cardurilor pe Azi: lină, pe rând (doar opacitate și o deplasare mică). */
+.lx-today > .lx-card, .lx-today > section { animation: lx-in .32s var(--lx-ease) both; }
+.lx-today > :nth-child(2) { animation-delay: .03s; } .lx-today > :nth-child(3) { animation-delay: .06s; }
+.lx-today > :nth-child(4) { animation-delay: .09s; } .lx-today > :nth-child(5) { animation-delay: .12s; }
+.lx-today > :nth-child(n+6) { animation-delay: .15s; }
+/* Ecrane goale: un semn discret deasupra textului, nu doar o propoziție gri. */
+.lx .lx-empty:not(.small) { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 14.5px; line-height: 1.5; }
+.lx .lx-empty:not(.small)::before { content: "✦"; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-size: 20px; color: rgb(var(--accent-rgb)); background: radial-gradient(circle at 30% 30%, rgb(var(--accent-rgb) / .28), rgb(var(--accent-rgb) / .06)); }
+/* Ecranul de alegere: bara de progres vizibilă, ștampile curate, butoane mari cu etichetă. */
+.lx .lx-sort-bar { height: 4px; border-radius: 4px; }
+.lx .lx-card-photo { border-radius: 26px; box-shadow: 0 28px 60px -28px rgb(0 0 0 / .85), 0 0 0 1px rgb(255 255 255 / .05); }
+.lx .lx-stamp { border-width: 2px; border-radius: 999px; padding: 8px 16px; font-size: 17px; letter-spacing: .06em; background: rgb(6 7 10 / .55); backdrop-filter: blur(8px); }
+.lx .lx-stamp.keep { transform: rotate(-6deg); } .lx .lx-stamp.drop { transform: rotate(6deg); }
+.lx .lx-sort-actions { gap: 22px; align-items: center; }
+.lx .lx-round { width: 70px; height: 70px; background: var(--surface, #12131b); box-shadow: 0 12px 28px -16px rgb(0 0 0 / .8); }
+.lx .lx-round.keep, .lx .lx-round.drop { width: 78px; height: 78px; }
+.lx .lx-round.later { width: 58px; height: 58px; }
+.lx .lx-round.later span { font-size: 20px; }
+.lx .lx-round.keep { background: linear-gradient(180deg, rgb(var(--pick-rgb) / .16), rgb(var(--pick-rgb) / .06)), var(--surface, #12131b); }
+.lx .lx-round.drop { background: linear-gradient(180deg, rgb(var(--reject-rgb) / .14), rgb(var(--reject-rgb) / .05)), var(--surface, #12131b); }
+.lx .lx-card-ai { border-radius: 18px; background: rgb(8 9 14 / .66); }
+@media (prefers-reduced-motion: reduce) { .lx-today > .lx-card, .lx-today > section { animation: none; } }
