@@ -23,16 +23,16 @@ export const RECIPES: readonly Recipe[] = [
   // Fără saturație și contrast în plus: pe pozele deja colorate ardeau roșul (raportat cu capturi).
   // Fără decupaj (o poză tăiată nu e ce aștepți de la „Perfectă”) și fără claritate locală
   // (lăsa un contur luminos în jurul omului) — raportat cu capturi.
-  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 10, shadows: 8, highlights: -10, sharpen: 8 }, aspect: 'orig' },
+  { key: 'perfect', icon: '✨', style: 'vivid', amount: 0.5, manual: { relight: 14, shadows: 8, highlights: -10, sharpen: 8, sky: 20 }, aspect: 'orig' },
   // Rețetele pentru rețele „pocnesc” prin lumină și contur (claritate, ceață, vignetă, umbre),
   // nu prin saturație: saturația ardea roșul (raportat), lumina nu (cerut: „să fie WOW”).
-  { key: 'insta', icon: '📸', style: 'vivid', amount: 0.65, manual: { clarity: 14, dehaze: 8, shadows: 10, highlights: -14, vignette: 12, sharpen: 14 }, aspect: '4:5' },
-  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.55, manual: { relight: 12, shadows: 12, highlights: -12, clarity: 10, vignette: 8, sharpen: 10 }, aspect: 'orig' },
-  { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.75, manual: { contrast: 14, saturation: 6, clarity: 14, dehaze: 10, vignette: 16, sharpen: 14 }, aspect: '9:16' },
-  { key: 'story', icon: '📱', style: 'vivid', amount: 0.65, manual: { relight: 10, clarity: 10, highlights: -10, vignette: 10, sharpen: 10 }, aspect: '9:16' },
+  { key: 'insta', icon: '📸', style: 'vivid', amount: 0.65, manual: { relight: 10, clarity: 14, dehaze: 8, shadows: 10, highlights: -14, vignette: 12, sharpen: 14, sky: 25 }, aspect: '4:5' },
+  { key: 'facebook', icon: '👍', style: 'vivid', amount: 0.55, manual: { relight: 14, shadows: 12, highlights: -12, clarity: 10, vignette: 8, sharpen: 10, sky: 15 }, aspect: 'orig' },
+  { key: 'tiktok', icon: '🎵', style: 'vivid', amount: 0.75, manual: { relight: 8, contrast: 14, saturation: 6, clarity: 14, dehaze: 10, vignette: 16, sharpen: 14, sky: 25 }, aspect: '9:16' },
+  { key: 'story', icon: '📱', style: 'vivid', amount: 0.65, manual: { relight: 10, clarity: 10, highlights: -10, vignette: 10, sharpen: 10, sky: 15 }, aspect: '9:16' },
   { key: 'sunset', icon: '🌅', style: 'warm', amount: 0.8, manual: { saturation: 8, highlights: -10 }, aspect: 'orig' },
   { key: 'food', icon: '🍕', style: 'vivid', amount: 0.7, manual: { temperature: 6, sharpen: 14, clarity: 8 }, aspect: '1:1' },
-  { key: 'landscape', icon: '🏞️', style: 'vivid', amount: 0.75, manual: { dehaze: 8, clarity: 10, highlights: -12 }, aspect: 'orig' },
+  { key: 'landscape', icon: '🏞️', style: 'vivid', amount: 0.75, manual: { dehaze: 8, clarity: 10, highlights: -12, sky: 35 }, aspect: 'orig' },
   { key: 'night', icon: '🌙', style: 'natural', amount: 0.6, manual: { shadows: 18, highlights: -10, noiseReduction: 30 }, aspect: 'orig' },
   { key: 'document', icon: '📄', style: 'natural', amount: 0.4, manual: { contrast: 22, whites: 15, saturation: -35, sharpen: 20 }, aspect: 'orig' },
   { key: 'retro', icon: '🎞️', style: 'film', amount: 0.9, manual: { grain: 18 }, aspect: 'orig' },

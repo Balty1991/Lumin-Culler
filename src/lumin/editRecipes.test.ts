@@ -39,3 +39,13 @@ describe('rețetele pe măsura pozei', () => {
     expect(pickRecipeStep([{ change: 8, clip: 0 }])).toBe(1);
   });
 });
+
+describe('rețetele pe zone', () => {
+  it('cerul doar afară, lumina pe față doar cu fețe', async () => {
+    const { zoneAware } = await import('./Enhance');
+    const insta = RECIPES.find(r => r.key === 'insta')!;
+    expect(zoneAware(insta, ['landscape'], 1).manual.sky).toBeGreaterThan(0);
+    expect(zoneAware(insta, ['indoor'], 1).manual.sky).toBeUndefined();
+    expect(zoneAware(insta, ['landscape'], 0).manual.relight).toBeUndefined();
+  });
+});

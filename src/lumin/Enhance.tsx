@@ -633,7 +633,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   // „Dintr-o atingere”: stil + intensitate + reglaje + cadru, deodată (vezi editRecipes.ts).
   const [applied, setApplied] = useState<Recipe | null>(null);
   const applyRecipe = (r0: Recipe) => {
-    const r1 = resolveRecipe(r0, { recommended: picked?.style ?? null, hasFace: (geo?.faces.length ?? 0) > 0, allowed: ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject) });
+    const r1 = zoneAware(resolveRecipe(r0, { recommended: picked?.style ?? null, hasFace: (geo?.faces.length ?? 0) > 0, allowed: ENHANCE_STYLES.filter(st => !NEEDS_FACE.has(st) || !!base?.bokehSubject) }), scenes, geo?.faces.length ?? 0);
     // Pe măsura pozei: încercată pe miniatură, la intensitatea cea mai mare care nu arde
     // culorile și nu schimbă poza brutal (raportat: „Perfectă” și „Facebook” ardeau roșul).
     void (src && base ? fitRecipe(src, base, r1) : Promise.resolve(r1)).catch(() => r1).then(r => putRecipe(r));
@@ -1029,7 +1029,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
             <div className="lx-enhance-styles lx-recipes" role="group" aria-label={tr('lx.recipe.title')}>
               {RECIPES.map(r => (
                 <button key={r.key} className={recipeOn(r.key) ? 'lx-style-card lx-recipe-card on' : 'lx-style-card lx-recipe-card'} onClick={() => applyRecipe(r)}>
-                  {view && base && <StyleThumb src={view} edits={withManual(styledEdits(base, r.style as EnhanceStyle, r.amount), r.manual as Partial<Record<ManualKey, number>>)} />}
+                  {view && base && <StyleThumb src={view} edits={withManual(styledEdits(base, r.style as EnhanceStyle, r.amount), zoneAware(r, scenes, geo?.faces.length ?? 0).manual as Partial<Record<ManualKey, number>>)} />}
                   <span><i aria-hidden="true">{r.icon}</i> {tr(`lx.recipe.${r.key}`)}</span>
                   {ADVANCED.has(r.style as EnhanceStyle) && premiumLocked && <b className="lx-pro">PRO</b>}
                 </button>
@@ -1389,4 +1389,17 @@ function LivePreview({ src, edits }: { src: string; edits: EditAdjustments }) {
   }, [img, small, screen, edits]);
 
   return <canvas ref={canvas} className="lx-enhance-canvas" />;
+}
+
+/**
+ * Rețetele lucrează pe zone (cerut: „editarea pentru rețele să fie WOW”): cerul primește
+ * albastru și adâncime, fața lumină. Cerul doar afară (în casă, un tavan alb s-ar albăstri),
+ * lumina pe față doar când există fețe.
+ */
+export function zoneAware(r: Recipe, scenes: readonly Scene[], faces: number): Recipe {
+  const outdoor = !scenes.includes('indoor') && (scenes.includes('landscape') || scenes.includes('overcast'));
+  const manual: Record<string, number> = { ...(r.manual as Record<string, number>) };
+  if (!outdoor) delete manual.sky;
+  if (faces === 0) delete manual.relight;
+  return { ...r, manual };
 }
