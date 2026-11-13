@@ -210,7 +210,9 @@ export function SwipeSort() {
               style={{ transform: `translateX(${offset}px) rotate(${offset / 22}deg)` }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
             >
-              <Thumb key={shown.id} id={shown.id} lqip={shown.lqip} edits={shown.edits} full className="lx-card-img" />
+              {/* Poza întreagă (raportat: „nu o văd în întregime”), pe un fundal estompat din ea. */}
+              <Thumb key={`bg-${shown.id}`} id={shown.id} lqip={shown.lqip} edits={shown.edits} className="lx-card-img lx-card-bg" />
+              <Thumb key={shown.id} id={shown.id} lqip={shown.lqip} edits={shown.edits} full className="lx-card-img lx-card-whole" />
               <span className={`lx-stamp keep${intent === 'keep' ? ' on' : ''}`}>{tr('lx.keep')}</span>
               <span className={`lx-stamp drop${intent === 'drop' ? ' on' : ''}`}>{tr('lx.notToday')}</span>
               <div className="lx-card-ai">

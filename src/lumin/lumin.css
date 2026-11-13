@@ -2399,3 +2399,6 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-wall-bar { gap: 6px; }
 .lx-wall-seg button { flex: 1 1 auto; padding: 0 3px; }
 .lx-wall-bar .lx-density-btn { min-width: 44px; width: 44px; padding: 0; }
+/* Alegerea pe card: poza se vede întreagă, iar golurile se umplu cu ea însăși, estompată. */
+.lx-card-photo .lx-card-img.lx-card-bg { position: absolute; inset: 0; object-fit: cover; filter: blur(22px) brightness(.6) saturate(1.2); transform: scale(1.15); }
+.lx-card-photo .lx-card-img.lx-card-whole { position: relative; object-fit: contain; }
