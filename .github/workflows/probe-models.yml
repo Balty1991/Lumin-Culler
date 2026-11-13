@@ -1,0 +1,56 @@
+name: Probe aesthetic
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pip install -q onnxruntime numpy pillow scipy torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple 2>&1 | tail -1
+          curl -fsSL -o vision.onnx https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx
+          curl -fsSL -o aest.pth https://github.com/LAION-AI/aesthetic-predictor/raw/main/sa_0_4_vit_b_32_linear.pth
+          mkdir img; cd img
+          for i in 39769 139 285 632 724 776 785 802 872 885 1000 1268 1296 1353 1425 1490 1503 1532 1584 1675 1761 1818 1993 2006 2149 2153 2157 2261 2299 2431 2473 2532 2587 2592 2685 2923 3156 3255 3501 3553 3845 3934 4134 4395 4495 4765 5001 5037 5060 5193 6012 6040 6471 6723 6763 6771 6818 6894 6954 7088 7108 7278 7281 7386 7511 7574 7784 7795 7816 7818 7888 7977 8021 8211 8277 8532 8629 8690 8762 8844 8899 9378 9400 9448 9483 9590 9769 9772 9891 9914; do curl -fsSL -o "$(printf %012d $i).jpg" "http://images.cocodataset.org/val2017/$(printf %012d $i).jpg" || true; done
+          cd ..
+          python - <<'PY'
+          import onnxruntime as ort, numpy as np, torch, json, base64, glob
+          from PIL import Image, ImageFilter, ImageEnhance
+          from scipy.stats import spearmanr
+          d=json.load(open('src/core/clip/clipLabels.json'))
+          Q=np.frombuffer(base64.b64decode(d['q']),np.float16).astype(np.float32).reshape(len(d['qkeys']),2,512)
+          sd=torch.load('aest.pth',map_location='cpu'); w=sd['weight'].numpy()[0]; b=float(sd['bias'].numpy()[0])
+          s=ort.InferenceSession('vision.onnx'); names=[o.name for o in s.get_outputs()]
+          mean=np.array([0.48145466,0.4578275,0.40821073]); std=np.array([0.26862954,0.26130258,0.27577711])
+          def prep(im):
+              im=im.convert('RGB'); W,H=im.size; sc=224/min(W,H); im=im.resize((max(224,round(W*sc)),max(224,round(H*sc))),Image.BICUBIC)
+              W,H=im.size; l=(W-224)//2; t=(H-224)//2; im=im.crop((l,t,l+224,t+224))
+              return ((np.asarray(im,np.float32)/255-mean)/std).transpose(2,0,1)[None].astype(np.float32)
+          def emb(im):
+              o=s.run(None,{s.get_inputs()[0].name:prep(im)}); e=o[names.index('image_embeds')][0] if 'image_embeds' in names else o[0][0]
+              return e/np.linalg.norm(e)
+          def new(e):
+              p={}
+              for j,k in enumerate(d['qkeys']):
+                  g=float(e@Q[j,0]); bb=float(e@Q[j,1]); p[k]=1/(1+np.exp(-(g-bb)*100))
+              ks=['sharp','exposure','quality','accident']; return 3.5+4*sum(p[k] for k in ks)/4
+          old=lambda e: float(e@w+b)
+          O=[];N=[];drops=[]
+          for f in sorted(glob.glob('img/*.jpg')):
+              im=Image.open(f); e=emb(im); O.append(old(e)); N.append(new(e))
+              bl=emb(im.filter(ImageFilter.GaussianBlur(5))); dk=emb(ImageEnhance.Brightness(im).enhance(0.18))
+              drops.append((old(e)-old(bl), new(e)-new(bl), old(e)-old(dk), new(e)-new(dk)))
+          O=np.array(O);N=np.array(N);D=np.array(drops)
+          print('N',len(O)); print('spearman old vs new on originals', round(spearmanr(O,N).correlation,3))
+          print('old range',O.min().round(2),O.max().round(2),'new range',N.min().round(2),N.max().round(2))
+          print('blur: old drops in %.0f%%, new drops in %.0f%%'%(100*(D[:,0]>0).mean(),100*(D[:,1]>0).mean()))
+          print('dark: old drops in %.0f%%, new drops in %.0f%%'%(100*(D[:,2]>0).mean(),100*(D[:,3]>0).mean()))
+          # Separare: originale vs stricate (AUC)
+          from itertools import product
+          def auc(a,b): return np.mean([1.0 if x>y else 0.5 if x==y else 0 for x,y in product(a,b)])
+          print('AUC good-vs-blurred old %.3f new %.3f'%(auc(O,O-D[:,0]),auc(N,N-D[:,1])))
+          print('AUC good-vs-dark old %.3f new %.3f'%(auc(O,O-D[:,2]),auc(N,N-D[:,3])))
+          idx=np.argsort(-O); print('top-10 old ranks under new:',[int(np.where(np.argsort(-N)==i)[0][0]) for i in idx[:10]])
+          PY
