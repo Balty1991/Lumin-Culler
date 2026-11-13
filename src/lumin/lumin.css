@@ -2501,3 +2501,5 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-lic-row small { opacity: .7; font-weight: 400; }
 .lx-lic-meta { font-size: 13px; opacity: .85; overflow-wrap: anywhere; }
 .lx-lic-text { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--font-mono, ui-monospace, monospace); }
+/* Cardul tras are stratul lui: fundalul estompat și umbra se desenează o dată, apoi doar se mută. */
+.lx-card-photo.top { will-change: transform; contain: layout paint; }

@@ -56,8 +56,14 @@ export function SwipeSort() {
   const why = useWhyContext();
 
   const [index, setIndex] = useState(0);
-  const [dx, setDx] = useState(0);
-  const [dy, setDy] = useState(0);
+  /** Unde e cardul tras acum. Ținut în afara React: o mișcare de deget nu mai redesenează
+   *  tot ecranul (raportat: „cam sacadează” la tras; fiecare mișcare refăcea seria, motivul
+   *  și pozele, pe toată galeria). Se scrie direct pe card, o dată pe cadru. */
+  const off = useRef({ dx: 0, dy: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
+  const [intentState, setIntentState] = useState<'keep' | 'drop' | 'later' | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [flying, setFlying] = useState<'left' | 'right' | 'up' | null>(null);
   /** Comparare: două cadre din aceeași serie, unul lângă altul. */
   const [comparing, setComparing] = useState<[string, string] | null>(null);
@@ -79,7 +85,7 @@ export function SwipeSort() {
       return [id, s === 'selected' ? 'keep' : s === 'rejected' ? 'drop' : 'unsure'] as [string, Verdict];
     })));
     setIndex(0);
-    setDx(0); setDy(0);
+    off.current = { dx: 0, dy: 0 }; setIntentState(null);
     doneIds.current = new Set();
     setComparing(null);
     setDecisions(0);
@@ -121,8 +127,25 @@ export function SwipeSort() {
     return () => window.clearTimeout(t);
   }, [lesson]);
 
+  // Seria, cea mai bună din ea și motivul AI-ului: o dată pe poză, nu la fiecare mișcare.
+  const seriesInfo = useMemo(() => {
+    if (!shown?.groupId) return { series: [] as typeof photos, seriesBest: null as (typeof photos)[number] | null, compareMate: null as (typeof photos)[number] | null };
+    const series = photos.filter(p => p.groupId === shown.groupId && !p.aside);
+    const ranked = [...series].sort((a, b) => b.aiScore - a.aiScore);
+    const seriesBest = series.length > 1 ? ranked[0] : null;
+    const compareMate = seriesBest ? (seriesBest.id !== shown.id ? seriesBest : ranked.find(p => p.id !== shown.id) ?? null) : null;
+    return { series, seriesBest, compareMate };
+  }, [shown?.id, shown?.groupId, photos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const whyText = useMemo(() => (shown ? personalWhy(shown, why, tr) : ''), [shown, why, tr]);
+
   if (!ids) return null;
 
+  const resetCard = () => {
+    off.current = { dx: 0, dy: 0 };
+    const el = cardRef.current;
+    if (el) el.style.transform = 'translate(0px, 0px) rotate(0deg)';
+    setIntentState(null);
+  };
   const decide = (keep: boolean) => {
     if (!shown || flying) return;
     haptic(keep ? 'confirm' : 'reject');
@@ -141,16 +164,16 @@ export function SwipeSort() {
     if (peek && peek !== current?.id) { setPeek(null); return; }
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');
-    window.setTimeout(() => { setFlying(null); setDx(0); setDy(0); setPeek(null); advance(); }, FLY_MS);
+    window.setTimeout(() => { setFlying(null); resetCard(); setPeek(null); advance(); }, FLY_MS);
   };
   const later = () => {
     if (!shown || flying) return;
     haptic('tick');
     void setStatus(shown.id, 'candidate');
-    if (peek && peek !== current?.id) { setPeek(null); setDy(0); return; }
+    if (peek && peek !== current?.id) { setPeek(null); resetCard(); return; }
     setPeek(null);
     setFlying('up');
-    window.setTimeout(() => { setFlying(null); setDx(0); setDy(0); advance(); }, FLY_MS);
+    window.setTimeout(() => { setFlying(null); resetCard(); advance(); }, FLY_MS);
   };
   /** Comparare: omul alege cadrul mai bun; acela rămâne, celălalt iese. Perechea se notează. */
   const pickInCompare = (winner: string, loser: string) => {
@@ -173,7 +196,7 @@ export function SwipeSort() {
   }
   const showFrame = (id: string) => {
     const at = queue.indexOf(id);
-    if (at >= 0) { setPeek(null); setIndex(at); setDx(0); return; }
+    if (at >= 0) { setPeek(null); setIndex(at); resetCard(); return; }
     setPeek(id);
   };
   const back = () => {
@@ -186,34 +209,44 @@ export function SwipeSort() {
     if (flying) return;
     drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
     e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!drag.current || drag.current.id !== e.pointerId) return;
-    const next = e.clientX - drag.current.x;
-    const up = Math.min(0, e.clientY - drag.current.y);
+    const prev = off.current;
+    const next = { dx: e.clientX - drag.current.x, dy: Math.min(0, e.clientY - drag.current.y) };
     // O bătaie fină când cardul trece pragul de decizie (în ambele sensuri).
-    if ((Math.abs(next) > COMMIT_PX) !== (Math.abs(dx) > COMMIT_PX)) haptic('tick');
-    if ((-up > COMMIT_PX) !== (-dy > COMMIT_PX)) haptic('tick');
-    setDx(next);
-    setDy(up);
+    if ((Math.abs(next.dx) > COMMIT_PX) !== (Math.abs(prev.dx) > COMMIT_PX)) haptic('tick');
+    if ((-next.dy > COMMIT_PX) !== (-prev.dy > COMMIT_PX)) haptic('tick');
+    off.current = next;
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      const { dx, dy } = off.current;
+      const el = cardRef.current;
+      if (el) el.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 22}deg)`;
+      const want = -dy > 30 && -dy > Math.abs(dx) ? 'later' : dx > 30 ? 'keep' : dx < -30 ? 'drop' : null;
+      setIntentState(cur => (cur === want ? cur : want));
+    });
   };
   const onUp = () => {
     if (!drag.current) return;
     drag.current = null;
+    setDragging(false);
+    if (frame.current) { cancelAnimationFrame(frame.current); frame.current = 0; }
+    const { dx, dy } = off.current;
     // În sus = „Mai târziu” (nu știu încă), doar când mișcarea e mai mult verticală.
     if (-dy > COMMIT_PX && -dy > Math.abs(dx)) later();
     else if (dx > COMMIT_PX) decide(true);
     else if (dx < -COMMIT_PX) decide(false);
-    else { setDx(0); setDy(0); }
+    else resetCard();
   };
 
   const ai = shown ? aiView.get(shown.id) ?? 'unsure' : 'unsure';
-  const series = shown?.groupId ? photos.filter(p => p.groupId === shown.groupId && !p.aside) : [];
-  const seriesBest = series.length > 1 ? [...series].sort((a, b) => b.aiScore - a.aiScore)[0] : null;
-  const offset = flying === 'right' ? 520 : flying === 'left' ? -520 : flying === 'up' ? 0 : dx;
-  const lift = flying === 'up' ? -900 : dy;
-  const intent = -lift > 30 && -lift > Math.abs(offset) ? 'later' : offset > 30 ? 'keep' : offset < -30 ? 'drop' : null;
-  const compareMate = seriesBest && shown ? (seriesBest.id !== shown.id ? seriesBest : series.filter(p => p.id !== shown.id).sort((a, b) => b.aiScore - a.aiScore)[0]) : null;
+  const { series, seriesBest, compareMate } = seriesInfo;
+  const intent = flying === 'up' ? 'later' : flying === 'right' ? 'keep' : flying === 'left' ? 'drop' : intentState;
+  // Doar zborul trece prin React; tragerea scrie direct pe card (mai sus).
+  const flyTransform = flying === 'right' ? 'translate(520px, 0px) rotate(23deg)' : flying === 'left' ? 'translate(-520px, 0px) rotate(-23deg)' : flying === 'up' ? 'translate(0px, -900px) rotate(0deg)' : 'translate(0px, 0px) rotate(0deg)';
 
   return (
     <div className="lx-sort" role="dialog" aria-modal="true" aria-label={title ?? tr('lx.sort.title')}>
@@ -244,8 +277,9 @@ export function SwipeSort() {
               </div>
             )}
             <div
-              className={`lx-card-photo top${flying ? ' flying' : ''}${drag.current ? ' dragging' : ''}`}
-              style={{ transform: `translate(${offset}px, ${lift}px) rotate(${offset / 22}deg)` }}
+              ref={cardRef}
+              className={`lx-card-photo top${flying ? ' flying' : ''}${dragging ? ' dragging' : ''}`}
+              style={{ transform: flyTransform }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
             >
               {/* Poza întreagă (raportat: „nu o văd în întregime”), pe un fundal estompat din ea. */}
@@ -259,7 +293,7 @@ export function SwipeSort() {
                   <i className="lx-dot" />{tr(`lx.ai.${ai}`)}
                   <b>{shown.aiScore}</b>
                 </span>
-                <p className="lx-why">{personalWhy(shown, why, tr)}</p>
+                <p className="lx-why">{whyText}</p>
                 <CloudLine id={shown.id} />
                 {seriesBest && (
                   <span className="lx-series-note">
