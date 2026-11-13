@@ -1,4 +1,5 @@
 import { buildMorningReport, markMorningSeen, morningSeen } from './morningReport';
+import { useReaderYielding } from './readerYield';
 import { SampleResultCard } from './SampleFlow';
 import { storedSampleResult } from './galleryReader';
 import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
@@ -73,6 +74,7 @@ export function TodayScreen() {
   const reader = useLx(s => s.reader);
   const readerResult = useLx(s => s.readerResult);
   const sampling = useLx(s => s.sampling);
+  const readerYielding = useReaderYielding(!!reader);
   // Cât stă pe ecran rezultatul primei priviri, el e singurul pas: restul cardurilor spuneau
   // același lucru în alte cuvinte (raportat cu video: „ecranul de acasă e prea încărcat”).
   const liveSample = useLx(s => s.sampleResult);
@@ -230,7 +232,7 @@ export function TodayScreen() {
             <button className="lx-btn ghost small" onClick={stopGalleryReader}>■ {tr('lx.reader.stop')}</button>
           </div>
           <div className="lx-progress small"><i style={{ width: `${reader.total ? Math.round((reader.done / reader.total) * 100) : 0}%` }} /></div>
-          <span>{tr(sampling ? 'lx.sample.readingSub' : 'lx.reader.sub')}</span>
+          <span>{tr(sampling ? 'lx.sample.readingSub' : readerYielding && !reader.paused ? 'lx.reader.pausedUser' : 'lx.reader.sub')}</span>
           {!sampling && !reader.paused && <button className="lx-btn ghost small" onClick={() => useLx.getState().setWorkMode(true)}>⚡ {tr('lx.work.open')}</button>}
           {!reader.paused && reader.total - reader.done > 200 && <span className="lx-reader-fast">{reader.fast ? `⚡ ${tr('lx.reader.fast')}` : tr('lx.reader.fastTip')}</span>}
           <BatteryHint />
@@ -536,8 +538,20 @@ function BatteryHint() {
     void readBatteryRestriction().then(b => { if (alive) setRestricted(b === 'restricted'); });
     return () => { alive = false; };
   }, []);
+  // Verificat din nou la întoarcerea din Setări: butonul dispare după „Fără restricții”.
+  useEffect(() => {
+    const again = () => { if (document.visibilityState === 'visible') void readBatteryRestriction().then(b => setRestricted(b === 'restricted')); };
+    document.addEventListener('visibilitychange', again);
+    return () => document.removeEventListener('visibilitychange', again);
+  }, []);
   if (!restricted) return null;
-  return <button className="lx-link" onClick={() => void openBatterySettings()}>⚡ {tr('lx.reader.battery')}</button>;
+  // Un buton adevărat, ca la notificări (cerut), nu un rând de text de urmat.
+  return (
+    <div className="lx-battery-ask">
+      <button className="lx-btn primary small wide" onClick={() => void openBatterySettings()}>⚡ {tr('lx.reader.batteryBtn')}</button>
+      <small>{tr('lx.reader.batteryHow')}</small>
+    </div>
+  );
 }
 
 /**

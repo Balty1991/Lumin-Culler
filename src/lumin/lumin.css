@@ -2346,3 +2346,9 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
 .cp-offscreen .lx-work-aurora { display: none !important; }
+.lx-battery-ask { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.lx-battery-ask small { color: var(--lx-dim, rgb(255 255 255 / .6)); font-size: 12.5px; text-align: center; }
+/* Poza puțin mai mare decât panoul de lucru (cerut cu captură: poza ~38%, panoul ~48%).
+   Panoul derulează în interior; poza ia restul ecranului. */
+.lx-enhance .lx-viewer-info { max-height: 42dvh; }
+.lx-enhance .lx-enhance-stage { min-height: 46dvh; }

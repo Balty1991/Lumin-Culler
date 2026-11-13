@@ -236,9 +236,17 @@ class BackgroundAnalysisPlugin : Plugin() {
      */
     @PluginMethod
     fun openBatterySettings(call: PluginCall) {
-        val incercari = listOf(
-            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        val producator = android.os.Build.MANUFACTURER.lowercase()
+        // Xiaomi/Redmi/POCO: direct pagina „Economisire baterie” a aplicației, unde e „Fără restricții”
+        // (cerut: „o poți activa printr-un buton, ca la notificări?”). Fără nicio permisiune.
+        val xiaomi = if (producator in setOf("xiaomi", "redmi", "poco")) listOf(
+            Intent().setComponent(android.content.ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
+                .putExtra("package_name", context.packageName)
+                .putExtra("package_label", runCatching { context.applicationInfo.loadLabel(context.packageManager).toString() }.getOrDefault("Cherrypic"))
+        ) else emptyList()
+        val incercari = xiaomi + listOf(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         )
         for (intent in incercari) {
             val pornit = runCatching {

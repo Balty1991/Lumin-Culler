@@ -125,6 +125,8 @@
     <!-- Dictarea pentru căutare: fereastra de vorbire a telefonului (DevicePlugin.voiceSearch).
          Fără asta, pe Android 11+ aplicația n-ar vedea că serviciul există. -->
     <queries>
+        <!-- Xiaomi: pagina de baterie a aplicației, deschisă direct din butonul „Permite lucrul în fundal”. -->
+        <package android:name="com.miui.powerkeeper" />
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>

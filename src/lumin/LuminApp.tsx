@@ -1,4 +1,5 @@
 import { startJankLog } from '../core/jankLog';
+import { useReaderYielding } from './readerYield';
 import { WorkModeOverlay } from './SampleFlow';
 import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -165,6 +166,7 @@ export function LuminApp() {
   const boot = useStore(s => s.boot);
   const locale = useStore(s => s.locale);
   const notice = useStore(s => s.notice);
+  const readerYielding = useReaderYielding(!!useLx(s => s.reader));
   const clearNotice = useStore(s => s.clearNotice);
   const setNotice = useStore(s => s.setNotice);
   const runImport = useStore(s => s.runImport);
@@ -470,7 +472,7 @@ export function LuminApp() {
         {reader && reader.paused !== 'import' ? (tab !== 'today' && reader.total > 30 && (
           <button className="lx-busy-pill" onClick={() => setTab('today')}>
             <Orb mood="think" size={20} />
-            {tr('lx.reader.pill', { done: reader.done, total: reader.total })}
+            {tr(readerYielding ? 'lx.reader.pillPaused' : 'lx.reader.pill', { done: reader.done, total: reader.total })}
           </button>
         )) : busy && tab !== 'today' && progress && (
           <button className="lx-busy-pill" onClick={() => setTab('today')}>

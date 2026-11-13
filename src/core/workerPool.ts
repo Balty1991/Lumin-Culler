@@ -532,6 +532,11 @@ export class AnalysisPool {
   private lastTouch = 0;
   /** Cât a trecut de la ultima atingere sau derulare (ms). */
   msSinceTouch(): number { return Date.now() - this.lastTouch; }
+  /** Citirea stă cât omul folosește aplicația (atins în ultimele 8 s sau un editor deschis): se spune pe ecran. */
+  isYielding(): boolean {
+    return !this.focus && (this.gentle || this.background) && typeof document !== 'undefined' && document.visibilityState === 'visible'
+      && (this.uiHolds > 0 || Date.now() - this.lastTouch < GENTLE_QUIET_MS);
+  }
   private touchTimer: ReturnType<typeof setTimeout> | null = null;
   private touchWatch = typeof window !== 'undefined'
     ? (() => {
