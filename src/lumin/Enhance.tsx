@@ -227,11 +227,11 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
   let url = picked.url;
   const original = picked.url;
   let img = picked.img;
-  // Poza întunecată: întâi lumina învățată (Zero-DCE, pe telefon), apoi restul corecturii.
+  // Poza întunecată: întâi lumina învățată (SCI, pe telefon), apoi restul corecturii.
   let lit = false;
   const dark = meanLumOf(img);
   if (dark < 0.34) {
-    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.35, Math.min(0.7, (0.42 - dark) / 0.25)))).catch(() => null);
+    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.3, Math.min(0.6, (0.42 - dark) / 0.3)))).catch(() => null);
     if (better) { url = URL.createObjectURL(better); img = await load(url); lit = true; }
   }
   const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
@@ -246,9 +246,10 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
   // Puțină lumină în plus, cât trebuie pentru poza asta (raportat: Natural arăta mult mai
   // bine cu Luminozitate +20 pusă de mână). Măsurată pe fețe, unde sunt, altfel pe toată
   // poza; o poză deja luminoasă nu primește nimic.
-  auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
+  if (!lit) auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
   // Ce fel de poză e, și ce e stricat la ea (lumină, culoare, ceață, zgomot, cer, ten).
   const scene = sceneTune(img, auto, a);
+  if (lit) tameAfterLowLight(auto);
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -266,6 +267,26 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
+}
+
+/** Cât de tare poate merge stilul peste o poză deja luminată pe telefon. */
+export const LIT_MAX_AMOUNT = 0.45;
+
+/**
+ * După lumina de pe telefon (SCI), corectura automată doar finisează: fără lumină, contrast
+ * și saturație în plus peste ce s-a dat deja (raportat cu capturi: perete alb ars, lumina
+ * caldă vira în portocaliu, camera roz în magenta tare).
+ */
+export function tameAfterLowLight(e: EditAdjustments): void {
+  e.exposure = Math.min(e.exposure, 6);
+  e.contrast = Math.min(e.contrast, 8);
+  e.saturation = Math.min(e.saturation, 0);
+  e.shadows = Math.min(e.shadows, 10);
+  e.highlights = Math.min(e.highlights, 0);
+  if (e.whites !== undefined) e.whites = Math.min(e.whites, 0);
+  const v = e as unknown as Record<string, number | undefined>;
+  if (typeof v.vibrance === 'number') v.vibrance = Math.min(v.vibrance, 4);
+  if (typeof v.clarity === 'number') v.clarity = Math.min(v.clarity, 6);
 }
 
 export type Scene = 'overcast' | 'food' | 'landscape' | 'night' | 'portrait' | 'backlit' | 'indoor';
@@ -730,7 +751,9 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
         const hint = recommendStyle(found, faces.length);
         if (alive && hint !== 'natural') setPicked({ style: hint, scene: found.find(sc => VIVID_SCENES.has(sc)) ?? null });
         const fit = await fitAmount(url, lightOnly, 'natural').catch(() => null);
-        if (alive && fit !== null) setAmount(fit);
+        // Poza deja luminată pe telefon: stilul doar finisează (raportat: perete ars, portocaliu,
+        // magenta tare; urcarea „până se vede” se aduna peste lumina dată deja).
+        if (alive && fit !== null) setAmount(wasLit ? Math.min(LIT_MAX_AMOUNT, fit) : fit);
       }
     })().catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };

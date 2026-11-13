@@ -19,6 +19,10 @@ import kotlin.math.min
 private const val MIGAN_FILE = "migan_fp16.tflite"
 private const val MIGAN_URL = "https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite"
 private const val SIDE = 512
+/** Câștigul maxim al luminii pentru pozele întunecate. */
+private const val MAX_LOWLIGHT_GAIN = 2.4f
+/** De unde luminanța începe să se apropie lin de alb. */
+private const val SHOULDER = 0.72f
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
 private const val U2NET_FILE = "u2netp.tflite"
 /** Claritate și decupaj: nu mai intră în APK (−10 MB); se descarcă la prima folosire. */
@@ -277,7 +281,7 @@ class EditModelsPlugin : Plugin() {
             val plane = SIDE * SIDE
             val px = IntArray(plane); small.getPixels(px, 0, SIDE, 0, 0, SIDE, SIDE)
             // Rețeaua SCI (MIT, SciLowLight.kt) pe copia de 512 px; câștigul pe luminanță
-            // (nu pe canale: culoarea rămâne a pozei), 1..3,5, ca înainte.
+            // (aplicat la fel pe toate canalele, ca nuanța să rămână).
             val x = FloatArray(3 * plane)
             for (i in 0 until plane) {
                 x[i] = ((px[i] shr 16) and 0xFF) / 255f
@@ -285,24 +289,27 @@ class EditModelsPlugin : Plugin() {
                 x[2 * plane + i] = (px[i] and 0xFF) / 255f
             }
             val r = SciLowLight.enhance(x, SIDE, SIDE)
+            val lumIn = FloatArray(plane) { i -> 0.299f * x[i] + 0.587f * x[plane + i] + 0.114f * x[2 * plane + i] }
+            // Câștigul pe luminanță, 1..2,4 (raportat: cu 3,5 peretele alb se ardea, fețele erau dure).
             val gain = FloatArray(plane) { i ->
-                val li = 0.299f * x[i] + 0.587f * x[plane + i] + 0.114f * x[2 * plane + i]
                 val lo = 0.299f * r[i] + 0.587f * r[plane + i] + 0.114f * r[2 * plane + i]
-                ((lo + 0.03f) / (li + 0.03f)).coerceIn(1f, 3.5f)
+                ((lo + 0.03f) / (lumIn[i] + 0.03f)).coerceIn(1f, MAX_LOWLIGHT_GAIN)
             }
-            val smooth = boxBlur(boxBlur(gain, SIDE, 6), SIDE, 6)
-            // Câștigul în tonuri de gri (1..3,5 → 0..255), întins la mărimea pozei cu filtrare.
-            val gp = IntArray(plane) { i -> val v = ((smooth[i] - 1f) / 2.5f * 255f).toInt().coerceIn(0, 255); (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
+            // Netezire care ține cont de margini (guided filter, ghidat de luminanță): lumina nu
+            // mai trece de pe om pe peretele din spate (raportat: contur luminos în jurul oamenilor).
+            val smooth = guidedFilter(lumIn, gain, SIDE, 8, 0.004f)
+            for (i in smooth.indices) smooth[i] = smooth[i].coerceIn(1f, MAX_LOWLIGHT_GAIN)
+            val gp = IntArray(plane) { i -> val v = ((smooth[i] - 1f) / (MAX_LOWLIGHT_GAIN - 1f) * 255f).toInt().coerceIn(0, 255); (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
             val gBmp = Bitmap.createScaledBitmap(Bitmap.createBitmap(gp, SIDE, SIDE, Bitmap.Config.ARGB_8888), src.width, src.height, true)
             val n = src.width * src.height
             val sp = IntArray(n); src.getPixels(sp, 0, src.width, 0, 0, src.width, src.height)
             val gpx = IntArray(n); gBmp.getPixels(gpx, 0, src.width, 0, 0, src.width, src.height)
             for (i in 0 until n) {
-                val g = 1f + ((gpx[i] and 0xFF) / 255f * 2.5f) * strength
-                val r = min(255f, ((sp[i] shr 16) and 0xFF) * g).toInt()
-                val gg = min(255f, ((sp[i] shr 8) and 0xFF) * g).toInt()
-                val b = min(255f, (sp[i] and 0xFF) * g).toInt()
-                sp[i] = (0xFF shl 24) or (r shl 16) or (gg shl 8) or b
+                val gain1 = 1f + ((gpx[i] and 0xFF) / 255f * (MAX_LOWLIGHT_GAIN - 1f)) * strength
+                val cr = ((sp[i] shr 16) and 0xFF).toFloat()
+                val cg = ((sp[i] shr 8) and 0xFF).toFloat()
+                val cb = (sp[i] and 0xFF).toFloat()
+                sp[i] = (0xFF shl 24) or (lightPixel(cr, cg, cb, gain1))
             }
             val result = Bitmap.createBitmap(sp, src.width, src.height, Bitmap.Config.ARGB_8888)
             val o = JSObject()
@@ -514,6 +521,36 @@ class EditModelsPlugin : Plugin() {
             o.put("imageBase64", encode(result, png = !white))
             call.resolve(o)
         }
+    }
+
+    /**
+     * Un pixel luminat cu `gain`, la fel pe toate canalele (nuanța rămâne). Luminanța trece
+     * printr-un „umăr” moale peste 0,72, ca albul să nu se ardă, iar niciun canal nu trece de 255
+     * (raportat: peretele alb devenea alb plin, lumina caldă vira în portocaliu).
+     */
+    private fun lightPixel(r: Float, g: Float, b: Float, gain: Float): Int {
+        val l = (0.299f * r + 0.587f * g + 0.114f * b) / 255f
+        if (l <= 0.0005f || gain <= 1f) return (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
+        var lt = l * gain
+        if (lt > SHOULDER) lt = SHOULDER + (1f - SHOULDER) * (1f - kotlin.math.exp(-(lt - SHOULDER) / (1f - SHOULDER)))
+        var k = max(1f, lt / l)
+        val top = max(r, max(g, b))
+        if (top * k > 255f) k = max(1f, 255f / top)
+        return (min(255f, r * k).toInt() shl 16) or (min(255f, g * k).toInt() shl 8) or min(255f, b * k).toInt()
+    }
+
+    /** Filtrul ghidat (He et al.): netezește `p` păstrând marginile din `guide`. */
+    private fun guidedFilter(guide: FloatArray, p: FloatArray, side: Int, r: Int, eps: Float): FloatArray {
+        val n = guide.size
+        val meanI = boxBlur(guide, side, r)
+        val meanP = boxBlur(p, side, r)
+        val corrII = boxBlur(FloatArray(n) { guide[it] * guide[it] }, side, r)
+        val corrIP = boxBlur(FloatArray(n) { guide[it] * p[it] }, side, r)
+        val a = FloatArray(n) { (corrIP[it] - meanI[it] * meanP[it]) / (corrII[it] - meanI[it] * meanI[it] + eps) }
+        val b = FloatArray(n) { meanP[it] - a[it] * meanI[it] }
+        val ma = boxBlur(a, side, r)
+        val mb = boxBlur(b, side, r)
+        return FloatArray(n) { ma[it] * guide[it] + mb[it] }
     }
 
     private fun boxBlur(a: FloatArray, side: Int, r: Int): FloatArray {

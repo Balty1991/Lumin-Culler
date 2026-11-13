@@ -66,6 +66,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 
 ## Registru
 
+- **13 nov.** Raportat cu capturi: luminarea SCI ardea peretele, vira în portocaliu / magenta, contur în jurul oamenilor. Simulat pe capturile tale: lumina singură era rezonabilă, problema venea din corectura editorului adunată peste. Reparat: câștig maxim 2,4×, netezire ghidată de margini, lumina aplicată la fel pe toate canalele cu „umăr” pentru alb; după luminare, editorul nu mai adaugă lumină, contrast și saturație, iar stilul pornește cel mult la 45%.
 - **13 nov.** FER+ (MIT) și MODNet (Apache 2.0) verificate la sursă: rămân.
 - **13 nov.** Licențe verificate la sursă. SFace: Apache 2.0, păstrat. Zero-DCE: doar necomercial, scos și înlocuit cu SCI (MIT), scris direct în Kotlin și testat față de modelul original.
 - **13 nov.** Etapele 4–6 verificate: cea mai mare parte exista deja. Nou: căutarea pe matrice. Găsit: SFace și Zero-DCE sunt în APK-ul de Play cu licență neclară (decizie pentru proprietar).
