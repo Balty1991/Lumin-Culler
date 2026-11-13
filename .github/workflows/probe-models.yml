@@ -35,7 +35,7 @@ jobs:
           m=CLIPModel.from_pretrained('openai/clip-vit-base-patch32').eval(); pp=CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')
           def enc(ds):
               t=pp(text=ds,return_tensors='pt',padding=True)
-              with torch.no_grad(): e=m.get_text_features(**t).numpy()
+              with torch.no_grad(): e=m.text_projection(m.text_model(**t).pooler_output).numpy()
               e=e/np.linalg.norm(e,axis=1,keepdims=True); e=e.mean(0); return e/np.linalg.norm(e)
           EXTRA={'beauty':(['a beautiful photograph','a stunning photo with great composition','an aesthetically pleasing photo'],['a boring snapshot','a poorly composed, unappealing photo','a dull, uninteresting photo']),
                  'light':(['a photo with beautiful, soft light','a photo with golden warm light'],['a photo with flat, dull light','a photo with harsh, ugly lighting']),
