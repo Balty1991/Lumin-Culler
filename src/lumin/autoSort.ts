@@ -73,6 +73,7 @@ export async function autoSortToday(force = false): Promise<AutoSortResult | nul
     if (!r.granted || r.count <= known) return null;
     const added = await useStore.getState().importToday();
     if (!added) return null;
+    await (await import('./trainingGate')).holdUntilLearned().catch(() => 0);
     await decideRestIfAllowed();
     return summarizeToday(added);
   } catch {

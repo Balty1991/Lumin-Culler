@@ -861,6 +861,8 @@ interface AppState {
    * Vezi lumin/trainingGate.ts. Nu antrenează nimic și nu atinge deciziile omului.
    */
   softenAutoRejects: (ids: string[]) => Promise<number>;
+  /** Păstrările AI-ului din aceste poze devin „de văzut” (vezi lumin/trainingGate.ts holdUntilLearned). */
+  softenAutoKeeps: (ids: string[]) => Promise<number>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
@@ -4077,6 +4079,16 @@ export const useStore = create<AppState>((set, get) => ({
   softenAutoRejects: async ids => {
     const recs = await db.photos.bulkGet(ids);
     const soft = recs.filter((r): r is PhotoRecord => !!r && r.status === 'rejected' && r.aiDecided === true).map(r => r.id);
+    if (!soft.length) return 0;
+    await Promise.all(soft.map(async id => { await db.photos.update(id, { status: 'review', aiDecided: true }); await syncOriginal(id, 'review'); }));
+    const set_ = new Set(soft);
+    set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'review' } : p)) }));
+    return soft.length;
+  },
+
+  softenAutoKeeps: async ids => {
+    const recs = await db.photos.bulkGet(ids);
+    const soft = recs.filter((r): r is PhotoRecord => !!r && r.status === 'selected' && r.aiDecided === true).map(r => r.id);
     if (!soft.length) return 0;
     await Promise.all(soft.map(async id => { await db.photos.update(id, { status: 'review', aiDecided: true }); await syncOriginal(id, 'review'); }));
     const set_ = new Set(soft);

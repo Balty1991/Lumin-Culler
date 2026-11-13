@@ -61,5 +61,56 @@ export async function redecideIfJustTrained(): Promise<boolean> {
   if (!(await trainedEnough())) return false;
   try { localStorage.setItem(REDECIDED_KEY, '1'); } catch { /* fără stocare */ }
   await useStore.getState().rescorePhotos();
+  await holdUntilLearned();
   return true;
+}
+
+/**
+ * Ce fel de poză e, pentru gustul omului. Oamenii și animalele se păstrează singure;
+ * mâncarea, locurile și obiectele abia după ce omul a arătat că le păstrează
+ * (raportat: cafea, pizza, un dulap și peisaje păstrate de la prima citire —
+ * „ar trebui puse în verificare până învață preferințele”).
+ */
+export type TasteKind = 'people' | 'pet' | 'food' | 'place' | 'thing';
+const PET = /^(cat|kitten|dog|puppy|pet|animal|bird|horse|rabbit|hamster|fish)$/i;
+const FOOD = /^(food|dish|meal|cuisine|pizza|cake|dessert|coffee|latte|cappuccino|espresso|tea|drink|beverage|cup|mug|breakfast|lunch|dinner|fruit|vegetable|bread|pancake|salad|soup|burger|pasta|sushi|wine|beer|cocktail|baked goods|snack|plate|tableware|cookie|ice cream|chocolate)$/i;
+const PLACE = /^(landscape|mountain|lake|sea|beach|ocean|sky|sunset|sunrise|nature|forest|tree|river|waterfall|field|park|garden|city|street|building|architecture|town|road|bridge|church|castle|tower|snow|cloud|hill|desert|valley|skyline|alley|house)$/i;
+
+export function tasteKind(p: Pick<PhotoView, 'faceCount' | 'sceneTags'>): TasteKind {
+  if ((p.faceCount ?? 0) > 0) return 'people';
+  const tags = p.sceneTags ?? [];
+  if (tags.some(t => PET.test(t))) return 'pet';
+  if (tags.some(t => FOOD.test(t))) return 'food';
+  if (tags.some(t => PLACE.test(t))) return 'place';
+  return 'thing';
+}
+
+/** Felurile pe care omul le-a păstrat singur de cel puțin 3 ori, mai des decât le-a scos. */
+export function learnedKinds(photos: readonly PhotoView[]): Set<TasteKind> {
+  const kept = new Map<TasteKind, number>();
+  const dropped = new Map<TasteKind, number>();
+  for (const p of photos) {
+    if (p.aiDecided !== false || p.aside) continue;
+    const k = tasteKind(p);
+    if (p.status === 'selected') kept.set(k, (kept.get(k) ?? 0) + 1);
+    else if (p.status === 'rejected') dropped.set(k, (dropped.get(k) ?? 0) + 1);
+  }
+  const out = new Set<TasteKind>(['people', 'pet']);
+  for (const k of ['food', 'place', 'thing'] as const) {
+    const y = kept.get(k) ?? 0, n = dropped.get(k) ?? 0;
+    if (y >= 3 && y >= n) out.add(k);
+  }
+  return out;
+}
+
+/** Păstrările AI-ului pentru felurile încă neînvățate devin „de văzut”. Nimic nu se șterge. */
+export async function holdUntilLearned(ids?: string[]): Promise<number> {
+  // „Decide tot” (Pro): omul a cerut decizii, nu „de văzut” — altfel le-ar scoate pe toate.
+  if ((await import('./twin')).readAutonomy() === 'all') return 0;
+  const photos = useStore.getState().photos;
+  const learned = learnedKinds(photos);
+  const only = ids ? new Set(ids) : null;
+  const hold = photos.filter(p => (!only || only.has(p.id)) && p.status === 'selected' && p.aiDecided === true && !p.aside && !learned.has(tasteKind(p))).map(p => p.id);
+  if (!hold.length) return 0;
+  return useStore.getState().softenAutoKeeps(hold);
 }

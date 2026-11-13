@@ -8,7 +8,7 @@ import { t } from '../i18n';
 import { analysisPool } from '../core/workerPool';
 import { userActive } from '../core/userIdle';
 import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity';
-import { holdRejectsUntilTrained, trainedEnough } from './trainingGate';
+import { holdRejectsUntilTrained, holdUntilLearned, trainedEnough } from './trainingGate';
 import { readTasteQuizDone } from '../state/tasteQuiz';
 import { holdBackgroundAnalysis, releaseBackgroundAnalysis, updateHeldBackground } from '../core/backgroundAnalysis';
 
@@ -319,6 +319,8 @@ export async function readWholeGallery(byUser = false): Promise<void> {
         // Antrenat prea puțin: ce ar arunca AI-ul rămâne „de văzut” (vezi trainingGate.ts).
         const uris = new Set(files.map(f => f.uri));
         await jankSpan('retinere-refuzuri', () => holdRejectsUntilTrained(useStore.getState().photos.filter(p => p.mediaUri && uris.has(p.mediaUri)).map(p => p.id)).catch(() => 0));
+        // Mâncarea, locurile și obiectele: „de văzut” până știe că omul le păstrează.
+        await holdUntilLearned(useStore.getState().photos.filter(p => p.mediaUri && uris.has(p.mediaUri)).map(p => p.id)).catch(() => 0);
         // Oamenii se umplu pe parcurs, nu abia la final (raportat: „nu a citit toată
         // galeria să o repartizeze la persoane”): fețele din pachetele citite primesc
         // amprenta și numele la fiecare ~200 de poze — după import, nu în paralel cu el.

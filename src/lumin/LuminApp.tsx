@@ -246,7 +246,7 @@ export function LuminApp() {
       if (action === 'share_memory' || action === 'see_memory') { void openMemoryAction(action); return; }
       if (action !== 'today') { void openDayAction(action); return; }
       void useStore.getState().importToday().then(async added => {
-        if (added) await decideRestIfAllowed();
+        if (added) { await (await import('./trainingGate')).holdUntilLearned().catch(() => 0); await decideRestIfAllowed(); }
         const result = summarizeToday(added ?? 0);
         if (result) useLx.getState().setAutoResult(result);
         const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
