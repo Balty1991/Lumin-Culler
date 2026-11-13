@@ -43,13 +43,21 @@ export function buildCoverage(galleryCounts: Map<number, number>, photos: readon
     seen.set(m, row);
   }
   const months = new Set([...galleryCounts.keys(), ...seen.keys()]);
+  // Toată galeria citită (raportat: „a apărut 100%, dar situația galeriei arată nesortat”): lunile
+  // din galerie se numără după data fișierului, ale noastre după data pozei (EXIF), deci o poză
+  // descărcată pe WhatsApp cădea „neatinsă” într-o lună și „în plus” în alta. Cât am citit cel
+  // puțin cât are galeria, nicio lună nu mai are poze „neatinse”.
+  let inGalleryTotal = 0, seenTotal = 0;
+  for (const n of galleryCounts.values()) inGalleryTotal += n;
+  for (const r of seen.values()) seenTotal += r.seen;
+  const allRead = inGalleryTotal > 0 && seenTotal >= inGalleryTotal * 0.98;
   return [...months].sort((a, b) => b - a).map(start => ({
     start,
     end: nextMonth(start),
-    inGallery: Math.max(galleryCounts.get(start) ?? 0, seen.get(start)?.seen ?? 0),
+    inGallery: allRead ? (seen.get(start)?.seen ?? 0) : Math.max(galleryCounts.get(start) ?? 0, seen.get(start)?.seen ?? 0),
     seen: seen.get(start)?.seen ?? 0,
     waiting: seen.get(start)?.waiting ?? 0
-  }));
+  })).filter(r => r.inGallery > 0);
 }
 
 /** Câte poze are galeria în fiecare lună (doar pe telefon; pe web, nimic). */
