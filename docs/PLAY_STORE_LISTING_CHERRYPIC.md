@@ -143,6 +143,36 @@ Free, forever: unlimited sorting, gallery, search, people, all of Studio, the er
 Cherrypic Pro: Autopilot (the AI decides your whole gallery, "Accept all", unlimited one-tap cleanup) and films without the Cherrypic signature, plus advanced editor styles. Monthly, yearly or once, for life.
 ```
 
+## Noutăți pentru versiunea următoare (Play Console → „Ce este nou”, max. 500 de caractere)
+
+**ro-RO**
+- Analiza merge și în fundal, mult mai repede; bonurile nu mai încetinesc citirea.
+- AI-ul păstrează momentele frumoase (tort, joacă, râs) și nu mai confundă râsul sau privirea în jos cu ochii închiși.
+- Mâncarea și peisajele așteaptă la „De ales” până îți învață gustul.
+- Nou în Studio: creator de colaje cu 7 modele și „Luna pentru bunici”.
+- Editorul arată efectul clar, în timp real.
+
+**en-US**
+- Analysis keeps going in the background, much faster; receipts no longer slow it down.
+- The AI keeps lovely moments (cake, play, laughter) and no longer mistakes laughing or looking down for closed eyes.
+- Food and landscapes wait under “To decide” until it learns your taste.
+- New in Studio: a collage maker with 7 layouts and “Month for grandparents”.
+- The editor shows each change sharply, in real time.
+
+## Verificare permisiuni (13 nov. 2026)
+
+| Permisiune | De ce | De declarat în Play Console |
+|---|---|---|
+| READ_MEDIA_IMAGES / READ_MEDIA_VIDEO | funcția de bază: sortarea galeriei | Declarația „Photo and video permissions”: aplicația gestionează galeria (funcție de bază) |
+| READ_MEDIA_VISUAL_USER_SELECTED | acces parțial (Android 14+) | — |
+| ACCESS_MEDIA_LOCATION | locurile din poze (harta) | — |
+| POST_NOTIFICATIONS | seara, progresul citirii | — |
+| FOREGROUND_SERVICE + _DATA_SYNC, WAKE_LOCK | citirea galeriei cu ecranul stins | Declarația „Foreground service”: tip dataSync, cu un video scurt cu notificarea de progres. Pe Android 15+, dataSync are o limită de ~6 ore pe zi; o citire completă durează sub o oră. |
+| CAMERA | „Refă poza” (rephoto) | — |
+| INTERNET | descărcarea motoarelor AI | — |
+
+Nu folosim REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (Play o respinge la aplicațiile de poze); butonul din aplicație deschide doar pagina de setări.
+
 ## Cuvinte-cheie de urmărit (titlu, descrieri, răspunsuri la recenzii)
 photo cleaner, best photo picker, duplicate photos, similar photos, blurry photos, gallery cleaner, photo organizer, AI photo, cull photos, free up space · curățare galerie, poze duplicate, poze neclare, cele mai bune poze, organizator poze
 

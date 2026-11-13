@@ -33,7 +33,7 @@ import type { PhotoView } from '../state/store';
  * „ar trebui prezentare altfel, mai profesională”). Pe Azi rămâne doar o bandă
  * cu dalele, iar „Vezi tot” deschide Studio.
  */
-type ToolId = 'collage' | 'recaps' | 'yearMin' | 'growth' | 'reel' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
+type ToolId = 'collage' | 'family' | 'recaps' | 'yearMin' | 'growth' | 'reel' | 'film' | 'look' | 'firsts' | 'links' | 'together' | 'capsule' | 'joy' | 'profile' | 'cover' | 'duel';
 type Cat = 'films' | 'family' | 'memories' | 'games';
 interface Tool { id: ToolId; cat: Cat; glyph: ReactNode; person?: boolean; films?: boolean }
 
@@ -47,6 +47,7 @@ const TOOLS: Tool[] = [
   { id: 'links', cat: 'family', glyph: <Icon name="similar" size={26} /> },
   { id: 'together', cat: 'family', glyph: <Icon name="heart" size={26} /> },
   { id: 'collage', cat: 'memories', glyph: <Icon name="collage" size={26} /> },
+  { id: 'family', cat: 'family', glyph: <Icon name="heart" size={26} /> },
   { id: 'recaps', cat: 'memories', glyph: <Icon name="square" size={24} /> },
   { id: 'capsule', cat: 'memories', glyph: <Icon name="lock" size={24} /> },
   { id: 'joy', cat: 'memories', glyph: <Icon name="smile" size={26} /> },
@@ -70,11 +71,21 @@ function NoReel({ onClose }: { onClose: () => void }) {
 
 /** Ce se deschide pentru o dală (cu alegerea omului înainte, unde trebuie). */
 function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
+  const tr = useTr();
   const photos = useLxPhotos();
   const [person, setPerson] = useState<string | null>(null);
   if (tool.person && !person) return <PersonPick toolId={tool.id} onPick={setPerson} onClose={onClose} />;
   switch (tool.id) {
     case 'collage': return <CollageCreator onClose={onClose} />;
+    case 'family': {
+      // „Luna pentru bunici”: cele mai bune 20 de poze cu oameni din ultima lună, colaj + pozele.
+      const month = Date.now() - 31 * 86_400_000;
+      const ids = photos.filter(p => !p.aside && p.status === 'selected' && (p.faceCount ?? 0) > 0 && photoTime(p) >= month)
+        .sort((a, b) => b.aiScore - a.aiScore).slice(0, 20).map(p => p.id);
+      if (ids.length < 3) return <NoReel onClose={onClose} />;
+      const name = new Intl.DateTimeFormat(useStore.getState().locale, { month: 'long' }).format(new Date());
+      return <CollageCreator onClose={onClose} initialIds={ids} initialTitle={tr('lx.grandMonth.title', { month: name.replace(/^./, c => c.toUpperCase()) })} sendAllLabel />;
+    }
     case 'recaps': return <RecapsSheet onClose={onClose} />;
     case 'yearMin': return <YearMinuteSheet onClose={onClose} />;
     case 'growth': return <GrowthSheet name={person!} list={photos.filter(p => p.capturedAt !== undefined && !p.aside && (p.personNames ?? []).includes(person!))} onClose={onClose} />;
@@ -199,7 +210,7 @@ export function StudioScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-const STUDIO_ORDER: ToolId[] = ['reel', 'collage', 'film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
+const STUDIO_ORDER: ToolId[] = ['reel', 'collage', 'family', 'film', 'yearMin', 'growth', 'look', 'joy', 'capsule', 'cover'];
 
 /** Tab-ul Studio: editorul, filmele și amintirile, în ordinea în care se folosesc. */
 export function StudioTab() {

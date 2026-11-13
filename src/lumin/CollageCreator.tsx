@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { maybeAskForReview } from '../state/reviewPrompt';
 import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { useTr } from './context';
@@ -27,7 +28,7 @@ function defaultTitle(locale: string): string {
   try { return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(new Date()).replace(/^./, c => c.toUpperCase()); } catch { return ''; }
 }
 
-export function CollageCreator({ onClose }: { onClose: () => void }) {
+export function CollageCreator({ onClose, initialIds, initialTitle, sendAllLabel }: { onClose: () => void; initialIds?: string[]; initialTitle?: string; sendAllLabel?: boolean }) {
   useHoldAnalysis();
   const tr = useTr();
   const locale = useStore(s => s.locale);
@@ -39,12 +40,13 @@ export function CollageCreator({ onClose }: { onClose: () => void }) {
       || photoTime(b) - photoTime(a));
   }, [all]);
   const [ids, setIds] = useState<string[]>(() => {
+    if (initialIds?.length) return initialIds;
     const month = Date.now() - 31 * 86_400_000;
     const recent = pool.filter(p => photoTime(p) >= month);
     const src = recent.length >= 4 ? recent : pool;
     return [...src].sort((a, b) => ((b.faceCount ?? 0) > 0 ? 1 : 0) - ((a.faceCount ?? 0) > 0 ? 1 : 0) || b.aiScore - a.aiScore).slice(0, 12).map(p => p.id);
   });
-  const [opts, setOpts] = useState<CollageOptions>({ model: 'bento', format: 'portrait', bg: 'blur', gap: 0.4, radius: 0.5, title: defaultTitle(locale), subtitle: '' });
+  const [opts, setOpts] = useState<CollageOptions>({ model: 'bento', format: 'portrait', bg: 'blur', gap: 0.4, radius: 0.5, title: initialTitle ?? defaultTitle(locale), subtitle: '' });
   const [imgs, setImgs] = useState<Pic[]>([]);
   const cache = useRef(new Map<string, Pic>());
   const [picking, setPicking] = useState(false);
@@ -120,7 +122,7 @@ export function CollageCreator({ onClose }: { onClose: () => void }) {
       const blob = await make();
       const ok = blob ? await saveEditedBlob(blob, 'colaj') : false;
       useStore.getState().setNotice(tr(ok ? 'lx.collage.saved' : 'lx.collage.saveFailed'));
-      if (ok) void learnFromShare(pool.filter(p => used.includes(p.id)));
+      if (ok) { void learnFromShare(pool.filter(p => used.includes(p.id))); maybeAskForReview(1); }
     } finally { setBusy(false); }
   };
   const send = async () => {
@@ -130,6 +132,8 @@ export function CollageCreator({ onClose }: { onClose: () => void }) {
       if (!blob) return;
       await shareCollage(blob, `cherrypic-colaj-${Date.now()}.jpg`, appCaption(opts.title, tr('lx.share.cta')));
       void learnFromShare(pool.filter(p => used.includes(p.id)));
+      // Primul colaj trimis e un „wow”: momentul bun pentru recenzie (o singură dată).
+      maybeAskForReview(1);
     } finally { setBusy(false); }
   };
 
@@ -168,6 +172,9 @@ export function CollageCreator({ onClose }: { onClose: () => void }) {
         <label className="lx-cc-slider"><span>{tr('lx.cc.radius')}</span><input type="range" min={0} max={100} value={Math.round(opts.radius * 100)} onChange={e => set('radius', Number(e.target.value) / 100)} /></label>
         <input className="lx-cc-text" value={opts.title} maxLength={40} placeholder={tr('lx.cc.titlePh')} onChange={e => set('title', e.target.value)} />
         <input className="lx-cc-text small" value={opts.subtitle} maxLength={60} placeholder={tr('lx.cc.subPh')} onChange={e => set('subtitle', e.target.value)} />
+        {sendAllLabel && ids.length > 0 && (
+          <button className="lx-btn ghost wide" disabled={busy} onClick={() => void useStore.getState().exportSelection('apps', ids)}>📤 {tr('lx.cc.sendAll', { count: ids.length })}</button>
+        )}
         <button className="lx-btn ghost wide" onClick={() => setPicking(true)}>🖼️ {tr('lx.cc.pick', { count: used.length })}</button>
         <div className="lx-decide-actions lx-cc-actions">
           <button className="lx-btn ghost" disabled={busy || !imgs.length} onClick={() => void save()}>{tr('lx.collage.save')}</button>
