@@ -20,7 +20,7 @@ private const val MIGAN_FILE = "migan_fp16.tflite"
 private const val MIGAN_URL = "https://huggingface.co/litert-community/MI-GAN-512-Places2-LiteRT/resolve/main/migan_fp16.tflite"
 private const val SIDE = 512
 /** Câștigul maxim al luminii pentru pozele întunecate. */
-private const val MAX_LOWLIGHT_GAIN = 2.4f
+private const val MAX_LOWLIGHT_GAIN = 2.0f
 /** De unde luminanța începe să se apropie lin de alb. */
 private const val SHOULDER = 0.72f
 private const val ESRGAN_FILE = "realesr_general_x4v3.tflite"
@@ -290,7 +290,7 @@ class EditModelsPlugin : Plugin() {
             }
             val r = SciLowLight.enhance(x, SIDE, SIDE)
             val lumIn = FloatArray(plane) { i -> 0.299f * x[i] + 0.587f * x[plane + i] + 0.114f * x[2 * plane + i] }
-            // Câștigul pe luminanță, 1..2,4 (raportat: cu 3,5 peretele alb se ardea, fețele erau dure).
+            // Câștigul pe luminanță, 1..2 (raportat: cu 3,5 se ardea; cu 2,4 „e prea luminată”).
             val gain = FloatArray(plane) { i ->
                 val lo = 0.299f * r[i] + 0.587f * r[plane + i] + 0.114f * r[2 * plane + i]
                 ((lo + 0.03f) / (lumIn[i] + 0.03f)).coerceIn(1f, MAX_LOWLIGHT_GAIN)

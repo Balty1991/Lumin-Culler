@@ -231,7 +231,7 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
   let lit = false;
   const dark = meanLumOf(img);
   if (dark < 0.34) {
-    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.3, Math.min(0.6, (0.42 - dark) / 0.3)))).catch(() => null);
+    const better = await fetch(url).then(r => r.blob()).then(b => lowLightOnDevice(b, Math.max(0.22, Math.min(0.45, (0.42 - dark) / 0.4)))).catch(() => null);
     if (better) { url = URL.createObjectURL(better); img = await load(url); lit = true; }
   }
   const auto = computeAutoAdjustments(img, img.naturalWidth, img.naturalHeight, {
