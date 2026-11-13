@@ -1,4 +1,5 @@
 import { jankSpan } from '../core/jankLog';
+import { crashSkippedUris } from '../core/crashGuard';
 import { quizReady } from './quizReady';
 import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
@@ -137,7 +138,9 @@ async function placeFaces(): Promise<void> {
 
 const SKIPPED_KEY = 'lumin-gallery-read-skipped';
 function readSkipped(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(SKIPPED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+  // Și pozele care au închis aplicația de două ori (core/crashGuard.ts).
+  const crashed = crashSkippedUris();
+  try { return new Set([...JSON.parse(localStorage.getItem(SKIPPED_KEY) ?? '[]') as string[], ...crashed]); } catch { return crashed; }
 }
 function writeSkipped(uris: string[]): void {
   try { localStorage.setItem(SKIPPED_KEY, JSON.stringify([...new Set(uris)].slice(-5000))); } catch { /* fără stocare */ }

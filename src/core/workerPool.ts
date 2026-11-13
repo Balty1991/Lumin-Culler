@@ -12,6 +12,7 @@
  * inca pe native) — porneste UN worker real, lazy, doar la prima folosire.
  */
 import * as Comlink from 'comlink';
+import { clearInFlight, markInFlight } from './crashGuard';
 import { setJankContext } from './jankLog';
 import { Capacitor } from '@capacitor/core';
 import type { FaceAnalysisAPI, LeanFaceMode } from '../workers/faceAnalysis.worker';
@@ -723,6 +724,7 @@ export class AnalysisPool {
       await this.acquireNativePermit();
       record('queue', performance.now() - queueStart);
       const bodyStart = performance.now();
+      markInFlight(mediaUri);
       try {
         return await withTimeout(
           analyzeNative(
@@ -752,6 +754,7 @@ export class AnalysisPool {
         // a lucrat (cel mult 1,5 s). Rapoartele cu Long Animation Frames (12 nov.) arătau
         // cadre de ~900 ms cu doar ~90 ms de cod: ecranul aștepta procesorul ocupat de
         // modele, nu codul aplicației. Cu ecranul stins, fără pauză.
+        clearInFlight(mediaUri);
         const rest = restAfterPhoto(this.gentle || this.background, performance.now() - bodyStart);
         if (rest > 0) await new Promise(r => setTimeout(r, rest));
         this.releaseNativePermit();
