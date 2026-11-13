@@ -1393,7 +1393,7 @@ export const dict: Record<string, string> = {
   'lx.viewer.moreInfo': "Più dettagli",
   'lx.viewer.lessInfo': "Meno dettagli",
   'lx.intro.title': "Preparo l'IA sul tuo telefono",
-  'lx.intro.body': "Per scegliere come te, cercare a parole e modificare, Cherrypic scarica una volta i motori IA (≈{mb} MB). Funzionano solo sul telefono: le foto non escono mai.",
+  'lx.intro.body': "Per scegliere come te, Cherrypic scarica prima l'IA di base (≈{mb} MB, 1–2 minuti). La ricerca e gli strumenti di modifica arrivano da soli, in background. Tutto funziona solo sul telefono: le tue foto non escono mai.",
   'lx.intro.wifi': "Solo Wi‑Fi",
   'lx.intro.any': "Scarica ora",
   'lx.widget.memory1': "Un anno fa · Cherrypic",

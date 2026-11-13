@@ -50,7 +50,7 @@ import { LivePhotoSheet } from './LivePhoto';
 import { livePhotoAvailable } from './livePhoto';
 import { Icon } from './icons';
 import { burstFilmAvailable } from './burstFilm';
-import { ENGINES_READY_EVENT, engineReady, enginesFor, refreshEngines, useEngines } from './engines';
+import { ENGINES_READY_EVENT, engineReady, enginesFor, refreshEngines, useEngines, ESSENTIAL_ENGINES } from './engines';
 import { useModelsState } from './aiModels';
 import { dataMode, enginesWaitWaived, setDataMode, waiveEnginesWait } from './dataMode';
 import { isClipPlatform } from '../core/clip/clipEngine';
@@ -624,7 +624,8 @@ function EnginesWaitCard() {
   const [, bump] = useState(0);
   useEffect(() => { void refreshEngines(); }, []);
   if (!isClipPlatform() || reader || dataMode() === null || enginesWaitWaived() || !readerStarted() || readerStopped()) return null;
-  const list = enginesFor(locale);
+  // Doar cele esențiale (descărcarea în trepte): restul vin în fundal, fără card.
+  const list = enginesFor(locale).filter(e => ESSENTIAL_ENGINES.includes(e.id));
   const ready = list.filter(e => engineReady(e, engines.have)).length;
   if (!Object.keys(engines.have).length || ready >= list.length) return null;
   const stuck = !engines.busy && (models.phase === 'error' || models.phase === 'metered');

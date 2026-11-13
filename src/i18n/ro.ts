@@ -3804,7 +3804,7 @@ export const ro = {
   'lx.viewer.moreInfo': "Mai multe detalii",
   'lx.viewer.lessInfo': "Mai puține detalii",
   'lx.intro.title': "Pregătesc AI-ul pe telefonul tău",
-  'lx.intro.body': "Ca să aleagă ca tine, să caute în cuvinte și să editeze, Cherrypic descarcă o singură dată motoarele AI (≈{mb} MB). Rulează doar pe telefon: pozele nu pleacă nicăieri.",
+  'lx.intro.body': "Ca să aleagă ca tine, Cherrypic descarcă întâi AI-ul de bază (≈{mb} MB, 1–2 minute). Căutarea și uneltele de editare vin singure, în fundal. Totul rulează doar pe telefon: pozele nu pleacă nicăieri.",
   'lx.intro.wifi': "Doar pe Wi‑Fi",
   'lx.intro.any': "Descarcă acum",
   'lx.widget.memory1': "Acum un an · Cherrypic",

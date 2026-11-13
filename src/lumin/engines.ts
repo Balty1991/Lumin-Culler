@@ -190,6 +190,64 @@ export function engineSkipped(id: string, weak: boolean): boolean {
   return weak && (id === 'describe' || id === 'eraserHd');
 }
 
+/**
+ * Descărcarea în trepte (cerut: prima pornire nu mai așteaptă ~1 GB):
+ * - esențiale (~124 MB): fără ele nu se pot alege pozele; citirea galeriei le așteaptă doar pe ele;
+ * - de fundal (mici): căutarea în cuvinte și uneltele editorului, după esențiale, în liniște;
+ * - mari (descrieri, Guma HD, traducerea): doar pe Wi-Fi în fundal, altfel la prima folosire.
+ */
+export const ESSENTIAL_ENGINES = ['clip', 'joy'];
+const LARGE_ENGINES = new Set(['describe', 'eraserHd']);
+export function essentialMb(): number {
+  return ENGINES.filter(e => ESSENTIAL_ENGINES.includes(e.id)).reduce((a, e) => a + e.mb, 0);
+}
+
+/** Doar motoarele esențiale (prima pornire), cu notificarea de fundal. `true` dacă sunt gata. */
+export async function downloadEssentialEngines(): Promise<boolean> {
+  if (!isClipPlatform()) return true;
+  await refreshEngines();
+  const list = ENGINES.filter(e => ESSENTIAL_ENGINES.includes(e.id) && !engineReady(e));
+  if (list.length) {
+    const bg = await import('../core/backgroundAnalysis');
+    const { t } = await import('../i18n');
+    const locale = (await import('../state/store')).useStore.getState().locale;
+    const text = () => t(locale, 'lx.enginesWait.title', { done: ESSENTIAL_ENGINES.length - list.filter(e => !engineReady(e)).length, total: ESSENTIAL_ENGINES.length });
+    await bg.holdBackgroundAnalysis(ESSENTIAL_ENGINES.length, text());
+    try {
+      for (const e of list) { if (!(await downloadEngine(e.id))) await downloadEngine(e.id); }
+    } finally { await bg.releaseBackgroundAnalysis(); }
+  }
+  const ok = ENGINES.filter(e => ESSENTIAL_ENGINES.includes(e.id)).every(e => engineReady(e));
+  if (ok) notifyEnginesReady();
+  return ok;
+}
+
+/**
+ * Restul motoarelor, în liniște, după esențiale: cele mici pe rețeaua aleasă, cele mari doar
+ * pe Wi-Fi (pe date mobile vin la prima folosire). O singură trecere pe pornire.
+ */
+async function onRealWifi(): Promise<boolean> {
+  try { return !!(await ClipNative.available()).wifi; } catch { return false; }
+}
+let restStarted = false;
+export async function fetchRemainingEngines(): Promise<void> {
+  if (restStarted || !isClipPlatform()) return;
+  restStarted = true;
+  try {
+    await refreshEngines();
+    const weak = await weakDevice();
+    const locale = (await import('../state/store')).useStore.getState().locale;
+    const todo = enginesFor(locale)
+      .filter(e => !engineReady(e) && !engineSkipped(e.id, weak) && !ESSENTIAL_ENGINES.includes(e.id))
+      .sort((a, b) => Number(LARGE_ENGINES.has(a.id) || !!a.lang) - Number(LARGE_ENGINES.has(b.id) || !!b.lang) || a.mb - b.mb);
+    for (const e of todo) {
+      if (!(await syncDownloadGate())) return;
+      if ((LARGE_ENGINES.has(e.id) || e.lang) && !(await onRealWifi())) continue;
+      await downloadEngine(e.id);
+    }
+  } finally { restStarted = false; }
+}
+
 export const ENGINES_READY_EVENT = 'cherrypic-engines-ready';
 
 /**
@@ -204,9 +262,8 @@ export async function enginesReadyForGallery(): Promise<boolean> {
   if (enginesWaitWaived()) return true;
   if (dataMode() === null) return !enginesPromptPending();
   await refreshEngines();
-  const weak = await weakDevice();
-  const locale = (await import('../state/store')).useStore.getState().locale;
-  return enginesFor(locale).every(e => engineReady(e) || engineSkipped(e.id, weak));
+  // Doar cele esențiale (descărcarea în trepte): restul vin în fundal sau la prima folosire.
+  return ENGINES.filter(e => ESSENTIAL_ENGINES.includes(e.id)).every(e => engineReady(e));
 }
 
 function notifyEnginesReady(): void {

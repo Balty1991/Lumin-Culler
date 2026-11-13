@@ -3718,7 +3718,7 @@ export const en: Record<TranslationKey, string> = {
   'lx.viewer.moreInfo': "More details",
   'lx.viewer.lessInfo': "Fewer details",
   'lx.intro.title': "Setting up AI on your phone",
-  'lx.intro.body': "To pick like you, search in words and edit, Cherrypic downloads its AI engines once (≈{mb} MB). They run only on the phone: your photos never leave it.",
+  'lx.intro.body': "To pick like you, Cherrypic first downloads its core AI (≈{mb} MB, 1–2 minutes). Search and editing tools follow on their own, in the background. Everything runs only on the phone: your photos never leave it.",
   'lx.intro.wifi': "Wi‑Fi only",
   'lx.intro.any': "Download now",
   'lx.widget.memory1': "A year ago · Cherrypic",

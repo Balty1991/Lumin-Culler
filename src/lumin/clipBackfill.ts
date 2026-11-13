@@ -42,11 +42,14 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
     }
     // Întâi toate motoarele. Analiza galeriei pornește la sfârșitul descărcării,
     // nu în timpul ei (raportat: „Analizez pozele” cât 2 din 12 motoare erau pe telefon).
+    // Doar motoarele esențiale (~124 MB) înainte de galerie; restul vin în fundal, în liniște
+    // (descărcarea în trepte: prima pornire nu mai așteaptă ~1 GB).
     const engines = await import('./engines');
     if (!(await engines.enginesReadyForGallery())) {
-      const got = await engines.downloadAllEngines();
+      const got = await engines.downloadEssentialEngines();
       if (!got) { setModelsState({ phase: 'error' }); return; }
     }
+    void engines.fetchRemainingEngines();
     // Rețeaua a fost verificată deja; prepare() nu mai are voie să refuze Wi-Fi-ul real.
     await downloadModels(true);
     if (!getModelsState().visionReady && !(await prepareClip(true))) return;

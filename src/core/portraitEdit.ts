@@ -18,6 +18,8 @@ export function portraitAvailable(): boolean {
 /** `focus`: unde a atins omul (0..1) — acolo rămâne clar. */
 export async function portraitOnDevice(image: Blob, strength = 0.7, focus?: { x: number; y: number }, uri?: string | null): Promise<Blob | null> {
   if (!portraitAvailable()) return null;
+  // Modelul portretului vine la prima folosire (descărcarea în trepte), dacă nu e deja pe telefon.
+  await import('../lumin/engines').then(m => m.fetchEngine('portrait')).catch(() => false);
   const extra = { strength, ...(focus ? { focusX: focus.x, focusY: focus.y } : {}) };
   const toBlob = (b64: string) => new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type: 'image/jpeg' });
   // Întâi originalul din galerie (rezoluție plină); dacă nu se poate citi, copia primită.

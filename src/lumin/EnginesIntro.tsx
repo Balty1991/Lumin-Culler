@@ -4,7 +4,7 @@ import { isClipPlatform } from '../core/clip/clipEngine';
 import { useStore } from '../state/store';
 import { useTr } from './context';
 import { dataMode, deferEnginesPrompt, setDataMode, type DataMode } from './dataMode';
-import { ENGINES, ENGINES_READY_EVENT } from './engines';
+import { ENGINES, essentialMb, ENGINES_READY_EVENT } from './engines';
 
 let laterThisRun = false;
 
@@ -20,7 +20,8 @@ export function EnginesIntro() {
   const [chosen, setChosen] = useState(dataMode());
   const [later, setLater] = useState(laterThisRun);
   if (chosen || later || !welcomeSeen || !isClipPlatform()) return null;
-  const mb = 224 + ENGINES.filter(e => !e.lang).reduce((a, e) => a + e.mb, 0);
+  // Doar ce trebuie înainte de prima privire; restul vine în fundal (descărcarea în trepte).
+  const mb = essentialMb();
   const pick = (m: DataMode) => {
     setDataMode(m);
     setChosen(m);
