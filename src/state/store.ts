@@ -1900,18 +1900,19 @@ export async function todayMissingCount(): Promise<number | null> {
  * decide doar între cadre la fel de bune. Altfel (o față sau niciuna), scorul AI.
  */
 export function seriesRank(
-  a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; avgEyeContact?: number },
-  b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; avgEyeContact?: number }
+  a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; aesthetic?: number },
+  b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; aesthetic?: number }
 ): number {
   // Cadrul pe care l-ar alege un părinte (cerut: „motor mai performant de sortare”): întâi ochii
-  // deschiși, apoi un punctaj din zâmbet, privire spre aparat și cât de mare e fața, abia apoi
-  // scorul general. La o singură față, doar când scorurile sunt apropiate (<25): altfel o poză
+  // deschiși, apoi un punctaj din zâmbet, frumusețea cadrului (nota estetică CLIP: lumină,
+  // compoziție) și cât de mare e fața, abia apoi scorul general. Privirea spre aparat NU contează:
+  // o poză spontană, în care copilul se joacă și nu se uită la tine, e adesea cea mai frumoasă (cerut). La o singură față, doar când scorurile sunt apropiate (<25): altfel o poză
   // mult mai reușită tehnic câștigă.
   const faces = (a.faceCount ?? 0) >= 1 && (b.faceCount ?? 0) >= 1;
   if (faces && ((a.faceCount ?? 0) >= 2 || Math.abs(a.aiScore - b.aiScore) < 25)) {
     const eyes = Number(!!b.allEyesOpen) - Number(!!a.allEyesOpen);
     if (eyes) return eyes;
-    const parent = (p: typeof a) => (p.bestSmile ?? 0) * 1.0 + (p.avgEyeContact ?? 0.5) * 0.6 + Math.min(1, Math.sqrt(p.mainFaceArea ?? 0) * 2.5) * 0.4;
+    const parent = (p: typeof a) => (p.bestSmile ?? 0) * 0.8 + Math.max(0, Math.min(1, ((p.aesthetic ?? 5) - 3.5) / 3.5)) * 0.9 + Math.min(1, Math.sqrt(p.mainFaceArea ?? 0) * 2.5) * 0.25;
     const diff = parent(b) - parent(a);
     if (Math.abs(diff) > 0.12) return diff;
   }

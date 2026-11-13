@@ -251,7 +251,9 @@ export const PRIOR_WEIGHTS: FeatureVector = {
   // tehnic (banda de hue din literatura de skin-detection) e mai direct
   // decat la catchlight.
   groupSkinToneNaturalRatio: 0.3,
-  avgEyeContact: 0.35,
+  // Mic: o poză spontană (copilul se joacă, nu se uită în aparat) poate fi cea mai frumoasă
+  // (cerut). Modelul personal o crește dacă omul chiar preferă privirea în aparat.
+  avgEyeContact: 0.08,
   // "seamana cu ce pastrezi" — pornit MIC deliberat: e singurul feature care nu
   // descrie o proprietate a pozei, ci o corelatie cu istoricul tau; lasam
   // motorul sa-i creasca ponderea daca chiar prezice, in loc sa-l credem din start.
