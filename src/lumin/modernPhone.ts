@@ -94,6 +94,9 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
       useStore.getState().cancelImport();
       void stopBackgroundAnalysis();
     }).then(fn => { stopCancel = fn; });
+    // Ce ștergi din Galeria telefonului dispare și de aici (la pornire și la fiecare întoarcere).
+    let stopSync: (() => void) | undefined;
+    void import('./gallerySync').then(m => { stopSync = m.watchGalleryDeletions(); });
     let stopShown: (() => void) | undefined;
     void onNativeShown(hidden => { document.documentElement.classList.toggle('cp-offscreen', hidden); }).then(fn => { stopShown = fn; });
     // Revenirea se vede imediat: semnalul nativ poate întârzia cât firul paginii e ocupat cu
@@ -104,6 +107,6 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
     document.addEventListener('pointerdown', onScreen, { capture: true, passive: true });
 
     const timer = window.setTimeout(() => { void offerUpdate(); }, 8000);
-    return () => { stop?.(); stopCancel?.(); stopShown?.(); window.removeEventListener('focus', onScreen); window.removeEventListener('pageshow', onScreen); document.removeEventListener('pointerdown', onScreen, { capture: true }); unsub(); window.clearTimeout(timer); };
+    return () => { stop?.(); stopCancel?.(); stopShown?.(); stopSync?.(); window.removeEventListener('focus', onScreen); window.removeEventListener('pageshow', onScreen); document.removeEventListener('pointerdown', onScreen, { capture: true }); unsub(); window.clearTimeout(timer); };
   }, [booted, runImport]);
 }

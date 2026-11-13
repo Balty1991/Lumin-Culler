@@ -865,6 +865,8 @@ interface AppState {
   softenAutoKeeps: (ids: string[]) => Promise<number>;
   /** Pozele alese de AI ca „cele mai bune ale zilei” (vezi lumin/trainingGate.ts keepBestOfDays). */
   promoteAutoPicks: (ids: string[]) => Promise<number>;
+  /** Pozele care nu mai sunt în galeria telefonului ies și din aplicație (vezi syncGalleryDeletions). */
+  forgetGonePhotos: (ids: string[]) => Promise<number>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
@@ -4090,6 +4092,28 @@ export const useStore = create<AppState>((set, get) => ({
     return soft.length;
   },
 
+  forgetGonePhotos: async ids => {
+    if (!ids.length) return 0;
+    const idSet = new Set(ids);
+    await Promise.all([
+      db.photos.bulkDelete(ids), db.thumbnails.bulkDelete(ids), db.previews.bulkDelete(ids),
+      db.originals.bulkDelete(ids), db.fileHandles.bulkDelete(ids), db.analyses.bulkDelete(ids)
+    ]);
+    for (const id of ids) { originalFiles.delete(id); originalHandles.delete(id); }
+    const collections = await Promise.all(
+      get().collections.map(async c => (c.memberIds.some(pid => idSet.has(pid)) ? (await removePhotosFromCollectionRecord(c.id, ids)) ?? c : c))
+    );
+    clearPreviewUrlCache();
+    clearThumbUrlCache();
+    set(state => ({
+      photos: state.photos.filter(p => !idSet.has(p.id)),
+      collections,
+      detailId: state.detailId && idSet.has(state.detailId) ? null : state.detailId,
+      multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id)))
+    }));
+    return ids.length;
+  },
+
   promoteAutoPicks: async ids => {
     const recs = await db.photos.bulkGet(ids);
     const up = recs.filter((r): r is PhotoRecord => !!r && r.status !== 'selected' && r.aiDecided !== false && !r.aside).map(r => r.id);
@@ -4199,6 +4223,9 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       result = await deleteNativePhotos(deletable.map(p => p.mediaUri!));
     } catch (err) {
+      // Poate pozele nu mai sunt deloc în galerie (șterse din altă parte): atunci ies și de aici.
+      const { syncGalleryDeletions } = await import('../lumin/gallerySync');
+      if (await syncGalleryDeletions(deletable.map(p => p.id)) > 0) return { deleted: 0, skipped: skippedCount, cancelled: false };
       set({ notice: t(locale, 'store.deleteRejected.failed', { error: err instanceof Error ? err.message : String(err) }) });
       return { deleted: 0, skipped: skippedCount + deletable.length, cancelled: false };
     }

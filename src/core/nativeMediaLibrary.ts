@@ -18,6 +18,7 @@ import { registerPlugin, Capacitor } from '@capacitor/core';
 interface MediaLibraryPluginApi {
   pickPhotos(): Promise<{ cancelled: boolean; photos: { uri: string; name: string }[] }>;
   deletePhotos(options: { uris: string[] }): Promise<{ cancelled: boolean; skippedUris: string[] }>;
+  missingPhotos(options: { uris: string[] }): Promise<{ missing: string[] }>;
   untrashPhotos(options: { uris: string[] }): Promise<{ cancelled: boolean }>;
   galleryOverview(): Promise<{ granted: boolean; totalCount: number }>;
   galleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }>;
@@ -107,6 +108,12 @@ export async function pickNativePhotos(): Promise<NativePickedPhoto[]> {
 export async function untrashNativePhotos(uris: string[]): Promise<{ cancelled: boolean }> {
   if (!uris.length) return { cancelled: true };
   return MediaLibraryNative.untrashPhotos({ uris });
+}
+
+/** Pozele din aplicație care nu mai sunt în galeria telefonului (șterse din altă parte). */
+export async function missingNativePhotos(uris: string[]): Promise<string[]> {
+  if (!uris.length || !isNativeMediaLibraryAvailable()) return [];
+  try { return (await MediaLibraryNative.missingPhotos({ uris })).missing ?? []; } catch { return []; }
 }
 
 export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: boolean; skippedUris: string[] }> {

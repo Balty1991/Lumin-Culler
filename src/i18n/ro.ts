@@ -2467,6 +2467,8 @@ export const ro = {
   "lx.wall.all": "Toate",
   "lx.wall.kept": "Păstrate",
   "lx.wall.waiting": "De ales",
+  "lx.sync.goneOne": "O poză ștearsă din galerie a ieșit și de aici.",
+  "lx.sync.gone": "{count} poze șterse din galerie au ieșit și de aici.",
   "lx.wall.more": "Mai multe",
   "lx.wall.waitingGo": "Alege-le pe rând ({count})",
   "lx.wall.waitingGoTitle": "De ales",

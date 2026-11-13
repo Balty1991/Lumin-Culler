@@ -2381,6 +2381,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.wall.all": "All",
   "lx.wall.kept": "Kept",
   "lx.wall.waiting": "To decide",
+  "lx.sync.goneOne": "A photo deleted from your gallery is gone from here too.",
+  "lx.sync.gone": "{count} photos deleted from your gallery are gone from here too.",
   "lx.wall.more": "More",
   "lx.wall.waitingGo": "Go through them ({count})",
   "lx.wall.waitingGoTitle": "To decide",

@@ -734,6 +734,45 @@ class MediaLibraryPlugin : Plugin() {
      * rezerva pentru pozele fara ea — capturi de ecran, descarcari), doar cu
      * capatul de sus deschis.
      */
+    /**
+     * Care dintre pozele din aplicație nu mai sunt în galerie (șterse din Galeria telefonului
+     * sau din altă aplicație). Raportat: „am șters o poză din Galerie, în aplicație încă apare
+     * și nu o pot șterge”. Interogare pe _ID, pe bucăți, pe alt fir; fără permisiune completă
+     * nu spune nimic (o poză invizibilă nu e neapărat ștearsă).
+     */
+    @PluginMethod
+    fun missingPhotos(call: PluginCall) {
+        if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
+            call.resolve(JSObject().put("missing", JSArray()))
+            return
+        }
+        val uriStrings = call.getArray("uris")?.toList<String>() ?: emptyList()
+        Thread {
+            try {
+                val byId = HashMap<Long, MutableList<String>>()
+                for (raw in uriStrings) {
+                    val id = runCatching { android.content.ContentUris.parseId(resolveToMediaUri(raw)) }.getOrNull() ?: continue
+                    if (id < 0) continue
+                    byId.getOrPut(id) { mutableListOf() }.add(raw)
+                }
+                val present = HashSet<Long>()
+                val ids = byId.keys.toList()
+                val base = MediaStore.Files.getContentUri("external")
+                for (chunk in ids.chunked(400)) {
+                    val sel = "${MediaStore.MediaColumns._ID} IN (${chunk.joinToString(",")})"
+                    context.contentResolver.query(base, arrayOf(MediaStore.MediaColumns._ID), sel, null, null)?.use { c ->
+                        while (c.moveToNext()) present.add(c.getLong(0))
+                    }
+                }
+                val missing = JSArray()
+                for ((id, raws) in byId) if (id !in present) raws.forEach { missing.put(it) }
+                call.resolve(JSObject().put("missing", missing))
+            } catch (e: Exception) {
+                call.resolve(JSObject().put("missing", JSArray()))
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
     @PluginMethod
     fun countPhotosSince(call: PluginCall) {
         if (getPermissionState(photosPermissionAlias) != PermissionState.GRANTED) {
