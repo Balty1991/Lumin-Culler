@@ -86,7 +86,13 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
         await useStore.getState().applyMoments().catch(() => undefined);
       }
       await m.holdUntilLearned(); await m.protectNamedPeople(); await m.keepBestOfDays();
+      // Gustul învățat din alegerile omului (model pe amprenta CLIP), la pornire.
+      await (await import('./tasteApply')).trainAndApplyTaste();
     }).catch(() => 0);
+    // ...și după fiecare sesiune de alegeri: omul tocmai a dat exemple noi.
+    const stopTaste = useLx.subscribe((s, prev) => {
+      if (prev.sortIds && !s.sortIds) void import('./tasteApply').then(m => m.trainAndApplyTaste());
+    });
 
     // „Oprește” din notificarea de progres: oprește importul și cititorul galeriei.
     let stopCancel: (() => void) | undefined;
@@ -108,6 +114,6 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
     document.addEventListener('pointerdown', onScreen, { capture: true, passive: true });
 
     const timer = window.setTimeout(() => { void offerUpdate(); }, 8000);
-    return () => { stop?.(); stopCancel?.(); stopShown?.(); stopSync?.(); window.removeEventListener('focus', onScreen); window.removeEventListener('pageshow', onScreen); document.removeEventListener('pointerdown', onScreen, { capture: true }); unsub(); window.clearTimeout(timer); };
+    return () => { stop?.(); stopCancel?.(); stopShown?.(); stopSync?.(); stopTaste(); window.removeEventListener('focus', onScreen); window.removeEventListener('pageshow', onScreen); document.removeEventListener('pointerdown', onScreen, { capture: true }); unsub(); window.clearTimeout(timer); };
   }, [booted, runImport]);
 }

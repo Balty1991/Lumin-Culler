@@ -165,6 +165,10 @@ export interface PhotoView {
   sceneType: AnalysisRecord['sceneType'];
   contextKey: string;
   faceCount: number;
+  /** Cea mai mare față, ca fracție din poză (0..1). Pentru alegerea cadrului dintr-o serie. */
+  mainFaceArea?: number;
+  /** Media privirii spre aparat, 0..1. */
+  avgEyeContact?: number;
   knownFaceCount: number;
   strangerCount: number;
   bestSmile: number;
@@ -866,6 +870,8 @@ interface AppState {
   softenAutoKeeps: (ids: string[]) => Promise<number>;
   /** Pozele alese de AI ca „cele mai bune ale zilei” (vezi lumin/trainingGate.ts keepBestOfDays). */
   promoteAutoPicks: (ids: string[]) => Promise<number>;
+  /** AI-ul scoate aceste poze (doar cele încă nehotărâte de om, fără oameni — vezi lumin/tasteApply.ts). */
+  demoteAutoPicks: (ids: string[]) => Promise<number>;
   /** Pozele care nu mai sunt în galeria telefonului ies și din aplicație (vezi syncGalleryDeletions). */
   forgetGonePhotos: (ids: string[]) => Promise<number>;
   /** Scoate din serie pozele care nu sunt chiar aproape la fel cu cea păstrată (vezi mai jos). */
@@ -1092,6 +1098,8 @@ function toView(photo: PhotoRecord, analysis: AnalysisRecord | undefined): Photo
     sceneType: analysis?.sceneType ?? 'detail',
     contextKey: analysis ? deriveContextKey(analysis, photo.genre) : 'detail',
     faceCount: analysis?.faceCount ?? 0,
+    mainFaceArea: analysis?.faces?.length ? Math.max(...analysis.faces.map(f => (f.box?.[2] ?? 0) * (f.box?.[3] ?? 0))) : undefined,
+    avgEyeContact: analysis?.avgEyeContact,
     knownFaceCount: analysis?.knownFaceCount ?? 0,
     strangerCount: analysis?.strangerCount ?? 0,
     bestSmile: analysis?.bestSmile ?? 0,
@@ -1892,16 +1900,20 @@ export async function todayMissingCount(): Promise<number | null> {
  * decide doar între cadre la fel de bune. Altfel (o față sau niciuna), scorul AI.
  */
 export function seriesRank(
-  a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number },
-  b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number }
+  a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; avgEyeContact?: number },
+  b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number; mainFaceArea?: number; avgEyeContact?: number }
 ): number {
-  // Și la o singură față (portretele copilului): întâi ochii deschiși, apoi zâmbetul clar mai
-  // larg, abia apoi scorul — cadrul păstrat e cel pe care l-ar alege un părinte.
-  if ((a.faceCount ?? 0) >= 1 && (b.faceCount ?? 0) >= 1 && ((a.faceCount ?? 0) >= 2 || Math.abs(a.aiScore - b.aiScore) < 25)) {
+  // Cadrul pe care l-ar alege un părinte (cerut: „motor mai performant de sortare”): întâi ochii
+  // deschiși, apoi un punctaj din zâmbet, privire spre aparat și cât de mare e fața, abia apoi
+  // scorul general. La o singură față, doar când scorurile sunt apropiate (<25): altfel o poză
+  // mult mai reușită tehnic câștigă.
+  const faces = (a.faceCount ?? 0) >= 1 && (b.faceCount ?? 0) >= 1;
+  if (faces && ((a.faceCount ?? 0) >= 2 || Math.abs(a.aiScore - b.aiScore) < 25)) {
     const eyes = Number(!!b.allEyesOpen) - Number(!!a.allEyesOpen);
     if (eyes) return eyes;
-    const smile = (b.bestSmile ?? 0) - (a.bestSmile ?? 0);
-    if (Math.abs(smile) > 0.15) return smile;
+    const parent = (p: typeof a) => (p.bestSmile ?? 0) * 1.0 + (p.avgEyeContact ?? 0.5) * 0.6 + Math.min(1, Math.sqrt(p.mainFaceArea ?? 0) * 2.5) * 0.4;
+    const diff = parent(b) - parent(a);
+    if (Math.abs(diff) > 0.12) return diff;
   }
   return b.aiScore - a.aiScore;
 }
@@ -4143,6 +4155,16 @@ export const useStore = create<AppState>((set, get) => ({
       multiSelectIds: new Set([...state.multiSelectIds].filter(id => !idSet.has(id)))
     }));
     return ids.length;
+  },
+
+  demoteAutoPicks: async ids => {
+    const recs = await db.photos.bulkGet(ids);
+    const down = recs.filter((r): r is PhotoRecord => !!r && r.status !== 'rejected' && r.aiDecided !== false && !r.aside).map(r => r.id);
+    if (!down.length) return 0;
+    await Promise.all(down.map(async id => { await db.photos.update(id, { status: 'rejected', aiDecided: true }); await syncOriginal(id, 'rejected'); }));
+    const set_ = new Set(down);
+    set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'rejected' } : p)) }));
+    return down.length;
   },
 
   promoteAutoPicks: async ids => {

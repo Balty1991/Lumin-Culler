@@ -94,6 +94,13 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
       useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
     }
     await recheckSpecies();
+    // Claritatea pe față: portretele cu fundal estompat nu mai sunt „neclare”; apoi plasele.
+    if (await (await import('./faceFocus')).faceFocusPass() > 0) {
+      const g = await import('./trainingGate');
+      await g.protectNamedPeople(); await g.keepBestOfDays();
+    }
+    // Amprentele noi: modelul de gust personal le poate folosi acum.
+    await (await import('./tasteApply')).trainAndApplyTaste();
     await paperTextPass();
     await deepPass();
   } catch {

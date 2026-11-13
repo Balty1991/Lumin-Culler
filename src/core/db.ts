@@ -381,6 +381,8 @@ export interface AnalysisRecord {
   groupSkinToneNaturalRatio?: number;
   /** Media contact-vizual (eyeContact) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEyeContact?: number;
+  /** Claritatea măsurată pe față a fost verificată (lumin/faceFocus.ts) — nu se mai repetă. */
+  faceFocusChecked?: boolean;
   /** Media "engagement" (expresie pozitiva vs negativa) pe toate fetele — 0..1. Optional: doar cand faceCount > 0. */
   avgEngagement?: number;
   /**
