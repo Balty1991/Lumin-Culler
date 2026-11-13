@@ -616,6 +616,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   };
   const resetAll = () => {
     setPure(true); setManual({}); setAspect('orig'); setUserTilt(0); setStraight(false);
+    userFramed.current = false;
     setStyle('natural'); setAmount(0.5); setApplied(null);
     vibrate(8);
   };
@@ -629,7 +630,9 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   };
   // „Încadrare AI”: formatul potrivit pozei, cu fețele ținute în cadru (frameCrop).
   // Proporția rămâne cea a pozei; a doua atingere revine la cadrul întreg.
-  const aiFrame = () => setAspect(a => (a === 'ai' ? 'orig' : 'ai'));
+  /** Cadrul ales de om în „Cadru”: rețetele nu-l mai schimbă (raportat: „când dai pe ele, revine la formatul original”). */
+  const userFramed = useRef(false);
+  const aiFrame = () => { userFramed.current = true; setAspect(a => (a === 'ai' ? 'orig' : 'ai')); };
   // „Dintr-o atingere”: stil + intensitate + reglaje + cadru, deodată (vezi editRecipes.ts).
   const [applied, setApplied] = useState<Recipe | null>(null);
   const applyRecipe = (r0: Recipe) => {
@@ -640,7 +643,8 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
   };
   const putRecipe = (r: Recipe) => {
     setPure(false); setStyle(r.style as EnhanceStyle); setAmount(r.amount);
-    setManual(r.manual as Partial<Record<ManualKey, number>>); setAspect(r.aspect as Aspect);
+    setManual(r.manual as Partial<Record<ManualKey, number>>);
+    if (!userFramed.current) setAspect(r.aspect as Aspect);
     setApplied(r);
     vibrate(8);
   };
@@ -660,7 +664,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, geo]);
   const recipeOn = (k: string) => !!applied && applied.key === k && !pure && style === applied.style && amount === applied.amount
-    && aspect === applied.aspect && JSON.stringify(manual) === JSON.stringify(applied.manual);
+    && (userFramed.current || aspect === applied.aspect) && JSON.stringify(manual) === JSON.stringify(applied.manual);
   // O rețetă activă nu arată și un stil ales dedesubt (raportat: „Perfectă” aprindea „Natural”).
   const recipeActive = !!applied && RECIPES.some(r => recipeOn(r.key));
   /** Stil Pro ales fără abonament: se vede ca probă (cu marcaj), nu se poate salva sau trimite. */
@@ -985,7 +989,7 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
             <div className="lx-enhance-styles" role="radiogroup" aria-label={tr('lx.enhance.panel.frame')}>
                   <button role="radio" aria-checked={aspect === 'ai'} className={aspect === 'ai' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={aiFrame}>✦ {tr('lx.enhance.aiFrame')}</button>
                   {(Object.keys(ASPECTS) as Exclude<Aspect, 'ai'>[]).map(a => (
-                    <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => setAspect(a)}>
+                    <button key={a} role="radio" aria-checked={aspect === a} className={aspect === a ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => { userFramed.current = a !== 'orig'; setAspect(a); }}>
                       {a === 'orig' ? tr('lx.enhance.aspect.orig') : a}
                     </button>
                   ))}
