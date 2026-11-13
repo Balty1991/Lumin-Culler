@@ -21,10 +21,10 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ dec
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 2.1 | Bară de navigare plutitoare, 4 file; cercul din mijloc: „Întreabă” cu sugestii | ⏳ |
-| 2.2 | Setările în avatarul din antetul „Azi” | ⏳ |
-| 2.3 | „Azi”: o carte principală, cel mult 3 secundare, starea „gata pentru azi” | ⏳ |
-| 2.4 | Alegeri: anulare vizibilă, glisare în sus = „nu știu”, comparare două câte două, motive scurte | ⏳ |
+| 2.1 | Bară de navigare plutitoare, 4 file; cercul din mijloc: „Întreabă” cu sugestii | ✅ exista deja (verificat pe capturi) |
+| 2.2 | Setările în antetul „Azi” | ✅ exista deja: rotița din colț |
+| 2.3 | „Azi”: o carte principală, cel mult 3 secundare | ✅ exista deja (capturi: o carte principală + 2) |
+| 2.4 | Alegeri: glisare în sus = „Mai târziu”; „Compară” două cadre din serie (perechile se salvează pentru etapa 3). Anularea și motivele existau | ✅ test `SwipeSort.compare.test.tsx`, captură |
 | 2.5 | Editorul: reglajele de bază mereu vizibile | ⏳ |
 | 2.6 | Primul rezultat util în sub un minut; pregătirea permisiunilor | ⏳ |
 
@@ -64,5 +64,6 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⚠️ dec
 
 ## Registru
 
+- **13 nov.** Build #835 (etapa 1) verde. Etapa 2: alegerile primesc glisarea în sus și compararea.
 - **13 nov.** Etapa 1 gata. Scorul nou prinde mai bine pozele stricate. Pentru „cea mai frumoasă” dintre pozele bune judecă altfel decât LAION, iar descrieri suplimentare (frumusețe, lumină, moment) nu au schimbat asta. De aceea ordinea de frumusețe folosește și gustul învățat al omului.
 - **13 nov.** Pornit etapa 1. Comparația scorului vechi cu cel nou rulează în CI pe ~90 de poze COCO plus variante estompate și întunecate.

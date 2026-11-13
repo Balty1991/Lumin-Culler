@@ -23,6 +23,7 @@ import { intlTag } from '../i18n';
 import { readRitualDays } from '../core/ritualStreak';
 import { startOfDay } from '../core/todayDigest';
 import { beautyScore } from './beauty';
+import { recordPair } from '../core/learning/pairs';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -56,7 +57,12 @@ export function SwipeSort() {
 
   const [index, setIndex] = useState(0);
   const [dx, setDx] = useState(0);
-  const [flying, setFlying] = useState<'left' | 'right' | null>(null);
+  const [dy, setDy] = useState(0);
+  const [flying, setFlying] = useState<'left' | 'right' | 'up' | null>(null);
+  /** Comparare: două cadre din aceeași serie, unul lângă altul. */
+  const [comparing, setComparing] = useState<[string, string] | null>(null);
+  /** Poze hotărâte din comparare: pachetul trece peste ele. */
+  const doneIds = useRef(new Set<string>());
   const [decisions, setDecisions] = useState(0);
   const [lesson, setLesson] = useState<string | null>(null);
   /** Alt cadru din aceeași rafală, adus în față fără să schimbe rândul pachetului. */
@@ -73,7 +79,9 @@ export function SwipeSort() {
       return [id, s === 'selected' ? 'keep' : s === 'rejected' ? 'drop' : 'unsure'] as [string, Verdict];
     })));
     setIndex(0);
-    setDx(0);
+    setDx(0); setDy(0);
+    doneIds.current = new Set();
+    setComparing(null);
     setDecisions(0);
     startedAt.current = Date.now(); setElapsed(0); setTook(null);
     setLesson(null);
@@ -133,16 +141,36 @@ export function SwipeSort() {
     if (peek && peek !== current?.id) { setPeek(null); return; }
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');
-    window.setTimeout(() => { setFlying(null); setDx(0); setPeek(null); setIndex(i => i + 1); }, FLY_MS);
+    window.setTimeout(() => { setFlying(null); setDx(0); setDy(0); setPeek(null); advance(); }, FLY_MS);
   };
   const later = () => {
     if (!shown || flying) return;
     haptic('tick');
     void setStatus(shown.id, 'candidate');
-    if (peek && peek !== current?.id) { setPeek(null); return; }
+    if (peek && peek !== current?.id) { setPeek(null); setDy(0); return; }
     setPeek(null);
-    setIndex(i => i + 1);
+    setFlying('up');
+    window.setTimeout(() => { setFlying(null); setDx(0); setDy(0); advance(); }, FLY_MS);
   };
+  /** Comparare: omul alege cadrul mai bun; acela rămâne, celălalt iese. Perechea se notează. */
+  const pickInCompare = (winner: string, loser: string) => {
+    haptic('success');
+    void setStatus(winner, 'selected');
+    void setStatus(loser, 'rejected');
+    recordPair(winner, loser);
+    doneIds.current.add(winner); doneIds.current.add(loser);
+    setDecisions(n => n + 1);
+    setComparing(null);
+    setPeek(null);
+    if (current && doneIds.current.has(current.id)) advance();
+  };
+  function advance() {
+    setIndex(i => {
+      let j = i + 1;
+      while (j < queue.length && doneIds.current.has(queue[j])) j++;
+      return j;
+    });
+  }
   const showFrame = (id: string) => {
     const at = queue.indexOf(id);
     if (at >= 0) { setPeek(null); setIndex(at); setDx(0); return; }
@@ -162,23 +190,30 @@ export function SwipeSort() {
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!drag.current || drag.current.id !== e.pointerId) return;
     const next = e.clientX - drag.current.x;
+    const up = Math.min(0, e.clientY - drag.current.y);
     // O bătaie fină când cardul trece pragul de decizie (în ambele sensuri).
     if ((Math.abs(next) > COMMIT_PX) !== (Math.abs(dx) > COMMIT_PX)) haptic('tick');
+    if ((-up > COMMIT_PX) !== (-dy > COMMIT_PX)) haptic('tick');
     setDx(next);
+    setDy(up);
   };
   const onUp = () => {
     if (!drag.current) return;
     drag.current = null;
-    if (dx > COMMIT_PX) decide(true);
+    // În sus = „Mai târziu” (nu știu încă), doar când mișcarea e mai mult verticală.
+    if (-dy > COMMIT_PX && -dy > Math.abs(dx)) later();
+    else if (dx > COMMIT_PX) decide(true);
     else if (dx < -COMMIT_PX) decide(false);
-    else setDx(0);
+    else { setDx(0); setDy(0); }
   };
 
   const ai = shown ? aiView.get(shown.id) ?? 'unsure' : 'unsure';
   const series = shown?.groupId ? photos.filter(p => p.groupId === shown.groupId && !p.aside) : [];
   const seriesBest = series.length > 1 ? [...series].sort((a, b) => b.aiScore - a.aiScore)[0] : null;
-  const offset = flying === 'right' ? 520 : flying === 'left' ? -520 : dx;
-  const intent = offset > 30 ? 'keep' : offset < -30 ? 'drop' : null;
+  const offset = flying === 'right' ? 520 : flying === 'left' ? -520 : flying === 'up' ? 0 : dx;
+  const lift = flying === 'up' ? -900 : dy;
+  const intent = -lift > 30 && -lift > Math.abs(offset) ? 'later' : offset > 30 ? 'keep' : offset < -30 ? 'drop' : null;
+  const compareMate = seriesBest && shown ? (seriesBest.id !== shown.id ? seriesBest : series.filter(p => p.id !== shown.id).sort((a, b) => b.aiScore - a.aiScore)[0]) : null;
 
   return (
     <div className="lx-sort" role="dialog" aria-modal="true" aria-label={title ?? tr('lx.sort.title')}>
@@ -210,7 +245,7 @@ export function SwipeSort() {
             )}
             <div
               className={`lx-card-photo top${flying ? ' flying' : ''}${drag.current ? ' dragging' : ''}`}
-              style={{ transform: `translateX(${offset}px) rotate(${offset / 22}deg)` }}
+              style={{ transform: `translate(${offset}px, ${lift}px) rotate(${offset / 22}deg)` }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
             >
               {/* Poza întreagă (raportat: „nu o văd în întregime”), pe un fundal estompat din ea. */}
@@ -218,6 +253,7 @@ export function SwipeSort() {
               <Thumb key={shown.id} id={shown.id} lqip={shown.lqip} edits={shown.edits} full className="lx-card-img lx-card-whole" />
               <span className={`lx-stamp keep${intent === 'keep' ? ' on' : ''}`}>{tr('lx.keep')}</span>
               <span className={`lx-stamp drop${intent === 'drop' ? ' on' : ''}`}>{tr('lx.notToday')}</span>
+              <span className={`lx-stamp later${intent === 'later' ? ' on' : ''}`}>{tr('lx.sort.later')}</span>
               <div className="lx-card-ai">
                 <span className={`lx-verdict ${ai}`}>
                   <i className="lx-dot" />{tr(`lx.ai.${ai}`)}
@@ -238,6 +274,11 @@ export function SwipeSort() {
 
           {series.length > 1 && (
             <div className="lx-sort-series" onPointerDown={e => e.stopPropagation()}>
+              {compareMate && (
+                <button type="button" className="lx-compare-btn" onClick={() => setComparing([shown.id, compareMate.id])}>
+                  <Icon name="duel" size={16} /> {tr('lx.sort.compare')}
+                </button>
+              )}
               {series.slice(0, 8).map(p => (
                 <button key={p.id} type="button" className={p.id === shown.id ? 'on' : ''} onClick={() => showFrame(p.id)} aria-label={tr('lx.sort.seriesPick')}>
                   <Thumb id={p.id} lqip={p.lqip} edits={p.edits} />
@@ -246,6 +287,7 @@ export function SwipeSort() {
             </div>
           )}
 
+          {comparing && <CompareView a={comparing[0]} b={comparing[1]} onPick={pickInCompare} onClose={() => setComparing(null)} />}
           {lesson && <div className="lx-lesson" role="status">{lesson}</div>}
           {ritual && !lesson && elapsed >= 60 && elapsed < 66 && <div className="lx-lesson" role="status">{tr('lx.ritual60.over')}</div>}
 
@@ -270,6 +312,30 @@ export function SwipeSort() {
           <button className="lx-btn primary wide" onClick={close}>{tr('lx.sort.finish')}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Două cadre din aceeași serie, unul sub altul; atingi pe cel bun. */
+function CompareView({ a, b, onPick, onClose }: { a: string; b: string; onPick: (winner: string, loser: string) => void; onClose: () => void }) {
+  const tr = useTr();
+  const photos = usePacedPhotos();
+  const pa = photos.find(p => p.id === a), pb = photos.find(p => p.id === b);
+  if (!pa || !pb) return null;
+  return (
+    <div className="lx-compare" role="dialog" aria-modal="true" aria-label={tr('lx.sort.compareTitle')}>
+      <header className="lx-sort-top">
+        <button className="lx-icon-btn" onClick={onClose} aria-label={tr('lx.close')}>✕</button>
+        <b>{tr('lx.sort.compareTitle')}</b>
+        <span />
+      </header>
+      {[[pa, pb], [pb, pa]].map(([w, l]) => (
+        <button key={w.id} className="lx-compare-pane" onClick={() => onPick(w.id, l.id)}>
+          <Thumb id={w.id} lqip={w.lqip} edits={w.edits} full className="lx-compare-img" />
+          <span className="lx-compare-pick">✓ {tr('lx.sort.compareThis')}</span>
+        </button>
+      ))}
+      <p className="lx-hint">{tr('lx.sort.compareHint')}</p>
     </div>
   );
 }
