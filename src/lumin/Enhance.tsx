@@ -382,7 +382,7 @@ export function liftFor(luma: number, onFaces: boolean): number {
   return Math.round(Math.max(0, Math.min(24, (target - luma) * (onFaces ? 110 : 90))));
 }
 
-function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, number, number, number] }[]): number {
+export function brightnessLift(img: HTMLImageElement, faces?: readonly { box: [number, number, number, number] }[]): number {
   try {
     const n = 64;
     const c = document.createElement('canvas');
@@ -1252,7 +1252,7 @@ async function fitRecipe(src: string, base: EditAdjustments, r: Recipe): Promise
   }
   return scaleRecipe(r, pickRecipeStep(results), saturated);
 }
-async function fitAmount(src: string, base: EditAdjustments, style: EnhanceStyle = 'natural'): Promise<number> {
+export async function fitAmount(src: string, base: EditAdjustments, style: EnhanceStyle = 'natural'): Promise<number> {
   // Măsurat pe stilul care chiar se aplică. „Vie” e deja tare: nu urcă peste 65%.
   const steps = style === 'natural' ? FIT_STEPS : FIT_STEPS.filter(k => k <= 0.65);
   const tiny = await tinySource(src);
