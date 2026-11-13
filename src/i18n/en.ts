@@ -3337,6 +3337,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.models.dlVision": "Downloading image engine… {pct}%",
   "lx.models.dlText": "Downloading search engine… {pct}%",
   "lx.models.scanning": "Analyzing photos: {done} of {total}",
+  "lx.models.polishing": "Final touches (smiles, captions): {done} of {total}",
   'lx.enhance.pure': "No automatic fixes",
   'lx.enhance.pureOn': "Starting from the original photo. Adjust in Light and Color.",
   'lx.enhance.pureUndo': "Auto-fix again",

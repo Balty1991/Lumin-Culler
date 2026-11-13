@@ -3423,6 +3423,7 @@ export const ro = {
   "lx.models.dlVision": "Descarc motorul de imagine… {pct}%",
   "lx.models.dlText": "Descarc motorul de căutare… {pct}%",
   "lx.models.scanning": "Analizez pozele: {done} din {total}",
+  "lx.models.polishing": "Ultimele detalii (zâmbete, descrieri): {done} din {total}",
   'lx.enhance.pure': "Fără reparații automate",
   'lx.enhance.pureOn': "Pornești de la poza originală. Reglează din Lumină și Culoare.",
   'lx.enhance.pureUndo': "Repară automat",

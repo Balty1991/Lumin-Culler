@@ -136,7 +136,9 @@ async function deepPass(): Promise<void> {
   // Vizibil în Setări și ținut viu în fundal, ca trecerea CLIP.
   setModelsState({ phase: 'scanning', scanned: 0, toScan: rows.length });
   // Totalul acestei treceri, nu al celei dinainte (raportat: „1060 din 348”).
-  const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.scanning', { done: Math.min(d, rows.length), total: rows.length });
+  // Alt text decât citirea: după „Gata” omul vedea iar „Analizez pozele: 10 din 38” și credea că
+  // a luat-o de la capăt (raportat cu captură).
+  const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.polishing', { done: Math.min(d, rows.length), total: rows.length });
   if (!holding) { await holdBackgroundAnalysis(rows.length, bgText(0)); holding = true; }
   else void updateHeldBackground(0, rows.length, bgText(0));
   const kept = new Set(useStore.getState().photos.filter(p => p.status === 'selected').map(p => p.id));

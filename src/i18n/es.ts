@@ -1290,6 +1290,7 @@ export const dict: Record<string, string> = {
   "lx.models.dlVision": "Descargando motor de imagen… {pct}%",
   "lx.models.dlText": "Descargando motor de búsqueda… {pct}%",
   "lx.models.scanning": "Analizando fotos: {done} de {total}",
+  "lx.models.polishing": "Últimos detalles (sonrisas, descripciones): {done} de {total}",
   'lx.enhance.pure': "Sin arreglos automáticos",
   'lx.enhance.pureOn': "Empiezas desde la foto original. Ajusta en Luz y Color.",
   'lx.enhance.pureUndo': "Arreglar de nuevo",
