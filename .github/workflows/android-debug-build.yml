@@ -218,6 +218,10 @@ jobs:
       - name: Build debug APK (nesemnat)
         working-directory: android
         run: ./gradlew assembleDebug -Parm64Only=true -PminifyDebug=${{ inputs.minify == true }}
+      # Rețeaua de lumină SCI e scrisă de mână în Kotlin: testul o compară cu modelul original.
+      - name: Test SCI low-light (Kotlin)
+        working-directory: android
+        run: ./gradlew testDebugUnitTest --tests 'com.luminculler.app.plugins.SciLowLightTest' -Parm64Only=true
       # Cand R8 pica pe clase lipsa, scrie EXACT regulile care i-ar trebui in
       # missing_rules.txt. Fara pasul asta ele raman pe runner si dispar odata
       # cu el, iar reparatia devine ghicit din log — s-a intamplat exact asa

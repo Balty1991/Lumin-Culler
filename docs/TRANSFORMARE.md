@@ -65,7 +65,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 
 ## Registru
 
-- **13 nov.** Licențe verificate la sursă. SFace: Apache 2.0, păstrat. Zero-DCE: doar necomercial, scos și înlocuit cu un calcul propriu.
+- **13 nov.** Licențe verificate la sursă. SFace: Apache 2.0, păstrat. Zero-DCE: doar necomercial, scos și înlocuit cu SCI (MIT), scris direct în Kotlin și testat față de modelul original.
 - **13 nov.** Etapele 4–6 verificate: cea mai mare parte exista deja. Nou: căutarea pe matrice. Găsit: SFace și Zero-DCE sunt în APK-ul de Play cu licență neclară (decizie pentru proprietar).
 - **13 nov.** Etapa 3 gata: motorul de preferințe v2. Efect așteptat: procentul „ghicesc X%” poate scădea puțin, pentru că acum e măsurat cinstit, pe zile nevăzute.
 - **13 nov.** Build #835 (etapa 1) verde. Etapa 2: alegerile primesc glisarea în sus și compararea.

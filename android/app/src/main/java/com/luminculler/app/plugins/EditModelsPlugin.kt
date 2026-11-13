@@ -263,7 +263,7 @@ class EditModelsPlugin : Plugin() {
     }
 
     /**
-     * Lumina pentru pozele întunecate (calcul propriu, fără model). `strength` 0..1. Întoarce poza
+     * Lumina pentru pozele întunecate (rețeaua SCI, MIT, în SciLowLight.kt). `strength` 0..1. Întoarce poza
      * la mărimea primită (până la `maxSide`), JPEG.
      */
     @PluginMethod
@@ -276,16 +276,19 @@ class EditModelsPlugin : Plugin() {
             val small = Bitmap.createScaledBitmap(src, SIDE, SIDE, true)
             val plane = SIDE * SIDE
             val px = IntArray(plane); small.getPixels(px, 0, SIDE, 0, 0, SIDE, SIDE)
-            // Fără model: lumina locală (luminanța estompată, ca în Retinex) ridicată pe o curbă
-            // gamma. Zonele întunecate primesc mult, cele luminoase aproape nimic, deci nu se ard.
-            // (Zero-DCE a ieșit: autorii îl dau doar pentru uz necomercial, CC BY-NC 4.0.)
-            val lum = FloatArray(plane) { i ->
-                (0.299f * ((px[i] shr 16) and 0xFF) + 0.587f * ((px[i] shr 8) and 0xFF) + 0.114f * (px[i] and 0xFF)) / 255f
+            // Rețeaua SCI (MIT, SciLowLight.kt) pe copia de 512 px; câștigul pe luminanță
+            // (nu pe canale: culoarea rămâne a pozei), 1..3,5, ca înainte.
+            val x = FloatArray(3 * plane)
+            for (i in 0 until plane) {
+                x[i] = ((px[i] shr 16) and 0xFF) / 255f
+                x[plane + i] = ((px[i] shr 8) and 0xFF) / 255f
+                x[2 * plane + i] = (px[i] and 0xFF) / 255f
             }
-            val illum = boxBlur(boxBlur(lum, SIDE, 4), SIDE, 4)
+            val r = SciLowLight.enhance(x, SIDE, SIDE)
             val gain = FloatArray(plane) { i ->
-                val l = illum[i].coerceAtLeast(0.004f)
-                (Math.pow(l.toDouble(), 0.42).toFloat() / l).coerceIn(1f, 3.5f)
+                val li = 0.299f * x[i] + 0.587f * x[plane + i] + 0.114f * x[2 * plane + i]
+                val lo = 0.299f * r[i] + 0.587f * r[plane + i] + 0.114f * r[2 * plane + i]
+                ((lo + 0.03f) / (li + 0.03f)).coerceIn(1f, 3.5f)
             }
             val smooth = boxBlur(boxBlur(gain, SIDE, 6), SIDE, 6)
             // Câștigul în tonuri de gri (1..3,5 → 0..255), întins la mărimea pozei cu filtrare.

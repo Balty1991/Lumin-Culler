@@ -49,7 +49,8 @@ Pe APK-ul de test, după ce rezultatul e deja pe ecran, un pas de fundal (concur
 | Model | Unde | Ce scrie la sursă | Decizie |
 | --- | --- | --- | --- |
 | SFace int8 (`face_sface_int8.onnx`, OpenCV Zoo) | recunoașterea fețelor (`FaceEmbedPlugin.kt`), în APK | README-ul OpenCV Zoo: „All files in this directory are licensed under Apache 2.0”. Nicio restricție comercială scrisă. Setul de antrenare al fișierului nu e numit; lucrarea SFace folosește CASIA-WebFace, VGGFace2, MS1M | **păstrat** (avem voie după licența declarată; rămâne o notă despre datele de antrenare) |
-| Zero-DCE (`zerodce_512_fp16.tflite`) | luminarea pozelor întunecate | depozitul autorilor: „for non-commercial use only”, CC BY-NC 4.0 | **scos**. Lumina se calculează acum fără model (lumină locală + curbă gamma, `EditModelsPlugin.lowLight`) |
+| Zero-DCE (`zerodce_512_fp16.tflite`) | luminarea pozelor întunecate | depozitul autorilor: „for non-commercial use only”, CC BY-NC 4.0 | **scos**, înlocuit cu SCI |
+| SCI (Self-Calibrated Illumination, CVPR 2022), greutățile „medium” | luminarea pozelor întunecate (`SciLowLight.kt`, scris în cod, fără fișier) | depozitul vis-opt-group/SCI, `CVPR/LICENSE`: MIT, Copyright (c) 2022 Tengyu Ma | **folosit**. Testat în CI față de modelul original |
 
 ## Motoarele descărcabile (Setări → Motoare AI)
 
