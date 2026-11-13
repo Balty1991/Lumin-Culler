@@ -366,6 +366,17 @@ export async function readWholeGallery(byUser = false): Promise<void> {
       }
       return;
     }
+    // Gata cu toată galeria, cu aplicația în spate: o notificare îl aduce pe om înapoi exact
+    // când merită (cerut). Doar pentru citirile mari; prima privire are ecranul ei.
+    if (fresh.length >= 20 && document.visibilityState !== 'visible') {
+      const st = useStore.getState();
+      const kept = fresh.filter(p => p.status === 'selected').length;
+      void import('../core/nativeNotifications').then(m => m.showNotification({
+        title: t(st.locale, 'lx.reader.notifyTitle'),
+        body: t(st.locale, 'lx.reader.notifyBody', { total: fresh.length, kept }),
+        channelName: t(st.locale, 'lx.reader.notifyChannel')
+      })).catch(() => false);
+    }
     let announced = false;
     try { announced = localStorage.getItem(ANNOUNCED_KEY) === '1'; localStorage.setItem(ANNOUNCED_KEY, '1'); } catch { /* fără stocare */ }
     // Prima citire completă primește un rezumat; completările de mai târziu, nu.
