@@ -113,7 +113,22 @@ class BackgroundAnalysisPlugin : Plugin() {
 
     override fun handleOnStop() {
         super.handleOnStop()
+        AnalysisPriority.aplicatiaAscunsa(true)
+        notifyListeners("shown", JSObject().put("hidden", true))
         if (analizaActiva) tinePaginaTreaza()
+    }
+
+    override fun handleOnStart() {
+        super.handleOnStart()
+        AnalysisPriority.aplicatiaAscunsa(false)
+        notifyListeners("shown", JSObject().put("hidden", false))
+    }
+
+    /** Ecranul „Lucrez la galeria ta” / prima privire: analiza pe prioritate plină. */
+    @PluginMethod
+    fun setFocus(call: PluginCall) {
+        AnalysisPriority.ecranDeLucru(call.getBoolean("on", false) == true)
+        call.resolve()
     }
 
     private fun trimite(actiune: String, done: Int, total: Int, text: String?, determinat: Boolean, stopLabel: String? = null) {

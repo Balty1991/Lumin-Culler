@@ -2338,3 +2338,11 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work-orbit span > i { display: block; width: 100%; height: 100%; animation: lx-work-spin 24s linear infinite reverse; }
 .lx-work-orbit span > i > * { width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) { .lx-work-orbit span > i { animation: none; } }
+
+/* Aplicația nu e pe ecran (dar pagina rămâne „vizibilă” cât rulează analiza): nimic nu se
+   mai animă sau estompează, ca procesorul să meargă la analiză (raportul din 13 nov.). */
+.cp-offscreen *, .cp-offscreen *::before, .cp-offscreen *::after {
+  animation-play-state: paused !important; transition: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+.cp-offscreen .lx-work-aurora { display: none !important; }

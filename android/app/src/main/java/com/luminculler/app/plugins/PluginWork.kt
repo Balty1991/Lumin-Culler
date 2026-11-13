@@ -38,7 +38,7 @@ fun pluginExecutor(nume: String, fundal: Boolean = false): ExecutorService =
         // OCR) — concurau de la egal la egal cu firul care desenează. Firele create de
         // modele din firul ăsta (XNNPACK, MediaPipe) moștenesc aceeași prioritate.
         Thread({
-            if (fundal) android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            if (fundal && !AnalysisPriority.plina) android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             r.run()
         }, "Lumin-$nume").apply { isDaemon = true }
     }

@@ -3,7 +3,7 @@ import { useStore } from '../state/store';
 import { LOCALES, t, type Locale } from '../i18n';
 import { checkForUpdate, clearSharedFiles, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
 import { useLx } from './lxStore';
-import { onBackgroundCancel, setBackgroundStopLabel, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
+import { onBackgroundCancel, onNativeShown, setBackgroundStopLabel, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
 import { stopGalleryReader } from './galleryReader';
 
 /**
@@ -76,8 +76,10 @@ export function useModernPhone(booted: boolean, runImport: RunImport): void {
       useStore.getState().cancelImport();
       void stopBackgroundAnalysis();
     }).then(fn => { stopCancel = fn; });
+    let stopShown: (() => void) | undefined;
+    void onNativeShown(hidden => { document.documentElement.classList.toggle('cp-offscreen', hidden); }).then(fn => { stopShown = fn; });
 
     const timer = window.setTimeout(() => { void offerUpdate(); }, 8000);
-    return () => { stop?.(); stopCancel?.(); unsub(); window.clearTimeout(timer); };
+    return () => { stop?.(); stopCancel?.(); stopShown?.(); unsub(); window.clearTimeout(timer); };
   }, [booted, runImport]);
 }

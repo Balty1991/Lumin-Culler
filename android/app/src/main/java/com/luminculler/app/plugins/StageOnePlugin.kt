@@ -40,7 +40,7 @@ class StageOnePlugin : Plugin() {
     // țineau ecranul ocupat la fiecare 8 poze (auditul de performanță).
     private val pool = Executors.newFixedThreadPool(2) { runnable ->
         Thread({
-            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            if (!AnalysisPriority.plina) android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             runnable.run()
         }, "Lumin-StageOne-batch").apply { isDaemon = true }
     }

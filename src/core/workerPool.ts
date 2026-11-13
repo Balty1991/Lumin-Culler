@@ -11,6 +11,7 @@
  * ("Persoane cunoscute") tot are nevoie de Human.js (recunoasterea nu exista
  * inca pe native) — porneste UN worker real, lazy, doar la prima folosire.
  */
+import { setNativeAnalysisFocus } from './backgroundAnalysis';
 import * as Comlink from 'comlink';
 import { clearInFlight, markInFlight } from './crashGuard';
 import { setJankContext } from './jankLog';
@@ -562,7 +563,10 @@ export class AnalysisPool {
   setBackground(on: boolean): void { this.background = on; }
   /** Citirea galeriei pe viteză maximă cu ecranul aprins (prima privire, „Lucrez la galeria ta”). */
   private focus = false;
-  setFocus(on: boolean): void { this.focus = on; }
+  setFocus(on: boolean): void {
+    if (this.focus !== on) setNativeAnalysisFocus(on);
+    this.focus = on;
+  }
   /** Modelele unei poze, pe rând: cât citirea din fundal rulează cu aplicația pe ecran. */
   private serialWatch = setModelsSerial(() => this.gentle && typeof document !== 'undefined' && document.visibilityState === 'visible');
 

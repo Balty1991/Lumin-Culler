@@ -30,8 +30,10 @@ interface BackgroundAnalysisApi {
   update(options: BackgroundAnalysisState): Promise<void>;
   stop(): Promise<void>;
   addListener(event: 'cancel', cb: () => void): Promise<PluginListenerHandle>;
+  addListener(event: 'shown', cb: (e: { hidden: boolean }) => void): Promise<PluginListenerHandle>;
   batteryUnrestricted(): Promise<{ available: boolean; unrestricted: boolean }>;
   openBatterySettings(): Promise<void>;
+  setFocus(options: { on: boolean }): Promise<void>;
 }
 
 interface BackgroundAnalysisState {
@@ -266,4 +268,24 @@ export async function openBatterySettings(): Promise<void> {
   } catch {
     // Un ecran de setari care nu se deschide nu are voie sa arunce in UI.
   }
+}
+
+/**
+ * Ecranul de lucru deschis (prima privire, „Lucrez la galeria ta”): firele native de analiză
+ * trec pe prioritate plină. Cu aplicația în spate nativul o face singur (vezi AnalysisPriority.kt).
+ */
+export function setNativeAnalysisFocus(on: boolean): void {
+  if (!isBackgroundAnalysisAvailable()) return;
+  void BackgroundAnalysis.setFocus({ on }).catch(() => undefined);
+}
+
+/**
+ * Aplicația chiar e (sau nu) pe ecran. Cât rulează analiza, pagina își spune „vizibilă” ca
+ * să nu fie înghețată, deci `document.visibilityState` minte; nativul știe adevărul.
+ * Cu aplicația ascunsă, animațiile (aurora, orbita, umbrele) se opresc: altfel se desenau
+ * pentru nimeni, ~1 s pe cadru, în timpul analizei (raportul din 13 nov.).
+ */
+export async function onNativeShown(cb: (hidden: boolean) => void): Promise<() => void> {
+  if (!isBackgroundAnalysisAvailable()) return () => {};
+  try { const h = await BackgroundAnalysis.addListener('shown', e => cb(!!e.hidden)); return () => { void h.remove(); }; } catch { return () => {}; }
 }
