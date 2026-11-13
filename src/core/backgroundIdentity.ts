@@ -5,6 +5,7 @@
  * intră în `analyze()`.
  */
 import type { AnalysisRecord, FaceInsight } from './db';
+import { eyesOpenFromFlags, faceBlinks, photoEyesClosed } from './blinkVerdict';
 import {
   choosePetCrop, matchNamedPet, primaryAnimalLabel,
   type NormRect, type ObjectBox
@@ -108,7 +109,7 @@ function insightsFromMesh(faces: MeshFaceBox[], width: number, height: number, b
       faceScore: 1,
       smile: face.smile ?? 0,
       eyesOpen: { left, right },
-      isBlinking: left < blinkThreshold || right < blinkThreshold,
+      isBlinking: faceBlinks({ smile: face.smile ?? 0, eyesOpen: { left, right } }, blinkThreshold),
       personId: null,
       personName: null,
       similarity: 0
@@ -122,7 +123,7 @@ function recount(analysis: AnalysisRecord): void {
   analysis.knownFaceCount = analysis.faces.filter(f => f.personId).length;
   analysis.strangerCount = analysis.faces.filter(f => !f.personId).length;
   analysis.bestSmile = analysis.faces.reduce((m, f) => Math.max(m, f.smile), 0);
-  analysis.allEyesOpen = analysis.faces.every(f => !f.isBlinking);
+  analysis.allEyesOpen = eyesOpenFromFlags(analysis.faces);
 }
 
 export async function enrichAfterFirstResult(input: EnrichInput, deps: EnrichDeps): Promise<EnrichResult> {
@@ -136,7 +137,8 @@ export async function enrichAfterFirstResult(input: EnrichInput, deps: EnrichDep
     try {
       const mesh = await deps.mesh(input.mediaUri);
       measuredFaces = mesh.faces.length;
-      eyesClosed = mesh.faces.some(f => f.eyesOpen.left < deps.blinkThreshold || f.eyesOpen.right < deps.blinkThreshold);
+      const iw = mesh.imageWidth || 0;
+      eyesClosed = photoEyesClosed(mesh.faces.map(f => ({ smile: f.smile ?? 0, eyesOpen: f.eyesOpen, box: f.boundingBox && iw > 0 ? [0, 0, f.boundingBox.width / iw, 0] : undefined })), deps.blinkThreshold);
       if (deps.testIdentity && mesh.faces.length) {
         const faces = insightsFromMesh(mesh.faces, mesh.imageWidth ?? 0, mesh.imageHeight ?? 0, deps.blinkThreshold);
         if (faces.length) {
@@ -144,7 +146,7 @@ export async function enrichAfterFirstResult(input: EnrichInput, deps: EnrichDep
           recount(analysis);
           changed = true;
           measuredFaces = faces.length;
-          eyesClosed = faces.some(f => f.isBlinking);
+          eyesClosed = !eyesOpenFromFlags(faces);
         }
       }
     } catch {

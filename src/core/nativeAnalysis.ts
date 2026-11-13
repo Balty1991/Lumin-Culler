@@ -49,6 +49,7 @@ import { hasManufacturedTag } from './smartInbox';
 import type { NativeImageSource } from './nativeImageSource';
 import { record, timed, timedSync } from './stageTiming';
 import { readFaceEngine, MESH_BLINK_THRESHOLD, type FaceEngine } from './faceEngine';
+import { eyesOpenFromFlags, faceBlinks } from './blinkVerdict';
 
 /**
  * Acelasi prag ca groupSmileRatio din faceAnalysis.worker.ts (web) — "zambet
@@ -282,7 +283,7 @@ function toFaceInsight(f: NativeFaceResult, imageWidth: number, imageHeight: num
     faceScore: 1,
     smile: f.smilingProbability ?? 0,
     eyesOpen: { left: leftEyeOpen, right: rightEyeOpen },
-    isBlinking: leftEyeOpen < ML_KIT_EYE_OPEN_THRESHOLD || rightEyeOpen < ML_KIT_EYE_OPEN_THRESHOLD,
+    isBlinking: faceBlinks({ smile: f.smilingProbability ?? 0, eyesOpen: { left: leftEyeOpen, right: rightEyeOpen } }, ML_KIT_EYE_OPEN_THRESHOLD),
     // Valori implicite "necunoscut" — recognizeFaces() (mai jos) le suprascrie
     // DUPA acest pas, per fata. `personId`/`personName` raman null cand nu e
     // nimeni inrolat; `embedding` se calculeaza oricum, pentru grupare.
@@ -365,7 +366,7 @@ function fromLandmarker(
       faceScore: 1,
       smile: f.smile,
       eyesOpen: f.eyesOpen,
-      isBlinking: f.eyesOpen.left < MESH_BLINK_THRESHOLD || f.eyesOpen.right < MESH_BLINK_THRESHOLD,
+      isBlinking: faceBlinks(f, MESH_BLINK_THRESHOLD),
       mouthOpen: f.mouthOpen,
       eyeContact: f.eyeContact,
       emotion: {
@@ -805,7 +806,8 @@ export async function analyzeNative(
     // (PRIOR_WEIGHTS.groupSmileRatio) si groupSelection.ts sa foloseasca mereu
     // valoarea neutra 0.5 in loc de fractia reala de fete care zambesc.
     groupSmileRatio: faces.length ? faces.filter(f => f.smile >= GROUP_SMILE_THRESHOLD).length / faces.length : undefined,
-    allEyesOpen: faces.every(f => !f.isBlinking),
+    // Fețele mici din fundal nu decid; râsul nu e clipit (core/blinkVerdict.ts).
+    allEyesOpen: eyesOpenFromFlags(faces),
     sceneType,
     aiScore: 0, // completat ulterior de ContextEngine.predict() in importPipeline.ts, la fel ca pe web
     analyzedAt: Date.now(),

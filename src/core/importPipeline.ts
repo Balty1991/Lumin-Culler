@@ -1153,7 +1153,9 @@ async function processOne(file: File, genre?: string, project?: string, handle?:
     : heavy
       ? decidePhotoStatus(prediction.score, analysis, thresholds)
       : Number.isFinite(sharpness) && Number.isFinite(exposure)
-        ? statusFromScore(prediction.score, thresholds)
+        // Un scor mic fără un cusur numit (neclară, arsă, ochi închiși) nu e motiv de „Nu păstrez”:
+        // rămâne nehotărâtă (raportat: copilul în geacă roz, „nu iese în evidență”, respins).
+        ? (s => (s === 'rejected' && !hasNamedDefect(analysis) ? 'review' : s))(statusFromScore(prediction.score, thresholds))
         : 'review';
   if (!heavy && !isolate?.aside && contradictsLightDecision(status, prepared.fineSharpness)) status = 'review';
 
@@ -1534,6 +1536,18 @@ export async function importFiles(
             faceCount: result.measuredFaces,
             eyesOpenRatio: 0
           });
+          // Ochii închiși singuri nu scot o poză cu oameni: poate e un moment frumos (râs, tortul,
+          // joaca). Rămâne „nehotărâtă”; o scoate doar regula seriilor, când există alt cadru
+          // cu ochii deschiși (raportat: momente de familie respinse pentru ochi „închiși”).
+          if (next.status === 'rejected' && decideIsolate({
+            fileName: item.photo.fileName,
+            sharpness: item.analysis.sharpness,
+            exposure: item.analysis.exposure,
+            paperScore: staged.find(s => s?.id === item.photo.id)?.paperScore,
+            width: item.photo.width,
+            height: item.photo.height,
+            faceCount: result.measuredFaces
+          }).status !== 'rejected') next.status = 'review';
           if (next.status !== item.photo.status || next.aside !== item.photo.aside) {
             item.photo.status = next.status;
             if (next.aside) item.photo.aside = next.aside;

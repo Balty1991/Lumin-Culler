@@ -104,7 +104,7 @@ describe('analyzeNative', () => {
   it('marcheaza isBlinking cand probabilitatea de ochi deschis e sub prag, si trateaza probabilitate absenta ca "deschis"', async () => {
     detectFacesNative.mockResolvedValue({
       faces: [
-        { boundingBox: { left: 0, top: 0, width: 10, height: 10 }, leftEyeOpenProbability: 0.2, rightEyeOpenProbability: 0.9 },
+        { boundingBox: { left: 0, top: 0, width: 10, height: 10 }, leftEyeOpenProbability: 0.2, rightEyeOpenProbability: 0.2 },
         { boundingBox: { left: 0, top: 0, width: 10, height: 10 } } // fara nicio probabilitate — ML Kit n-a putut clasifica
       ],
       imageWidth: 100,
@@ -811,7 +811,7 @@ describe('analyzeNative — motorul de fete FaceLandmarker', () => {
     // 0.35 e sub MESH_BLINK_THRESHOLD (0.4), dar PESTE pragul ML Kit (0.5) ar fi
     // fost tot "clipit" — testul apara ca se foloseste scara potrivita.
     analyzeFaceMeshNative.mockResolvedValue({
-      faces: [meshFace({ eyesOpen: { left: 0.35, right: 0.9 } })],
+      faces: [meshFace({ smile: 0, eyesOpen: { left: 0.35, right: 0.3 } })],
       imageWidth: 1000, imageHeight: 500
     });
 

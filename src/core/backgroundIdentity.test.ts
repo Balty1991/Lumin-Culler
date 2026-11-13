@@ -14,7 +14,7 @@ describe('enrichAfterFirstResult', () => {
         testIdentity: false,
         blinkThreshold: 0.4,
         mesh: async () => ({
-          faces: [{ boundingBox: { left: 10, top: 10, width: 40, height: 40 }, eyesOpen: { left: 0.1, right: 0.9 } }],
+          faces: [{ boundingBox: { left: 10, top: 10, width: 40, height: 40 }, eyesOpen: { left: 0.1, right: 0.1 } }],
           imageWidth: 100,
           imageHeight: 100
         })

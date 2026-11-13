@@ -80,7 +80,7 @@ import { readExcludedFolderIds, writeExcludedFolderIds } from './galleryFolders'
 import { readProtectedPersons, writeProtectedPersons, excludeProtected, isProtected } from './protectedPersons';
 import { readStageStats } from '../core/stageTiming';
 import {
-  formatScanLine, readLastScan, scanSummaryOnFinish, writeLastScan, type LastScan
+  readLastScan, writeLastScan, type LastScan
 } from '../core/scanSummary';
 import { isReviewQueue } from '../core/singletonVerdict';
 import type { TasteAnswer } from '../core/tastePairs';
@@ -3435,7 +3435,6 @@ export const useStore = create<AppState>((set, get) => ({
             ? ' ' + t(get().locale, 'store.import.thresholdsAdapted', { select: adaptedThresholds.select, reject: adaptedThresholds.reject })
             : '')
       : undefined;
-    const locale = baseLocale(get().locale);
     const finishedScan: LastScan | null = done > 0 && scanPhases
       ? {
           count: done,
@@ -3448,7 +3447,9 @@ export const useStore = create<AppState>((set, get) => ({
         }
       : null;
     if (finishedScan) writeLastScan(finishedScan);
-    const speedNotice = finishedScan && scanSummaryOnFinish() ? formatScanLine(finishedScan, locale) : undefined;
+    // Durata pe trepte rămâne în meniu (diagnostic), nu ca notificare după fiecare pachet citit
+    // (raportat: „Analizat 1 poză în 0,3 s” peste ecranul Azi).
+    const speedNotice: string | undefined = undefined;
     set(state => ({
       progress: null,
       notice: (warning && t(get().locale, warning.key, warning.params)) ?? speedNotice ?? doneNotice ?? state.notice,
@@ -4414,15 +4415,16 @@ export const useStore = create<AppState>((set, get) => ({
     });
     // O singură dată: pozele cu oameni respinse de AI înainte de regula de mai sus (după oră,
     // nu după cum arată) se întorc la „de văzut” — omul hotărăște, nu momentul.
+    // A doua trecere (v2): după regula nouă a ochilor (râsul nu e clipit), aceleași poze din nou.
     const restored: string[] = [];
     try {
-      if (localStorage.getItem('cp.mig.momentFaces') !== '1') {
+      if (localStorage.getItem('cp.mig.momentFaces2') !== '1') {
         const grouped = new Set(input.filter(p => p.groupId).map(p => p.id));
         for (const r of records) {
           const v = byId.get(r.id);
           if (r.status === 'rejected' && r.aiDecided === true && !lockedFromAutoDecision(r) && (v?.faceCount ?? 0) > 0 && !grouped.has(r.id) && !v?.aside) restored.push(r.id);
         }
-        localStorage.setItem('cp.mig.momentFaces', '1');
+        localStorage.setItem('cp.mig.momentFaces2', '1');
       }
     } catch { /* fără stocare */ }
     if (restored.length) {
