@@ -863,6 +863,8 @@ interface AppState {
   softenAutoRejects: (ids: string[]) => Promise<number>;
   /** Păstrările AI-ului din aceste poze devin „de văzut” (vezi lumin/trainingGate.ts holdUntilLearned). */
   softenAutoKeeps: (ids: string[]) => Promise<number>;
+  /** Pozele alese de AI ca „cele mai bune ale zilei” (vezi lumin/trainingGate.ts keepBestOfDays). */
+  promoteAutoPicks: (ids: string[]) => Promise<number>;
   rescorePhotos: () => Promise<{ total: number; changed: number }>;
   /** Un răspuns din „Învață-mă” (ui/TasteQuiz.tsx): doar învățare, nu schimbă statusul pozelor. */
   learnTastePair: (aId: string, bId: string, answer: TasteAnswer) => Promise<void>;
@@ -1888,7 +1890,9 @@ export function seriesRank(
   a: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number },
   b: { aiScore: number; faceCount?: number; allEyesOpen?: boolean; bestSmile?: number }
 ): number {
-  if ((a.faceCount ?? 0) >= 2 && (b.faceCount ?? 0) >= 2) {
+  // Și la o singură față (portretele copilului): întâi ochii deschiși, apoi zâmbetul clar mai
+  // larg, abia apoi scorul — cadrul păstrat e cel pe care l-ar alege un părinte.
+  if ((a.faceCount ?? 0) >= 1 && (b.faceCount ?? 0) >= 1 && ((a.faceCount ?? 0) >= 2 || Math.abs(a.aiScore - b.aiScore) < 25)) {
     const eyes = Number(!!b.allEyesOpen) - Number(!!a.allEyesOpen);
     if (eyes) return eyes;
     const smile = (b.bestSmile ?? 0) - (a.bestSmile ?? 0);
@@ -4084,6 +4088,16 @@ export const useStore = create<AppState>((set, get) => ({
     const set_ = new Set(soft);
     set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'review' } : p)) }));
     return soft.length;
+  },
+
+  promoteAutoPicks: async ids => {
+    const recs = await db.photos.bulkGet(ids);
+    const up = recs.filter((r): r is PhotoRecord => !!r && r.status !== 'selected' && r.aiDecided !== false && !r.aside).map(r => r.id);
+    if (!up.length) return 0;
+    await Promise.all(up.map(async id => { await db.photos.update(id, { status: 'selected', aiDecided: true }); await syncOriginal(id, 'selected'); }));
+    const set_ = new Set(up);
+    set(state => ({ photos: state.photos.map(p => (set_.has(p.id) ? { ...p, status: 'selected' } : p)) }));
+    return up.length;
   },
 
   softenAutoKeeps: async ids => {

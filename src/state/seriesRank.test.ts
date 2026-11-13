@@ -12,9 +12,15 @@ describe('seriesRank — cea mai bună poză de grup', () => {
     const b = { aiScore: 60, faceCount: 2, allEyesOpen: true, bestSmile: 0.8 };
     expect([a, b].sort(seriesRank)[0]).toBe(b);
   });
-  it('o singură față: scorul AI', () => {
+  it('o singură față, scoruri apropiate: ochii deschiși câștigă', () => {
     const a = { aiScore: 80, faceCount: 1, allEyesOpen: false };
     const b = { aiScore: 60, faceCount: 1, allEyesOpen: true };
+    expect([a, b].sort(seriesRank)[0]).toBe(b);
+  });
+
+  it('o singură față, scor mult mai bun: scorul AI', () => {
+    const a = { aiScore: 90, faceCount: 1, allEyesOpen: false };
+    const b = { aiScore: 50, faceCount: 1, allEyesOpen: true };
     expect([b, a].sort(seriesRank)[0]).toBe(a);
   });
 });

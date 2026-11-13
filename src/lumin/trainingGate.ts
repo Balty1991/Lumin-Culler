@@ -63,6 +63,7 @@ export async function redecideIfJustTrained(): Promise<boolean> {
   await useStore.getState().rescorePhotos();
   await holdUntilLearned();
   await protectNamedPeople();
+  await keepBestOfDays();
   return true;
 }
 
@@ -133,4 +134,43 @@ export async function protectNamedPeople(): Promise<number> {
     && !((p.sharpness ?? 100) < SEVERE_BLUR)).map(p => p.id);
   if (!ids.length) return 0;
   return useStore.getState().softenAutoRejects(ids);
+}
+
+/**
+ * „Ziua nu rămâne goală” (cerut: „îmbunătățește selecția”, după o lună cu fetița fără nicio poză
+ * păstrată): o zi cu poze cu oameni are măcar cele mai bune păstrate — 1 la 3–9 poze, 2 la 10–24,
+ * 3 de la 25 — din serii diferite, cu ochii deschiși și clare. Doar unde omul n-a hotărât nimic în
+ * ziua aceea (altfel alegerea lui contează) și doar pozele încă nehotărâte de el.
+ */
+export function bestOfDayPicks(photos: readonly PhotoView[]): string[] {
+  const byDay = new Map<number, PhotoView[]>();
+  for (const p of photos) {
+    if (p.aside || !((p.faceCount ?? 0) > 0)) continue;
+    const t = p.capturedAt ?? p.importedAt;
+    const d = new Date(t); d.setHours(0, 0, 0, 0);
+    const k = d.getTime();
+    const list = byDay.get(k); if (list) list.push(p); else byDay.set(k, [p]);
+  }
+  const out: string[] = [];
+  for (const list of byDay.values()) {
+    if (list.length < 3) continue;
+    if (list.some(p => p.status === 'selected' || p.aiDecided === false)) continue;
+    let want = list.length >= 25 ? 3 : list.length >= 10 ? 2 : 1;
+    const ok = list.filter(p => p.allEyesOpen !== false && (p.sharpness ?? 0) >= SEVERE_BLUR);
+    const ranked = [...ok].sort((a, b) => (b.aiScore + (b.bestSmile ?? 0) * 8) - (a.aiScore + (a.bestSmile ?? 0) * 8));
+    const groups = new Set<string>();
+    for (const p of ranked) {
+      if (p.groupId && groups.has(p.groupId)) continue;
+      if (p.groupId) groups.add(p.groupId);
+      out.push(p.id);
+      if (--want <= 0) break;
+    }
+  }
+  return out;
+}
+
+export async function keepBestOfDays(): Promise<number> {
+  if ((await import('./twin')).readAutonomy() === 'suggest') return 0;
+  const ids = bestOfDayPicks(useStore.getState().photos);
+  return ids.length ? useStore.getState().promoteAutoPicks(ids) : 0;
 }
