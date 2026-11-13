@@ -11,7 +11,7 @@
  * ("Persoane cunoscute") tot are nevoie de Human.js (recunoasterea nu exista
  * inca pe native) — porneste UN worker real, lazy, doar la prima folosire.
  */
-import { setNativeAnalysisFocus } from './backgroundAnalysis';
+import { processKeptAwake, setNativeAnalysisFocus } from './backgroundAnalysis';
 import * as Comlink from 'comlink';
 import { clearInFlight, markInFlight } from './crashGuard';
 import { setJankContext } from './jankLog';
@@ -136,7 +136,9 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string,
       const acum = Date.now();
       // Cel putin un pas — ticul chiar a sosit, deci atata s-a scurs. Cel mult
       // trei — restul e timp in care nu s-a executat nimic.
-      lucrat += Math.min(Math.max(acum - ultimul, pas), pas * SALT_MAXIM_PASI);
+      // Cu serviciul din fundal pornit procesul nu e înghețat: ticul întârziat e doar rărit,
+      // deci se numără tot timpul scurs (altfel un plafon de 40 s ajungea la ~14 min).
+      lucrat += Math.min(Math.max(acum - ultimul, pas), processKeptAwake() ? Infinity : pas * SALT_MAXIM_PASI);
       ultimul = acum;
       if (lucrat < ms) return;
       clearInterval(ceas);

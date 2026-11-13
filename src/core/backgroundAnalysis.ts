@@ -170,6 +170,13 @@ export async function onBackgroundCancel(cb: () => void): Promise<() => void> {
  * importurile pachetelor nu-l opresc.
  */
 let held = 0;
+let serviceOn = false;
+/**
+ * Serviciul din prim-plan ține procesul treaz: un tic de temporizator întârziat înseamnă atunci
+ * pagină rărită de Chromium, nu proces înghețat, deci timpul ceasului chiar a trecut (vezi
+ * withTimeout). Raportat 13 nov.: un model blocat ținea citirea pe loc 7+ minute în fundal.
+ */
+export function processKeptAwake(): boolean { return held > 0 || serviceOn; }
 export async function holdBackgroundAnalysis(total: number, text?: string): Promise<void> {
   held++;
   if (held === 1 && isBackgroundAnalysisAvailable()) {
@@ -195,7 +202,8 @@ export async function startBackgroundAnalysis(done: number, total: number, text?
     // `total` e aici pragul de pornire, nu o bara: la pornire nu s-a analizat
     // inca nicio poza, iar o bara reala goala e doar o bara care pare inghetata.
     const answer = await BackgroundAnalysis.start({ done, total, text, determinate: false, stopLabel });
-    return answer.started === true;
+    serviceOn = answer.started === true;
+    return serviceOn;
   } catch {
     return false;
   }
@@ -224,6 +232,7 @@ export async function updateBackgroundAnalysis(
  */
 export async function stopBackgroundAnalysis(): Promise<void> {
   if (!isBackgroundAnalysisAvailable() || held > 0) return;
+  serviceOn = false;
   try {
     await BackgroundAnalysis.stop();
   } catch {
