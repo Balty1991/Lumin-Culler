@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          pip install -q onnxruntime numpy pillow scipy torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple 2>&1 | tail -1
+          pip install -q onnxruntime numpy pillow scipy torch transformers --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple 2>&1 | tail -1
           curl -fsSL -o vision.onnx https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx
           curl -fsSL -o aest.pth https://github.com/LAION-AI/aesthetic-predictor/raw/main/sa_0_4_vit_b_32_linear.pth
           mkdir img; cd img
@@ -31,26 +31,35 @@ jobs:
           def emb(im):
               o=s.run(None,{s.get_inputs()[0].name:prep(im)}); e=o[names.index('image_embeds')][0] if 'image_embeds' in names else o[0][0]
               return e/np.linalg.norm(e)
-          def new(e):
+          from transformers import CLIPModel, CLIPProcessor
+          m=CLIPModel.from_pretrained('openai/clip-vit-base-patch32').eval(); pp=CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')
+          def enc(ds):
+              t=pp(text=ds,return_tensors='pt',padding=True)
+              with torch.no_grad(): e=m.get_text_features(**t).numpy()
+              e=e/np.linalg.norm(e,axis=1,keepdims=True); e=e.mean(0); return e/np.linalg.norm(e)
+          EXTRA={'beauty':(['a beautiful photograph','a stunning photo with great composition','an aesthetically pleasing photo'],['a boring snapshot','a poorly composed, unappealing photo','a dull, uninteresting photo']),
+                 'light':(['a photo with beautiful, soft light','a photo with golden warm light'],['a photo with flat, dull light','a photo with harsh, ugly lighting']),
+                 'moment':(['a heartwarming moment captured in a photo','a joyful, lively moment'],['a dull, uneventful photo','a random photo of nothing special'])}
+          X={k:np.stack([enc(v[0]),enc(v[1])]) for k,v in EXTRA.items()}
+          def parts(e):
               p={}
-              for j,k in enumerate(d['qkeys']):
-                  g=float(e@Q[j,0]); bb=float(e@Q[j,1]); p[k]=1/(1+np.exp(-(g-bb)*100))
-              ks=['sharp','exposure','quality','accident']; return 3.5+4*sum(p[k] for k in ks)/4
-          old=lambda e: float(e@w+b)
-          O=[];N=[];drops=[]
+              for j,k in enumerate(d['qkeys']): p[k]=1/(1+np.exp(-(float(e@Q[j,0])-float(e@Q[j,1]))*100))
+              for k,v in X.items(): p[k]=1/(1+np.exp(-(float(e@v[0])-float(e@v[1]))*100))
+              return p
+          VARS={'v0':['sharp','exposure','quality','accident'],'v1':['sharp','exposure','quality','accident','beauty'],'v2':['sharp','exposure','quality','accident','beauty','light'],'v3':['sharp','exposure','beauty','light','moment'],'v4':['sharp','exposure','quality','accident','beauty','beauty','light','moment']}
+          def score(e,ks): p=parts(e); return 3.5+4*sum(p[k] for k in ks)/len(ks)
+          EMB=[]
           for f in sorted(glob.glob('img/*.jpg')):
-              im=Image.open(f); e=emb(im); O.append(old(e)); N.append(new(e))
-              bl=emb(im.filter(ImageFilter.GaussianBlur(5))); dk=emb(ImageEnhance.Brightness(im).enhance(0.18))
-              drops.append((old(e)-old(bl), new(e)-new(bl), old(e)-old(dk), new(e)-new(dk)))
-          O=np.array(O);N=np.array(N);D=np.array(drops)
-          print('N',len(O)); print('spearman old vs new on originals', round(spearmanr(O,N).correlation,3))
-          print('old range',O.min().round(2),O.max().round(2),'new range',N.min().round(2),N.max().round(2))
-          print('blur: old drops in %.0f%%, new drops in %.0f%%'%(100*(D[:,0]>0).mean(),100*(D[:,1]>0).mean()))
-          print('dark: old drops in %.0f%%, new drops in %.0f%%'%(100*(D[:,2]>0).mean(),100*(D[:,3]>0).mean()))
-          # Separare: originale vs stricate (AUC)
+              im=Image.open(f); EMB.append((emb(im),emb(im.filter(ImageFilter.GaussianBlur(5))),emb(ImageEnhance.Brightness(im).enhance(0.18))))
           from itertools import product
           def auc(a,b): return np.mean([1.0 if x>y else 0.5 if x==y else 0 for x,y in product(a,b)])
-          print('AUC good-vs-blurred old %.3f new %.3f'%(auc(O,O-D[:,0]),auc(N,N-D[:,1])))
-          print('AUC good-vs-dark old %.3f new %.3f'%(auc(O,O-D[:,2]),auc(N,N-D[:,3])))
-          idx=np.argsort(-O); print('top-10 old ranks under new:',[int(np.where(np.argsort(-N)==i)[0][0]) for i in idx[:10]])
+          O=np.array([e@w+b for e,_,_ in EMB])
+          for name,ks in VARS.items():
+              G=np.array([score(e,ks) for e,_,_ in EMB]); B=np.array([score(x,ks) for _,x,_ in EMB]); Dk=np.array([score(x,ks) for _,_,x in EMB])
+              print(name,'spearman-vs-LAION %.3f'%spearmanr(O,G).correlation,'AUC blur %.3f dark %.3f'%(auc(G,B),auc(G,Dk)),'range %.2f-%.2f'%(G.min(),G.max()))
+          Ob=np.array([x@w+b for _,x,_ in EMB]); Od=np.array([x@w+b for _,_,x in EMB]); print('LAION AUC blur %.3f dark %.3f'%(auc(O,Ob),auc(O,Od)))
+          ALLQ=np.concatenate([Q,np.stack([X[k] for k in EXTRA])]).astype(np.float16)
+          print('QKEYS',json.dumps(d['qkeys']+list(EXTRA)))
+          js=base64.b64encode(ALLQ.tobytes()).decode(); print('QLEN',len(js))
+          for i in range(0,len(js),3000): print('QCHUNK%03d %s'%(i//3000, js[i:i+3000]))
           PY
