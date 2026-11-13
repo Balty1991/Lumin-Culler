@@ -341,6 +341,7 @@ export const dict: Record<string, string> = {
   "lx.days.view.wall": "Fotos",
   "lx.wall.all": "Alle",
   "lx.wall.kept": "Behalten",
+  "lx.wall.waiting": "Offen",
   "lx.wall.notToday": "Nicht heute",
   "lx.wall.empty": "Hier noch keine Fotos.",
   "lx.reader.notifyTitle": "Fertig! Die ganze Galerie ist gelesen",

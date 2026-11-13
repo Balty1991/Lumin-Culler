@@ -2466,6 +2466,7 @@ export const ro = {
   "lx.days.view.wall": "Poze",
   "lx.wall.all": "Toate",
   "lx.wall.kept": "Păstrate",
+  "lx.wall.waiting": "De ales",
   "lx.wall.notToday": "Nu păstrez",
   "lx.wall.empty": "Nicio poză aici încă.",
   "lx.reader.notifyTitle": "Gata! Am citit toată galeria",

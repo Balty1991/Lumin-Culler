@@ -52,7 +52,9 @@ import { CleanupCard } from './Cleanup';
 import { intlTag, baseLocale } from '../i18n';
 import { selectBlinks, selectBlurry } from '../state/batchOps';
 
-type Filter = 'all' | 'kept' | 'notToday' | 'blinks' | 'blurry';
+type Filter = 'all' | 'kept' | 'waiting' | 'notToday' | 'blinks' | 'blurry';
+/** „De ales”: nici păstrate, nici scoase (raportat: pozele apăreau doar la „Toate”). */
+const isWaiting = (status: string) => status === 'review' || status === 'pending' || status === 'candidate';
 const PAGE = 60;
 
 /**
@@ -260,7 +262,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     }
     const base = photos
       .filter(p => !p.aside)
-      .filter(p => filter === 'kept' ? p.status === 'selected' : filter === 'notToday' ? p.status === 'rejected' : true)
+      .filter(p => filter === 'kept' ? p.status === 'selected' : filter === 'notToday' ? p.status === 'rejected' : filter === 'waiting' ? isWaiting(p.status) : true)
       .sort((a, b) => photoTime(b) - photoTime(a));
     if (filter === 'blinks') return selectBlinks(base);
     if (filter === 'blurry') return selectBlurry(base);
@@ -391,7 +393,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
   }, [list]);
 
   const asideCount = useMemo(() => photos.reduce((n, p) => n + (p.aside ? 1 : 0), 0), [photos]);
-  const count = (f: Filter) => photos.filter(p => !p.aside && (f === 'all' || p.status === (f === 'kept' ? 'selected' : 'rejected'))).length;
+  const count = (f: Filter) => photos.filter(p => !p.aside && (f === 'all' || (f === 'waiting' ? isWaiting(p.status) : p.status === (f === 'kept' ? 'selected' : 'rejected')))).length;
   const open = (i: number, el: HTMLElement) => openWithTransition(() => setViewer({ index: i, origin: el.getBoundingClientRect() }));
   // Aceeași referință pentru toate dalele: o dală se redesenează doar când se schimbă poza ei.
   const openRef = useRef(open);
@@ -483,7 +485,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
       {plain && (
         <div className="lx-wall-bar">
           <div className="lx-wall-seg" role="tablist">
-            {(['all', 'kept', 'notToday'] as Filter[]).map(f => (
+            {(['all', 'kept', 'waiting', 'notToday'] as Filter[]).map(f => (
               <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'on' : ''} onClick={() => withTransition(() => setFilter(f))}>
                 <span>{tr(`lx.wall.${f}`)}</span><b>{count(f)}</b>
               </button>

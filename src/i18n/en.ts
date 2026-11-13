@@ -2380,6 +2380,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.days.view.wall": "Photos",
   "lx.wall.all": "All",
   "lx.wall.kept": "Kept",
+  "lx.wall.waiting": "To decide",
   "lx.wall.notToday": "Don't keep",
   "lx.wall.empty": "No photos here yet.",
   "lx.reader.notifyTitle": "Done! Your whole gallery is read",
