@@ -2381,6 +2381,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.wall.all": "All",
   "lx.wall.kept": "Kept",
   "lx.wall.waiting": "To decide",
+  "lx.wall.more": "More",
   "lx.wall.waitingGo": "Go through them ({count})",
   "lx.wall.waitingGoTitle": "To decide",
   "lx.wall.notToday": "Don't keep",

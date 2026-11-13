@@ -348,14 +348,6 @@ export function TodayScreen() {
 
       {!sortingActive && !focusSample && <TrainingCard />}
 
-      {!focusSample && today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
-        <section className="lx-stats">
-          <div><b>{today.series.length}</b><span>{tr(plural(today.series.length, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
-          <div><b>{today.rejected.length}</b><span>{tr('lx.stat.notToday')}</span></div>
-          <div><b>{today.aside.length}</b><span>{tr('lx.stat.aside')}</span></div>
-        </section>
-      )}
-
       {!sortingActive && !beginner && (
         <>
           <WhoIsThis />
@@ -363,9 +355,8 @@ export function TodayScreen() {
           <LumiFeed />
         </>
       )}
-      {!beginner && <StudioStrip />}
-      {/* Amintirea de azi și poza uitată sunt deja în poveștile de sus. */}
-      {!showStories && !beginner && <ForgottenCard />}
+      {/* Redesign: Azi scurt — poza zilei, ce te așteaptă, o amintire. Studio are fila lui;
+          poza uitată și cifrele zilei stau la „Mai multe”. */}
       {!showStories && !beginner && <OnThisDay heroCoversFirst={!busy} />}
 
       {/* Galeria ta: starea sortării, curățenia și AI-ul, grupate într-un singur bloc. */}
@@ -388,6 +379,16 @@ export function TodayScreen() {
       {/* Restul stă strâns: Azi rămâne scurt (cerut de audit: peste 20 de blocuri). */}
       {!beginner && <details className="lx-more">
         <summary>{tr('lx.today.more')}</summary>
+        <StudioStrip />
+        {!showStories && <ForgottenCard />}
+        {!focusSample && today && (today.series.length > 0 || today.aside.length > 0 || today.rejected.length > 0) && (
+        <section className="lx-stats">
+          <div><b>{today.series.length}</b><span>{tr(plural(today.series.length, 'lx.stat.series.one', 'lx.stat.series'))}</span></div>
+          <div><b>{today.rejected.length}</b><span>{tr('lx.stat.notToday')}</span></div>
+          <div><b>{today.aside.length}</b><span>{tr('lx.stat.aside')}</span></div>
+        </section>
+      )}
+
         <WeekVote />
         <BeenHereCard />
         <CapsuleCard />

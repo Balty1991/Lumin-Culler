@@ -230,6 +230,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
     return () => { alive = false; window.clearTimeout(timer); };
   }, [query]);
   const [density, setDensityState] = useState<Density>(readDensity);
+  const [wallMore, setWallMore] = useState(false);
   const setNotice = useStore(s => s.setNotice);
   const sentinel = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
@@ -503,16 +504,21 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
               </button>
             ))}
           </div>
-          {/* Galerie 3D: călătoria în timp printre pozele din filtrul ales. */}
-          <button className="lx-density-btn lx-3d-btn" onClick={() => setTunnel(true)} aria-label={tr('lx.tunnel.open')} disabled={list.length === 0}>
-            <b>3D</b>
-          </button>
-          {/* Mărimea grilei: un singur buton care trece prin 2→5 coloane (și ciupitul merge). */}
-          <button className="lx-density-btn" aria-label={`${tr('lx.wall.density')}: ${density}`}
-            onClick={e => setDensity((density >= 5 ? 2 : density + 1) as Density, e.currentTarget)}>
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" d="M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z"/></svg>
-            <b>{density}</b>
-          </button>
+          {/* Un singur „⋯”: Galeria 3D și mărimea grilei (redesign: bara era aglomerată). Ciupitul
+              schimbă în continuare mărimea. */}
+          <div className="lx-wall-more">
+            <button className="lx-density-btn" aria-label={tr('lx.wall.more')} aria-expanded={wallMore} onClick={() => setWallMore(m => !m)}>⋯</button>
+            {wallMore && (
+              <div className="lx-gal-more lx-wall-menu" role="menu">
+                <button role="menuitem" disabled={list.length === 0} onClick={() => { setWallMore(false); setTunnel(true); }}>✨ {tr('lx.tunnel.open')}</button>
+                <div className="lx-wall-sizes" role="group" aria-label={tr('lx.wall.density')}>
+                  {([2, 3, 4, 5] as Density[]).map(d => (
+                    <button key={d} className={density === d ? 'on' : ''} onClick={e => { setDensity(d, e.currentTarget); setWallMore(false); }}>{d}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {plain && (issues.blinks > 0 || issues.blurry > 0 || asideCount > 0) && (

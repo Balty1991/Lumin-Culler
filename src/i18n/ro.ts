@@ -2467,6 +2467,7 @@ export const ro = {
   "lx.wall.all": "Toate",
   "lx.wall.kept": "Păstrate",
   "lx.wall.waiting": "De ales",
+  "lx.wall.more": "Mai multe",
   "lx.wall.waitingGo": "Alege-le pe rând ({count})",
   "lx.wall.waitingGoTitle": "De ales",
   "lx.wall.notToday": "Nu păstrez",

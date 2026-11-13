@@ -42,7 +42,7 @@ function canAnimate(): boolean {
 /** Dala e întreagă pe ecran, sub titlul lunii lipit sus (altfel poza zboară peste el). */
 function visible(el: Element): boolean {
   const r = el.getBoundingClientRect();
-  return r.width > 0 && r.top >= 90 && r.bottom <= innerHeight - 70;
+  return r.width > 0 && r.top >= 56 && r.bottom <= innerHeight - 70;
 }
 
 /** Deschide poza mare pornind de la dala atinsă (sau `from`, dacă e dat). */

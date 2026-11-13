@@ -61,3 +61,15 @@
     if (meta) meta.setAttribute('content', isLight ? (cherry ? '#fbf6f8' : '#f5f5f7') : (cherry ? '#0b0816' : '#0a0b0d'));
   } catch (e) {}
 })();
+
+// Pornirea: cea mai frumoasă poză recentă în spatele siglei (salvată de aplicație în
+// localStorage, ~25 KB), în loc de ecranul gol. Prin CSSOM (permis de CSP), nu prin stil inline.
+(function () {
+  try {
+    var photo = localStorage.getItem('cp.splash');
+    if (photo && photo.indexOf('data:image/') === 0) {
+      document.documentElement.style.setProperty('--boot-photo', 'url("' + photo + '")');
+      document.documentElement.classList.add('boot-has-photo');
+    }
+  } catch (e) {}
+})();

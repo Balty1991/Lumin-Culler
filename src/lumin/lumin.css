@@ -2403,3 +2403,22 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-card-photo .lx-card-img.lx-card-bg { position: absolute; inset: 0; object-fit: cover; filter: blur(22px) brightness(.6) saturate(1.2); transform: scale(1.15); }
 .lx-card-photo .lx-card-img.lx-card-whole { position: relative; object-fit: contain; }
 .lx-waiting-go { margin: 10px 0 4px; }
+/* Galerie: „⋯” cu Galeria 3D și mărimea grilei. */
+.lx-wall-more { position: relative; flex: none; }
+.lx-wall-more > .lx-density-btn { font-size: 20px; font-weight: 800; letter-spacing: 1px; }
+.lx-wall-menu { min-width: 200px; gap: 4px; }
+.lx-wall-sizes { display: flex; gap: 4px; padding: 4px; }
+.lx-wall-sizes button { flex: 1; min-height: 40px; padding: 0; border-radius: 10px; background: var(--surface-2); font-weight: 700; }
+.lx-wall-sizes button.on { background: var(--lx-grad); color: #06070a; }
+/* Cu „⋯” în loc de două butoane, filtrele au loc. */
+.lx-wall-seg button span { font-size: 12.5px; }
+
+/* Redesign: un singur stil de card pe Azi (înainte: chenare, degradeuri și sticlă amestecate).
+   Toate: aceeași suprafață, același chenar, aceleași colțuri; cele care cer atenție (rezultatul,
+   prima privire, pauza de antrenament) au doar o linie subțire de culoare sus. Fără `backdrop-filter`
+   pe fiecare card: peste un fundal simplu nu se vedea, dar costa la derulare. */
+.lx-today .lx-card { background: var(--surface, #12131b); border: 1px solid var(--lx-line); border-radius: 22px; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+.lx-today .lx-card.lx-auto-result, .lx-today .lx-card.lx-sample, .lx-today .lx-card.lx-train-pause, .lx-today .lx-card.lx-reader { position: relative; overflow: hidden; }
+.lx-today .lx-card.lx-auto-result::before, .lx-today .lx-card.lx-sample::before, .lx-today .lx-card.lx-train-pause::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--lx-grad); }
+.lx-today .lx-today-group { background: var(--surface, #12131b); }
