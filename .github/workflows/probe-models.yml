@@ -1,0 +1,41 @@
+name: Store photos (CC0)
+on:
+  push:
+    branches: [claude/fix-serii]
+    paths: ['.github/workflows/probe-models.yml']
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          pip install -q pillow requests 2>&1 | tail -1
+          python - <<'PY'
+          import requests, io, base64, json, re
+          from PIL import Image
+          S = requests.Session(); S.headers['User-Agent'] = 'store-assets-probe/1.0 (GitHub Actions)'
+          API = 'https://commons.wikimedia.org/w/api.php'
+          TOPICS = ['dog portrait','golden retriever','cat sleeping','kitten','children playing park','child birthday cake','family beach','sunset sea','mountain lake','autumn forest','flowers garden','breakfast table','pizza','coffee cup','snow mountains','city night','beach','puppy','grandmother child','wedding couple','toddler','picnic','balloons party','bicycle child']
+          FREE = re.compile(r'^(CC0|Public domain|PD|No restrictions)', re.I)
+          seen, out = set(), []
+          for t in TOPICS:
+              r = S.get(API, params={'action':'query','format':'json','generator':'search','gsrsearch':f'{t} incategory:CC-zero filetype:bitmap','gsrnamespace':6,'gsrlimit':12,
+                                     'prop':'imageinfo','iiprop':'url|extmetadata|size','iiurlwidth':640}, timeout=30).json()
+              pages = sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda p: p.get('index', 99))
+              n = 0
+              for p in pages:
+                  ii = (p.get('imageinfo') or [{}])[0]; md = ii.get('extmetadata', {})
+                  lic = md.get('LicenseShortName', {}).get('value', '')
+                  if not FREE.match(lic) or p['title'] in seen: continue
+                  if ii.get('width', 0) < 1200: continue
+                  try:
+                      im = Image.open(io.BytesIO(S.get(ii['thumburl'], timeout=30).content)).convert('RGB')
+                  except Exception: continue
+                  im.thumbnail((640, 640)); b = io.BytesIO(); im.save(b, 'JPEG', quality=72)
+                  artist = re.sub('<[^>]+>', '', md.get('Artist', {}).get('value', ''))[:80]
+                  seen.add(p['title']); n += 1
+                  out.append({'topic': t, 'title': p['title'], 'license': lic, 'artist': artist, 'url': ii.get('descriptionurl'), 'jpg': base64.b64encode(b.getvalue()).decode()})
+                  if n >= 2: break
+          print('COUNT', len(out))
+          for i, o in enumerate(out):
+              print('PHOTO%03d %s' % (i, json.dumps(o)))
+          PY
