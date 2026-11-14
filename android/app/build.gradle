@@ -40,7 +40,7 @@ android {
         // "38 (2.1.1)" si nu au nicio legatura cu ce scrie aici — a urca
         // numarul de mai jos NU pregateste si nu deblocheaza nimic acolo.
         versionCode 7
-        versionName "3.4.0"
+        versionName "3.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         if (project.hasProperty('arm64Only') && project.property('arm64Only') == 'true') {
             ndk { abiFilters 'arm64-v8a' }
