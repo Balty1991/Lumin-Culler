@@ -7,7 +7,7 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 
 ## Imagini
 - Pictograma aplicației (512×512): `docs/play/icon-512.png`
-- Grafica prezentată (1024×500), tema black rose: `store/screenshots-new/feature-graphic-ro.png` și `feature-graphic-en.png`
+- Grafica prezentată (1024×500), tema black rose: `store/screenshots/feature-graphic-ro.png` și `feature-graphic-en.png` (fără „cele mai bune”: Play nu promovează fișele cu cuvinte de clasament)
 - Capturile (8 pe limbă, 1080×1920): `store/screenshots/ro/` și `en/` (interfața 3.5), cu poze generate de AI (fără oameni reali).
 
 ## Română (ro-RO), limba implicită
