@@ -8,7 +8,7 @@ Lumin AI devine **Cherrypic**. Pe Play e o **actualizare** a aceleiași aplicaț
 ## Imagini
 - Pictograma aplicației (512×512): `docs/play/icon-512.png`
 - Grafica prezentată (1024×500), tema black rose: `store/screenshots-new/feature-graphic-ro.png` și `feature-graphic-en.png`
-- Capturile (8 pe limbă, 1080×1920): `store/screenshots-new/ro/` și `en/`, făcute cu familia demo generată de AI (fără oameni reali). Se refac cu `python3 scripts/store-screenshots.py`.
+- Capturile (8 pe limbă, 1080×1920): `store/screenshots/ro/` și `en/` (interfața 3.5), cu poze generate de AI (fără oameni reali).
 
 ## Română (ro-RO), limba implicită
 
@@ -29,10 +29,10 @@ Faci 30 de poze pe zi și păstrezi 4? Cherrypic le alege pentru tine — ca tin
 Cherrypic e AI-ul care îți învață gustul. AI-ul aplicației citește galeria, alege cele mai bune poze din fiecare moment și vine singur cu propuneri: „Am găsit 12 serii de poze aproape la fel — păstrez cea mai bună din fiecare?”
 
 ★ ALEGE CA TINE
-• Învață din fiecare „Păstrez” și „Nu azi” și îți arată cât de des alege ca tine
+• Învață din fiecare „Păstrez” și „Nu păstrez” și îți arată cât de des alege ca tine
 • Din fiecare serie de poze aproape identice păstrează una: cea clară, cu toți cu ochii deschiși
 • Îți explică de ce: „Ai păstra-o: e Mia și are lumina caldă de apus”
-• Știe ce e o poză frumoasă: un model AI antrenat pe note date de oameni, ajustat apoi după gustul tău
+• Știe ce e o poză reușită: clară, bine luminată, cu momentul prins; apoi învață ce îți place ție
 
 ★ CURĂȚĂ GALERIA
 • Poze duplicate și aproape la fel, poze neclare, întunecate, capturi de ecran vechi
@@ -95,10 +95,10 @@ Take 30 photos a day and keep 4? Cherrypic picks them for you — the way you wo
 Cherrypic is the AI that learns your taste. The in-app AI reads your gallery, picks the best shot of every moment and comes to you with suggestions: "I found 12 sets of near-identical photos — keep the best of each?"
 
 ★ PICKS LIKE YOU
-• Learns from every Keep and Not today, and shows how often it agrees with you
+• Learns from every Keep and Don't keep, and shows how often it agrees with you
 • From every burst keeps the sharp one with everybody's eyes open
 • Tells you why: "You'd keep it: it's Mia, in warm sunset light"
-• Knows what a beautiful photo is: an AI model trained on human ratings, then tuned to your taste
+• Knows what a good photo is: sharp, well lit, the moment caught; then learns what you like
 
 ★ CLEANS YOUR GALLERY
 • Duplicates and near-duplicates, blurry and dark shots, old screenshots
@@ -189,7 +189,7 @@ Serverul (Cherrypic Cloud) e oprit în aplicație: toate analizele și edităril
 Din 2025, Play cere o declarație în Play Console că accesul permanent la poze e funcția de bază: aplicația e un manager de galerie și selector de poze (sortare zilnică, curățare, organizare). Atașează un video scurt: importul, ritualul de sortare, ștergerea în coș.
 
 ## Ordinea capturilor (8)
-1. Alege ca tine: Păstrez sau Nu azi
+1. Alege ca tine: Păstrez sau Nu păstrez
 2. Curățenie: din fiecare serie, cea mai bună
 3. Ordine: bonuri și capturi, puse deoparte
 4. Azi: acum un an, în ziua asta
