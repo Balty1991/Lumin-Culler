@@ -42,6 +42,16 @@ import com.luminculler.app.plugins.DevicePlugin;
 public class MainActivity extends BridgeActivity {
 
     /**
+     * Pornirea fără ecrane intermediare (raportat cu înregistrare: cireașa, apoi negru, apoi
+     * un ecran gol, abia apoi „Azi”). Cireașa sistemului rămâne pe ecran până când pagina
+     * spune că „Azi” e desenat (DevicePlugin.appReady), cel mult 3 secunde.
+     */
+    private static volatile boolean webReady = false;
+    private static final long SPLASH_MAX_MS = 3000;
+
+    public static void markWebReady() { webReady = true; }
+
+    /**
      * Cererea explicita din cerintele de calitate Google Play (praguri de
      * memorie, februarie 2027): aplicatia trebuie sa raspunda la onTrimMemory
      * eliberand memoria tinuta, iar esantionarea se face LA SCURT TIMP dupa o
@@ -136,6 +146,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        final long splashStart = android.os.SystemClock.uptimeMillis();
+        webReady = false;
+        androidx.core.splashscreen.SplashScreen.installSplashScreen(this)
+            .setKeepOnScreenCondition(() -> !webReady && android.os.SystemClock.uptimeMillis() - splashStart < SPLASH_MAX_MS);
         clearStaleServiceWorker();
         // Plugin-urile native LOCALE (nu pachete npm separate, ca @capacitor/filesystem)
         // nu sunt descoperite automat de Capacitor — trebuie inregistrate explicit aici,

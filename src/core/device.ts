@@ -26,6 +26,7 @@ interface DeviceApi {
   completeUpdate(): Promise<void>;
   setHdr(o: { on: boolean }): Promise<void>;
   isUltraHdr(o: { uri: string }): Promise<{ hdr: boolean }>;
+  appReady(): Promise<void>;
   addListener(event: 'shared' | 'updateDownloaded', cb: () => void): Promise<PluginListenerHandle>;
 }
 
@@ -127,4 +128,10 @@ export function setHdrMode(on: boolean): void { if (native()) void Device.setHdr
 export async function isUltraHdr(uri: string): Promise<boolean> {
   if (!native()) return false;
   try { return (await Device.isUltraHdr({ uri })).hdr; } catch { return false; }
+}
+
+/** „Azi” e desenat: splash-ul sistemului (cireașa) poate pleca, fără ecran gol între ele. */
+export function signalAppReady(): void {
+  if (!native()) return;
+  void Device.appReady().catch(() => undefined);
 }

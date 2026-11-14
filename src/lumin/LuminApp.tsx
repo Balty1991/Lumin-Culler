@@ -54,6 +54,7 @@ const StudioTab = memo(lazy(() => import('./Studio').then(m => ({ default: m.Stu
 const CleanScreen = memo(lazy(() => import('./CleanScreen').then(m => ({ default: m.CleanScreen }))));
 const SettingsScreen = memo(lazy(() => import('./SettingsScreen').then(m => ({ default: m.SettingsScreen }))));
 import { Icon } from './icons';
+import { signalAppReady } from '../core/device';
 /** Ecranele nu primesc nimic de la părinte: schimbarea filei nu are de ce să le redeseneze. */
 const TodayPane = memo(TodayScreen);
 const SwipeSort = lazy(() => import('./SwipeSort').then(m => ({ default: m.SwipeSort })));
@@ -225,6 +226,12 @@ export function LuminApp() {
   const tr = (key: string, params?: Record<string, string | number>) => t(locale, key, params);
   useAutoThemeWatch();
   useModernPhone(booted, runImport);
+  // „Azi” desenat (două cadre după pornire): cireașa sistemului poate pleca (MainActivity).
+  useEffect(() => {
+    if (!booted) return;
+    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => signalAppReady()); });
+    return () => cancelAnimationFrame(id);
+  }, [booted]);
 
   useEffect(() => {
     startJankLog();
@@ -301,12 +308,6 @@ export function LuminApp() {
       maybeAskForReviewAfterWin({ freedBytes: freedSummary().total, decided: all.filter(p => (p.status === 'selected' || p.status === 'rejected') && !p.aiDecided).length });
       // Fără poză bună azi: widgetul nu rămâne gol, ci arată o amintire din aceeași zi
       // a anilor trecuți, altfel una dintre cele mai bune poze din ultima lună (alta în fiecare zi).
-      // Poza de la pornire: cea mai bună păstrată din ultima lună (alta după ce apare una mai bună).
-      {
-        const month = Date.now() - 31 * 86_400_000;
-        const star = all.filter(p => p.status === 'selected' && !p.aside && (p.capturedAt ?? p.importedAt) >= month).sort((a, b) => b.aiScore - a.aiScore)[0];
-        void import('./splash').then(m => m.saveSplashPhoto(star?.id)).catch(() => undefined);
-      }
       if (best?.mediaUri) {
         void updateHomeWidget({ title: t(locale, 'lx.widget.title'), subtitle, uri: best.mediaUri, shareLabel: t(locale, 'lx.widget.share') });
       } else {

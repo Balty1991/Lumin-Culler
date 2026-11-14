@@ -58,6 +58,7 @@ import { isClipPlatform } from '../core/clip/clipEngine';
 import { openTasteQuiz } from '../state/tasteQuiz';
 import { TodayStories, useStories } from './TodayStories';
 import { beautyScore } from './beauty';
+import { coverable } from './coverable';
 
 export function TodayScreen() {
   const tr = useTr();
@@ -577,9 +578,9 @@ function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string;
   const locale = useStore(st => st.locale);
   return useMemo(() => {
     const mem = onThisDay(photos)[0];
-    if (mem && mem.photos.length) return { photos: mem.photos, title: dayLabel(photoTime(mem.photos[0]), locale), badgeKey: mem.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', years: mem.years };
+    if (mem && mem.photos.some(coverable)) return { photos: [...mem.photos.filter(coverable), ...mem.photos.filter(p => !coverable(p))], title: dayLabel(photoTime(mem.photos[0]), locale), badgeKey: mem.years === 1 ? 'lx.onThisDay' : 'lx.onThisDay.other', years: mem.years };
     const weekAgo = Date.now() - 7 * 86_400_000;
-    const kept = photos.filter(p => p.status === 'selected' && !p.aside && photoTime(p) >= weekAgo);
+    const kept = photos.filter(p => p.status === 'selected' && coverable(p) && photoTime(p) >= weekAgo);
     const score = (p: (typeof photos)[number]) => beautyScore(p) + (p.personNames?.length ? 0.6 : 0);
     if (kept.length >= 2) {
       const best = [...kept].sort((a, b) => score(b) - score(a));
@@ -587,7 +588,7 @@ function useHeroPick(): { photos: ReturnType<typeof useLxPhotos>; title: string;
     }
     // Nicio amintire și nimic nou săptămâna asta: ecranul tot începe cu o poză, nu cu un
     // cerc gol. Una dintre cele mai frumoase 30 păstrate, alta în fiecare zi, cu ziua ei.
-    const all = photos.filter(p => p.status === 'selected' && !p.aside);
+    const all = photos.filter(p => p.status === 'selected' && coverable(p));
     if (all.length < 3) return null;
     const top = [...all].sort((a, b) => score(b) - score(a)).slice(0, 30);
     const star = top[Math.floor(Date.now() / 86_400_000) % top.length];

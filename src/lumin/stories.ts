@@ -10,6 +10,7 @@ import { photoTime } from './days';
 import { onThisDay } from './momentAlbums';
 import { yearSeason, yearStats } from './yearStats';
 import { beautyScore } from './beauty';
+import { coverable } from './coverable';
 
 export type StoryKind = 'year' | 'today' | 'memory' | 'best' | 'waiting' | 'series' | 'person' | 'forgotten';
 export interface Story {
@@ -34,8 +35,11 @@ const score = (p: PhotoView) => beautyScore(p) + (p.personNames?.length ? 0.6 : 
 const byScore = (a: PhotoView, b: PhotoView) => score(b) - score(a);
 /** Coperta unei povești: întâi o poză cu oameni (o captură de ecran nu are ce căuta acolo — raportat). */
 const coverOf = (list: readonly PhotoView[]): PhotoView => {
-  const people = list.filter(p => (p.faceCount ?? 0) > 0);
-  return [...(people.length ? people : list)].sort(byScore)[0];
+  // Fără capturi, documente sau meme ca imagine mare, chiar nemarcate la import.
+  const ok = list.filter(coverable);
+  const pool = ok.length ? ok : list;
+  const people = pool.filter(p => (p.faceCount ?? 0) > 0);
+  return [...(people.length ? people : pool)].sort(byScore)[0];
 };
 
 export function buildStories(photos: readonly PhotoView[], now = Date.now(), ritualDoneToday = false): Story[] {

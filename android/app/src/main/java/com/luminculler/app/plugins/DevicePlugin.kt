@@ -60,6 +60,13 @@ class DevicePlugin : Plugin() {
         if (takeShare(intent)) notifyListeners("shared", JSObject().put("count", shared.size))
     }
 
+    /** Pagina a desenat „Azi”: splash-ul sistemului (cireașa) poate pleca. Vezi MainActivity. */
+    @PluginMethod
+    fun appReady(call: PluginCall) {
+        com.luminculler.app.MainActivity.markWebReady()
+        call.resolve()
+    }
+
     // ── Vibrații ──────────────────────────────────────────────────────────
 
     @PluginMethod

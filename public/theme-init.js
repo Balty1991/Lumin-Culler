@@ -62,14 +62,8 @@
   } catch (e) {}
 })();
 
-// Pornirea: cea mai frumoasă poză recentă în spatele siglei (salvată de aplicație în
-// localStorage, ~25 KB), în loc de ecranul gol. Prin CSSOM (permis de CSP), nu prin stil inline.
+// Pornirea arată doar sigla (raportat: o poză apărea o clipă sub iconiță, după sigla nativă).
+// Poza salvată de versiunile anterioare se șterge, ca să nu ocupe loc.
 (function () {
-  try {
-    var photo = localStorage.getItem('cp.splash');
-    if (photo && photo.indexOf('data:image/') === 0) {
-      document.documentElement.style.setProperty('--boot-photo', 'url("' + photo + '")');
-      document.documentElement.classList.add('boot-has-photo');
-    }
-  } catch (e) {}
+  try { localStorage.removeItem('cp.splash'); localStorage.removeItem('cp.splash.id'); } catch (e) {}
 })();
