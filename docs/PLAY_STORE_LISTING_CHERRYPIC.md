@@ -19,7 +19,7 @@ Cherrypic: Curățare galerie AI
 
 **Descriere scurtă (max. 80):**
 ```
-AI-ul îți alege cele mai bune poze și curăță duplicatele și pozele neclare.
+Îți învață gustul: păstrează pozele reușite, curăță duplicatele și neclarele.
 ```
 
 **Descriere completă:**
@@ -85,7 +85,7 @@ Cherrypic: AI Photo Picker
 
 **Short description:**
 ```
-AI picks your best photos, cleans duplicates & blurry shots. Learns your taste.
+AI that learns your taste: keeps your favorite shots, clears duplicates & blur.
 ```
 
 **Full description:**
