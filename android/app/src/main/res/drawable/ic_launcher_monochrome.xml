@@ -2,7 +2,10 @@
 <!-- Iconița monocromă (Android 13+, „Iconițe tematice”): sistemul o colorează după fundal. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <group android:translateX="30" android:translateY="30" android:scaleX="2" android:scaleY="2">
+    <!-- Vizorul din jurul cireșelor, ca pe pictograma colorată. -->
+    <path android:strokeColor="#FF000000" android:strokeWidth="2.6" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M33.5,40.5 V36.5 A3,3 0 0,1 36.5,33.5 H40.5 M67.5,33.5 H71.5 A3,3 0 0,1 74.5,36.5 V40.5 M74.5,67.5 V71.5 A3,3 0 0,1 71.5,74.5 H67.5 M40.5,74.5 H36.5 A3,3 0 0,1 33.5,71.5 V67.5"/>
+    <group android:translateX="36" android:translateY="36" android:scaleX="1.5" android:scaleY="1.5">
         <path android:fillColor="#FF000000" android:pathData="M4,16a4,4 0 1,0 8,0a4,4 0 1,0 -8,0 M12,17.5a4,4 0 1,0 8,0a4,4 0 1,0 -8,0"/>
         <path android:strokeColor="#FF000000" android:strokeWidth="1.4" android:strokeLineCap="round" android:pathData="M8.6,12.1 L14,4.2 M16.1,13.6 L14,4.2"/>
         <path android:fillColor="#FF000000" android:pathData="M14,4.2 C15.6,2.2 19.2,1.8 21.2,3.2 C19.6,5.4 16.4,5.8 14,4.2 Z"/>
