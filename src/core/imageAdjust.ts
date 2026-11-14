@@ -20,6 +20,11 @@ export interface EditAdjustments {
   saturation: number;  // -100..100
   temperature: number; // -100..100 (rece <-> cald)
   tint: number;        // -100..100 (verde <-> magenta)
+  /**
+   * Corecția luminii colorate a nopții (veioză roz, bec portocaliu), adunată peste temperatură și
+   * nuanță după stil, nescalată de intensitate. Doar pe pozele luminate pe telefon.
+   */
+  lightCast?: { temperature: number; tint: number };
   highlights: number;  // -100..100
   shadows: number;     // -100..100
   /**
@@ -169,7 +174,7 @@ export const NEUTRAL_ADJUSTMENTS: EditAdjustments = {
  * Tipul e exportat ca sa nu mai fie nevoie ca UI-ul sa repete lista de excluderi
  * (si sa o uite la urmatorul instrument adaugat — exact ce s-a intamplat).
  */
-export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix' | 'faceBoxes' | 'vignetteAt'>;
+export type NumericAdjustmentKey = Exclude<keyof EditAdjustments, 'crop' | 'curves' | 'controlPoints' | 'heal' | 'hsl' | 'bokehSubject' | 'bokehMask' | 'bokehFocusY' | 'bwMix' | 'faceBoxes' | 'vignetteAt' | 'lightCast'>;
 const ADJUSTMENT_KEYS = Object.keys(NEUTRAL_ADJUSTMENTS) as NumericAdjustmentKey[];
 
 /**
@@ -1424,6 +1429,49 @@ export function computeAutoWhiteBalance(
   const temperature = Math.round(clampRange(-(meanR - meanB) * 1.25, -WB_MAX_SHIFT, WB_MAX_SHIFT) * factor) || 0;
   const tint = Math.round(clampRange(-(meanG - (meanR + meanB) / 2) * (5 / 3), -WB_MAX_SHIFT, WB_MAX_SHIFT) * factor) || 0;
   return { temperature, tint };
+}
+
+/**
+ * Dominanta luminii artificiale pe o poză de noapte (veioză roz, bec portocaliu): toată scena
+ * e colorată, deci nu mai există pixeli gri pe care să se sprijine computeAutoWhiteBalance și
+ * aceea tace. Aici media vine din toți pixelii bine expuși (fără piele și fără culorile tari),
+ * iar corecția scoate cea mai mare parte din dominantă, până la ±45 (cerut cu captură: camera
+ * copilului în lumină roz arăta bine cu Temperatură −43, Nuanță +17, „sau chiar mai mult”).
+ * Doar pentru pozele luminate pe telefon (noaptea); la celelalte rămâne WB-ul prudent.
+ */
+const CAST_MAX_TEMP = 45;
+const CAST_MAX_TINT = 20;
+/** Sub atâta dominantă (pe scara sliderelor) poza nu are o lumină colorată de scos. */
+const CAST_MIN = 6;
+export function computeNightCast(img: ImageData, faces?: { box: [number, number, number, number] }[]): { temperature: number; tint: number } {
+  const { data } = img;
+  const skin = buildFaceMask(img, faces, 0)?.mask;
+  let sumR = 0, sumG = 0, sumB = 0, n = 0, sampled = 0;
+  // Cât de la fel e colorată scena: vectorul mediu de culoare față de mărimea medie. Camera în
+  // lumină roz: ~1 (totul e roz). Grătarul cu foc și cer albastru: mic (culori amestecate).
+  let vx = 0, vy = 0, mag = 0;
+  for (let i = 0; i < data.length; i += 16) {
+    sampled++;
+    if (skin?.[i >> 2]) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum < 35 || lum > 245) continue;
+    const max = Math.max(r, g, b);
+    if (max <= 0 || (max - Math.min(r, g, b)) / max > 0.7) continue;
+    sumR += r; sumG += g; sumB += b; n++;
+    const cx = (r - b) / max, cy = (g - (r + b) / 2) / max;
+    vx += cx; vy += cy; mag += Math.hypot(cx, cy);
+  }
+  if (!sampled || n / sampled < 0.08 || mag <= 0) return { temperature: 0, tint: 0 };
+  const mR = sumR / n, mG = sumG / n, mB = sumB / n;
+  const uniform = Math.min(1, Math.hypot(vx, vy) / mag);
+  const k = uniform * uniform;
+  let temperature = clampRange(-(mR - mB) * 1.25 * k, -CAST_MAX_TEMP, CAST_MAX_TEMP);
+  // Nuanța (verde/magenta) doar pe jumătate și cu plafon mic: plină, camera roz ieșea verde.
+  let tint = clampRange(-(mG - (mR + mB) / 2) * (5 / 3) * k * 0.5, -CAST_MAX_TINT, CAST_MAX_TINT);
+  if (Math.abs(temperature) < CAST_MIN) temperature = 0;
+  if (Math.abs(tint) < CAST_MIN) tint = 0;
+  return { temperature: Math.round(temperature) || 0, tint: Math.round(tint) || 0 };
 }
 
 // ── Capetele histogramei ─────────────────────────────────────────────────────

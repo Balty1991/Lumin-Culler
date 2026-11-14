@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../core/db';
-import { overcastSkyShare, computeAutoAdjustments, computeAutoStraighten, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
+import { overcastSkyShare, computeAutoAdjustments, computeAutoStraighten, computeNightCast, drawAdjusted, NEUTRAL_ADJUSTMENTS, outputSize, subjectFromFaces, type EditAdjustments } from '../core/imageAdjust';
 import { measureFrame, mergeRecipe, recipeFromStats, type LookIssue, type LookFace } from '../core/autoLook';
 import { getCachedPreviewUrl, getDisplayUrl } from '../core/previewUrlCache';
 import { canSharpen, peekSharpUrl, SCREEN_SIZE, sharpUrl } from './sharp';
@@ -156,6 +156,10 @@ export function styledEdits(base: EditAdjustments, style: EnhanceStyle, amount: 
   if (style === 'bw') out.bw = Math.max(0, Math.min(100, Math.round(100 * Math.min(1, amount * 1.5))));
   if (NEEDS_FACE.has(style) && !out.bokehSubject) out.bokeh = 0;
   if (style === 'retouch') delete out.bokehSubject;
+  if (base.lightCast) {
+    out.temperature = clamp((out.temperature ?? 0) + base.lightCast.temperature);
+    out.tint = clamp((out.tint ?? 0) + base.lightCast.tint);
+  }
   return out;
 }
 
@@ -249,7 +253,13 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
   if (!lit) auto.exposure = Math.max(-100, Math.min(100, auto.exposure + brightnessLift(img, a?.faces)));
   // Ce fel de poză e, și ce e stricat la ea (lumină, culoare, ceață, zgomot, cer, ten).
   const scene = sceneTune(img, auto, a);
-  if (lit) tameAfterLowLight(auto);
+  if (lit) {
+    tameAfterLowLight(auto);
+    // Lumina colorată a nopții (veioză roz, bec portocaliu) scoasă în mare parte: corecție fixă,
+    // adunată după stil (stilul taie altfel răcirea la −3, gândit pentru pozele de zi).
+    const cast = nightCastOf(img, a?.faces);
+    if (cast.temperature || cast.tint) auto.lightCast = cast;
+  }
   // Unde e omul (din fețele găsite la import): stilul Portret estompează în jurul lui.
   // Cu tot corpul: fără decupajul modelului, zona clară pornește de la față și coboară
   // cât un om întreg (umeri mai lați decât fața), nu doar un umăr sub ea.
@@ -267,6 +277,18 @@ export async function autoEnhance(photoId: string): Promise<{ url: string; origi
     faces: (a?.faces ?? []).map(f => ({ box: f.box as [number, number, number, number] })),
     edits: { ...auto, crop: undefined, rotationDeg: 0, ...(subject ? { bokehSubject: subject } : {}) }
   };
+}
+
+/** Dominanta luminii artificiale, pe o copie mică a pozei. */
+export function nightCastOf(img: HTMLImageElement, faces?: readonly { box: number[] }[]): { temperature: number; tint: number } {
+  try {
+    const w = 160, h = Math.max(1, Math.round(160 * img.naturalHeight / Math.max(1, img.naturalWidth)));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return { temperature: 0, tint: 0 };
+    ctx.drawImage(img, 0, 0, w, h);
+    return computeNightCast(ctx.getImageData(0, 0, w, h), faces as { box: [number, number, number, number] }[] | undefined);
+  } catch { return { temperature: 0, tint: 0 }; }
 }
 
 /** Cât de tare poate merge stilul peste o poză deja luminată pe telefon. */
