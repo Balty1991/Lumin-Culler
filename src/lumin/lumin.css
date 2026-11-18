@@ -2222,7 +2222,9 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 /* —— Auditul de interfață (12 nov.) —— */
 /* Editor: Renunț / Salvează stau mereu la vedere, jos în panou (erau sub marginea ecranului). */
 .lx-enhance .lx-viewer-info > .lx-decide-actions { position: sticky; bottom: 0; z-index: 3; margin-top: 4px;
-  padding: 10px 0 calc(6px + var(--safe-bottom, 0px)); background: rgb(14 16 24 / .98); }
+  /* Fără --safe-bottom aici: panoul îl are deja ca margine de jos. Adunat de două ori, bara
+     urca deasupra stilurilor pe telefoanele cu bară de navigare (raportat cu captură). */
+  padding: 10px 0 6px; background: rgb(14 16 24); }
 :root[data-theme="light"] .lx-enhance .lx-viewer-info > .lx-decide-actions { background: var(--surface); }
 /* Insigna „Cea mai bună din lună”: într-un singur rând, lizibilă. */
 .lx-hero-badge { display: inline-flex; width: max-content; max-width: 100%; white-space: nowrap; font-size: 10.5px; letter-spacing: .06em; color: #06070a; }
