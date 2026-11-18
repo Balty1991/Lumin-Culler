@@ -38,6 +38,7 @@ import { autoNameFaces, canEmbedFaces, embedMissingFaces } from './faceIdentity'
 import { TodayScreen } from './TodayScreen';
 import { applyPalette } from '../state/palette';
 import { autoArchiveIfDue } from './archive';
+import { scheduleTrialReminder } from './trialReminder';
 import { holdRejectsUntilTrained } from './trainingGate';
 import { useModernPhone } from './modernPhone';
 import { Orb } from './Orb';
@@ -232,6 +233,12 @@ export function LuminApp() {
     let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => signalAppReady()); });
     return () => cancelAnimationFrame(id);
   }, [booted]);
+  // Memento-ul de sfârșit de probă se reface la fiecare pornire (Android pierde alarmele la repornire).
+  useEffect(() => {
+    if (!booted) return;
+    scheduleTrialReminder({ title: tr('lx.trialEnd.title', { count: 2 }), body: tr('lx.trialEnd.sub') });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booted, locale]);
 
   useEffect(() => {
     startJankLog();

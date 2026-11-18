@@ -96,7 +96,7 @@ describe('PremiumPanel — alegerea planului', () => {
     render(<PremiumPanel />);
 
     expect(await screen.findByText('primele 7 zile gratuite')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Începe gratuit — apoi 199,99 lei' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '7 zile gratuit, apoi 199,99 lei pe an' })).toBeInTheDocument();
   });
 
   it('spune conditiile de reinnoire sub buton, cu cifra planului bifat', async () => {

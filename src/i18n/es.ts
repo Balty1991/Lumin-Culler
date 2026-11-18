@@ -72,6 +72,8 @@ export const dict: Record<string, string> = {
   "premium.plan.trial.other": "primeros {count} días gratis",
   "premium.plan.selected": "plan elegido",
   "premium.subscribe.trial": "Empieza gratis — luego {price}",
+  "premium.subscribe.trialYear": "{count} días gratis, luego {price}/año",
+  "premium.subscribe.trialMonth": "{count} días gratis, luego {price}/mes",
   "premium.price.tagYear": "{price} al año · cancela cuando quieras en Google Play",
   "premium.subscribe": "Suscribirse — {price}",
   "premium.subscribing": "Abriendo Google Play…",

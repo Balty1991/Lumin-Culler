@@ -13,6 +13,7 @@ import { seriesExtras } from '../lumin/LumiFeed';
 import { formatBytes } from '../core/freedSpace';
 import { logPaywall, purchaseEvent, readPaywallContext } from '../lumin/paywallMoment';
 import { Icon } from '../lumin/icons';
+import { scheduleTrialReminder } from '../lumin/trialReminder';
 
 const FREE_CLOUD_WRITES = FREE_DAILY.write;
 
@@ -240,7 +241,10 @@ export function PremiumPanel() {
                 void startSubscription(picked?.id)
                   .then(async outcome => {
                     if (outcome === 'purchased') {
-                      if (picked?.trialDays) logPaywall('trial_started', picked.id);
+                      if (picked?.trialDays) {
+                        logPaywall('trial_started', picked.id);
+                        scheduleTrialReminder({ title: tr('lx.trialEnd.title', { count: 2 }), body: tr('lx.trialEnd.sub') });
+                      }
                       const ev = purchaseEvent(picked?.id);
                       if (ev) logPaywall(ev, picked?.id ?? '');
                       await refreshEntitlement();
@@ -252,7 +256,7 @@ export function PremiumPanel() {
               {busy
                 ? tr('premium.subscribing')
                 : picked?.trialDays
-                  ? tr('premium.subscribe.trial', { price: picked.price })
+                  ? tr(picked.periodDays > 31 ? 'premium.subscribe.trialYear' : 'premium.subscribe.trialMonth', { price: picked.price, count: picked.trialDays })
                   : picked?.periodDays === 0
                     ? tr('premium.subscribe.once', { price: picked.price })
                     : tr('premium.subscribe', { price: picked?.price ?? price! })}

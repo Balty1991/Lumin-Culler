@@ -561,6 +561,8 @@ export const ro = {
   'premium.plan.trial.other': 'primele {count} zile gratuite',
   'premium.plan.selected': 'plan ales',
   'premium.subscribe.trial': 'Începe gratuit — apoi {price}',
+  'premium.subscribe.trialYear': '{count} zile gratuit, apoi {price} pe an',
+  'premium.subscribe.trialMonth': '{count} zile gratuit, apoi {price} pe lună',
   'premium.price.tagYear': '{price} pe an · anulezi oricând din Google Play',
   'premium.subscribe': 'Abonează-te — {price}',
   'premium.subscribing': 'Se deschide Google Play…',

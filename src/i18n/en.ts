@@ -540,6 +540,8 @@ export const en: Record<TranslationKey, string> = {
   'premium.plan.trial.other': 'first {count} days free',
   'premium.plan.selected': 'selected plan',
   'premium.subscribe.trial': 'Start free — then {price}',
+  'premium.subscribe.trialYear': '{count} days free, then {price}/year',
+  'premium.subscribe.trialMonth': '{count} days free, then {price}/month',
   'premium.price.tagYear': '{price} per year · cancel anytime from Google Play',
   'premium.subscribe': 'Subscribe — {price}',
   'premium.subscribing': 'Opening Google Play…',
