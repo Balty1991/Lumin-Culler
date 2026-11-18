@@ -64,6 +64,8 @@ class DevicePlugin : Plugin() {
     @PluginMethod
     fun appReady(call: PluginCall) {
         com.luminculler.app.MainActivity.markWebReady()
+        // Testul de pornire din CI (scripts/smoke-start.sh) caută exact acest rând.
+        android.util.Log.i("Cherrypic", "appReady")
         call.resolve()
     }
 
