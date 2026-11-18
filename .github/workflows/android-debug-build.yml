@@ -218,6 +218,9 @@ jobs:
       - name: Build debug APK (nesemnat)
         working-directory: android
         run: ./gradlew assembleDebug -Parm64Only=true -PminifyDebug=${{ inputs.minify == true }}
+      # Pornirea a căzut în versiunea 46 (tema de după splash lipsea): verificat înainte de build.
+      - name: Tema de după splash
+        run: bash scripts/check-splash-theme.sh
       # Rețeaua de lumină SCI e scrisă de mână în Kotlin: testul o compară cu modelul original.
       - name: Test SCI low-light (Kotlin)
         working-directory: android

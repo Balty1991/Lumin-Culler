@@ -35,6 +35,12 @@
              logo-ul care urmează, ca pornirea să nu clipească între trei ecrane diferite. -->
         <item name="windowSplashScreenBackground">#050305</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <!-- OBLIGATORIU cu SplashScreen.installSplashScreen(): tema de după splash. Fără ea,
+             activitatea rămânea pe Theme.SplashScreen (nu e AppCompat), iar
+             setKeepOnScreenCondition caută android.R.id.content înainte ca BridgeActivity
+             să schimbe tema: AppCompat crea decorul și oprea aplicația la pornire
+             („You need to use a Theme.AppCompat theme”, versiunea 46). -->
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <!-- Tema efectiv activa la runtime (MainActivity o foloseste direct, fara
              switch la AppTheme.NoActionBar dupa splash) — vezi explicatia de mai sus
              la AppTheme. -->

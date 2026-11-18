@@ -66,6 +66,9 @@ jobs:
       # sa existe fara verificarile care il fac de incredere.
       - name: Verificare tipuri
         run: npx tsc --noEmit
+      # Pornirea a căzut în versiunea 46 (tema de după splash lipsea): verificat înainte de build.
+      - name: Tema de după splash
+        run: bash scripts/check-splash-theme.sh
       - name: Lint
         run: npm run lint
       - name: Teste
