@@ -119,6 +119,9 @@ jobs:
           fi
           echo "Lumi Cloud: ${url:-(oprit)}"
           # Serverul e oprit în aplicație (totul pe telefon); adresa nu se mai transmite.
+      # Release-ul rulează lint; fără el aici, o eroare de lint se vedea abia la AAB (versiunea 44).
+      - name: Lint
+        run: npm run lint
       - name: Build web
         # dev_mode (doar la declansare manuala) seteaza VITE_NATIVE_TEST_BUTTON=true,
         # NU modul de build — ramane un build NORMAL de productie (`vite build`,
