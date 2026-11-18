@@ -29,6 +29,8 @@ async function importShared(runImport: RunImport): Promise<void> {
   useLx.getState().setGalleryView('wall');
   await runImport(files);
   clearSharedFiles();
+  // Testul de pornire din CI (scripts/smoke-start.sh) caută acest rând în logcat.
+  console.info(`Cherrypic: shared import done ${files.length}`);
 }
 
 async function offerUpdate(): Promise<void> {

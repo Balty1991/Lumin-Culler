@@ -305,11 +305,17 @@ jobs:
           name: cherrypic-test-${{ github.run_number }}
           path: cherrypic-*.apk
           retention-days: 1
-      # Același APK, dar pentru x86_64: emulatoarele din GitHub nu rulează arm64.
-      - name: APK x86_64 pentru testul de pornire
+      # Același APK, dar pentru x86_64 (emulatoarele din GitHub nu rulează arm64) și
+      # trecut prin R8 cu regulile de release: testul de pe emulator verifică astfel și
+      # minificarea, înainte ca ea să fie pornită în AAB.
+      - name: APK x86_64 cu R8, pentru testul de pe emulator
         working-directory: android
         run: |
-          ./gradlew assembleDebug -PsmokeAbi=x86_64 -PminifyDebug=${{ inputs.minify == true }}
+          ./gradlew assembleDebug -PsmokeAbi=x86_64 -PminifyDebug=true || {
+            echo "::error::R8 a picat la build-ul de test. Regulile care îi lipsesc:"
+            cat app/build/outputs/mapping/debug/missing_rules.txt 2>/dev/null || true
+            exit 1
+          }
           cp app/build/outputs/apk/debug/app-debug.apk ../smoke-x86_64.apk
       - uses: actions/upload-artifact@v4
         with:
@@ -317,12 +323,13 @@ jobs:
           path: smoke-x86_64.apk
           retention-days: 1
 
-  # Deschide aplicația pe un emulator și verifică că ajunge la „Azi” fără să cadă.
+  # Deschide aplicația (cu R8) pe un emulator: ajunge la „Azi”, apoi primește 4 poze
+  # prin „Trimite” și le analizează, fără să cadă.
   # Versiunea 46 a ajuns în magazin căzând la pornire: niciun build nu o deschisese.
   smoke:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -341,7 +348,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash scripts/smoke-start.sh smoke-x86_64.apk smoke-out
+          script: bash scripts/smoke-start.sh smoke-x86_64.apk smoke-out scripts/smoke-photos
       - uses: actions/upload-artifact@v4
         if: always()
         with:
