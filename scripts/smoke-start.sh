@@ -19,5 +19,9 @@ fi
 if grep -q "ANR in $PKG" "$OUT/logcat.txt"; then echo "::error::Aplicația nu răspunde (ANR) la pornire"; fail=1; fi
 # Pagina a ajuns să deseneze „Azi” (DevicePlugin.appReady): altfel rămânea ecranul cu cireașa.
 if grep -q "Cherrypic: appReady" "$OUT/logcat.txt"; then echo "Pagina a semnalat că „Azi” e desenat."; else echo "::error::Pagina nu a ajuns să deseneze „Azi” în 60 s (lipsește appReady)."; fail=1; fi
+if [ "$fail" != 0 ]; then
+  echo "── Ce a scris aplicația (consola paginii, Capacitor, căderi) ──"
+  grep -E "Capacitor|chromium|Console|Cherrypic|AndroidRuntime|WebView" "$OUT/logcat.txt" | grep -v "^-" | tail -120
+fi
 [ "$fail" = 0 ] && echo "Pornirea pe emulator: în regulă."
 exit $fail
