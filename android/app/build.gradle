@@ -40,7 +40,7 @@ android {
         // "38 (2.1.1)" si nu au nicio legatura cu ce scrie aici — a urca
         // numarul de mai jos NU pregateste si nu deblocheaza nimic acolo.
         versionCode 7
-        versionName "3.5.1"
+        versionName "3.6.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         if (project.hasProperty('arm64Only') && project.property('arm64Only') == 'true') {
             ndk { abiFilters 'arm64-v8a' }
@@ -105,26 +105,18 @@ android {
     }
     buildTypes {
         release {
-            // R8 e OPRIT pentru release. Deliberat, si nu din comoditate.
+            // R8 PORNIT (noiembrie 2026), după ce a fost oprit pentru căderi la analiză.
             //
-            // L-am pornit pentru unul dintre pragurile de calitate anuntate de
-            // Play pentru februarie 2027 ("limited DEX optimization"). De
-            // atunci, fiecare pachet trimis in magazin a murit la analiza. Ce
-            // spune istoricul, nu presupunerea mea:
+            // Ce s-a schimbat: testul de pe emulator din CI (android-debug-build.yml,
+            // jobul smoke) construiește la fiecare push un APK trecut prin R8 cu
+            // EXACT regulile de aici, îl pornește până la „Azi”, îi trimite 4 poze și
+            // le analizează. A trecut, iar LiteRT (JNI după nume) are acum regula lui.
+            // Pragul Play pentru optimizarea DEX intră în vigoare în februarie 2027.
             //
-            //   6c195dd, 54176de  minifyEnabled false  — au mers in magazin
-            //   e80ccf5 si dupa    minifyEnabled true   — se inchid la analiza
-            //
-            // Nu am urma de stiva care sa arate CE anume rupe R8, si fara ea
-            // orice regula in plus e ghicit. Pragul intra in vigoare in
-            // februarie 2027; nu impiedica nicio incarcare azi. Deci se intoarce
-            // la configuratia care chiar a mers, si R8 se reia cand exista o
-            // urma de stiva din Play Console si timp de testat.
-            //
-            // Build-ul de test cu `-PminifyDebug=true` ramane mai jos: cu el se
-            // poate incerca R8 pe telefon fara sa treaca prin magazin.
-            minifyEnabled false
-            shrinkResources false
+            // Dacă o versiune cade totuși: urma de stivă din Play arată clasa
+            // redenumită (mapping.txt se încarcă în Play), iar reparația e un -keep.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSigningConfig) {
                 signingConfig signingConfigs.release
