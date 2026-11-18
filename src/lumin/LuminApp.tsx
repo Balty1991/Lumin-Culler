@@ -44,7 +44,7 @@ import { useModernPhone } from './modernPhone';
 import { Orb } from './Orb';
 import { UndoBar } from './UndoBar';
 import { TrashPreviewHost } from './TrashPreview';
-import { tourDone } from './tour';
+import { tourDone, tourDue } from './tour';
 import { haptic } from '../core/device';
 import './lumin.css';
 import '../design/system.css';
@@ -464,11 +464,11 @@ export function LuminApp() {
     }
   }), [runImport]);
 
-  // Prima intrare în aplicație: turul scurt, după ce pașii de început s-au închis
-  // și galeria are poze. Așteaptă cât e deschis alt dialog (antrenament, confirmări).
+  // Turul scurt: după ce pașii de început s-au închis, galeria are poze și omul a
+  // terminat prima sortare (sau a doua zi). Vezi tourDue. Așteaptă cât e deschis alt dialog (antrenament, confirmări).
   const hasPhotos = photos.length > 0;
   useEffect(() => {
-    if (!booted || !welcomeSeen || !hasPhotos || sortOpen || tourDone()) return;
+    if (!booted || !welcomeSeen || !hasPhotos || sortOpen || tourDone() || !tourDue(readRitualDays().length)) return;
     const id = window.setInterval(() => {
       if (document.querySelector('[aria-modal="true"]')) return;
       window.clearInterval(id);
