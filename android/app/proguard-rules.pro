@@ -135,3 +135,9 @@
 
 # ONNX Runtime (plugins/FaceEmbedPlugin.kt): clasele JNI se caută după nume.
 -keep class ai.onnxruntime.** { *; }
+# LiteRT (TensorFlow Lite): codul nativ caută clasele Java după nume (JNI), deci
+# redenumirea lor de către R8 oprește analiza la primul model .tflite.
+-keep class org.tensorflow.lite.** { *; }
+-keep class com.google.ai.edge.litert.** { *; }
+-dontwarn org.tensorflow.lite.**
+
