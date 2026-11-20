@@ -222,7 +222,16 @@ jobs:
           java-version: '21'
       - name: Build debug APK (nesemnat)
         working-directory: android
-        run: ./gradlew assembleDebug -Parm64Only=true -PminifyDebug=${{ inputs.minify == true }}
+        # Cu „minify” bifat, APK-ul pentru telefon e copia release-ului (tipul „smoke”): exact
+        # R8-ul din AAB, nu debug-ul minificat (acolo R8 nu redenumește și nu optimizează tot).
+        run: |
+          if [ "${{ inputs.minify == true }}" = "true" ]; then
+            ./gradlew assembleSmoke -Parm64Only=true
+            mkdir -p app/build/outputs/apk/debug
+            cp app/build/outputs/apk/smoke/app-smoke.apk app/build/outputs/apk/debug/app-debug.apk
+          else
+            ./gradlew assembleDebug -Parm64Only=true
+          fi
       # Pornirea a căzut în versiunea 46 (tema de după splash lipsea): verificat înainte de build.
       - name: Tema de după splash
         run: bash scripts/check-splash-theme.sh
