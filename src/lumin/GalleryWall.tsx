@@ -29,7 +29,8 @@ import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdi
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
-import { isLabelQuery, isTextOnlyMatch, searchPhotos } from './textSearch';
+import { isLabelQuery, isTextOnlyMatch, matchReason, searchPhotos } from './textSearch';
+import { devUnlimitedAvailable } from '../core/entitlement';
 import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
@@ -485,6 +486,9 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
             </button>
           )}
         </p>
+      )}
+      {query.trim() && devUnlimitedAvailable && list.length > 0 && (
+        <p className="lx-hint">🔧 {searchReasons(list, query)}</p>
       )}
       {query.trim() && visualCount.current > 0 && (
         <p className="lx-hint">👁 {tr('lx.search.visual', { count: visualCount.current })}</p>
@@ -1087,4 +1091,14 @@ function SelectionBar() {
       {sheet === 'reel' && chosen.length > 0 && <FilmCreator startId={chosen[0].id} initialIds={chosen.map(p => p.id)} initialTransition="fade" preset="reel" onClose={() => { setSheet(null); clear(); }} />}
     </>
   );
+}
+
+/** Doar în APK-ul de test: de unde vin rezultatele căutării (câmp și cuvânt, cu numărul de poze). */
+function searchReasons(list: readonly PhotoView[], query: string): string {
+  const counts = new Map<string, number>();
+  for (const p of list) {
+    const r = matchReason(p, query) ?? 'fără cuvânt (după cum arată / AI)';
+    counts.set(r, (counts.get(r) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([r, n]) => `${r} (${n})`).join(' · ');
 }
