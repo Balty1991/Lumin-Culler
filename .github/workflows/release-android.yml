@@ -301,6 +301,9 @@ jobs:
       # venite din bibliotecile ML Kit/MediaPipe/billing. Ultimul e cel care
       # arata daca `-keep`-urile noastre din proguard-rules.pro sunt de fapt
       # redundante.
+      - name: Procentul de obscurizare R8
+        if: always()
+        run: bash scripts/r8-coverage.sh android/app/build/outputs/mapping/release/mapping.txt || true
       - name: Cat a optimizat R8
         if: always()
         uses: actions/upload-artifact@v4
