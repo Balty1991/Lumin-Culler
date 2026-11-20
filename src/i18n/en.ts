@@ -2988,7 +2988,7 @@ export const en: Record<TranslationKey, string> = {
   "premium.cp.trust": "Everything stays on your phone. No account. No ads. Nothing is permanently deleted without you.",
   "premium.cp.promise.title": "What's free today stays free",
   "premium.cp.promise.sub": "Promise: no free feature of today moves to Pro. Sorting, Studio, the eraser and one big cleanup a month stay yours.",
-  "premium.cp.indie": "Cherrypic is made in Romania by an independent developer, with no investors and no ads. Pro keeps the app alive.",
+  "premium.cp.indie": "Cherrypic is developed in Romania by Vanzo studio. Pro funds new features and updates, with no ads.",
   "premium.notNow": "Not now, continue for free",
   "premium.plan.lifetime": "Lifetime",
   "premium.price.tagOnce": "{price} once · Pro for life",

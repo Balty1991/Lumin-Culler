@@ -58,11 +58,13 @@ Reguli:
 
 ## Textele
 
+Despre preț, peste tot aceeași formulare: **„Gratuit, cu funcții Pro opționale”** (engleză: „Free, with optional Pro features”). Dacă cineva întreabă ce e în Pro: Pilotul automat pentru toată galeria, curățenia nelimitată dintr-o atingere, stilurile avansate din editor și filmele fără semnătura Cherrypic. Sortarea, galeria, căutarea, Studio și guma rămân gratuite. Nu scrie „totul gratuit”.
+
 ### WhatsApp
 ```
 Salut! Am lansat Cherrypic, o aplicație Android care alege singură cele mai reușite poze din telefon: păstrează cadrul clar, cu ochii deschiși, din fiecare serie și te ajută să scapi de duplicate și poze ratate. Totul rămâne pe telefon, fără cont.
 
-E gratuită: https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dwhatsapp%26utm_campaign%3Dlansare
+Gratuit, cu funcții Pro opționale: https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dwhatsapp%26utm_campaign%3Dlansare
 
 Dacă o încerci, o recenzie sinceră în Google Play ar ajuta mult. Orice observație e binevenită. 🍒
 ```
@@ -79,19 +81,19 @@ Galeria telefonului se umple repede: serii de poze aproape identice, cadre mișc
 ✅ colaje și filme din cele mai bune poze
 🔒 fără cont, fără reclame, pozele nu pleacă de pe telefon
 
-Gratuit: https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dfacebook%26utm_medium%3Dpagina%26utm_campaign%3Dlansare
+Gratuit, cu funcții Pro opționale: https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dfacebook%26utm_medium%3Dpagina%26utm_campaign%3Dlansare
 ```
 
 ### Profil personal (distribuie postarea paginii, cu acest text)
 ```
-Am lansat Cherrypic, aplicația la care am lucrat în ultimele luni. Alege singură cele mai reușite poze din telefon, direct pe dispozitiv, fără cont și fără cloud. E gratuită pe Google Play. Orice părere mă ajută, inclusiv ce nu funcționează bine.
+Am lansat Cherrypic, aplicația la care am lucrat în ultimele luni. Alege singură cele mai reușite poze din telefon, direct pe dispozitiv, fără cont și fără cloud. E pe Google Play, gratuit, cu funcții Pro opționale. Orice părere mă ajută, inclusiv ce nu funcționează bine.
 ```
 
 ### Grupuri de părinți / familie
 ```
 Bună! O recomandare utilă pentru cine are telefonul plin de poze cu copiii (admin, te rog șterge dacă nu e permis).
 
-Cherrypic e o aplicație Android gratuită care sortează galeria: din fiecare serie de poze aproape identice păstrează cadrul în care copilul are ochii deschiși și e clar, explică de ce și învață ce vă place. Nu șterge nimic fără confirmare, iar pozele nu pleacă de pe telefon: fără cont, fără cloud, fără reclame.
+Cherrypic e o aplicație Android care sortează galeria (gratuită, cu funcții Pro opționale): din fiecare serie de poze aproape identice păstrează cadrul în care copilul are ochii deschiși și e clar, explică de ce și învață ce vă place. Nu șterge nimic fără confirmare, iar pozele nu pleacă de pe telefon: fără cont, fără cloud, fără reclame.
 
 https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dfacebook%26utm_medium%3Dgrup%26utm_campaign%3Dlansare
 
@@ -104,7 +106,7 @@ Cherrypic: selecție automată de poze („culling”), direct pe telefon.
 
 Aplicația analizează galeria local (claritate, expunere, ochi închiși, serii aproape identice) și propune cel mai bun cadru din fiecare serie, cu explicația deciziei. Un model personal de preferințe învață din alegerile utilizatorului, iar o linie de siguranță o oprește să decidă singură pozele nesigure până când alege suficient de des ca omul.
 
-Fără cont, fără cloud, fără reclame. Gratuit, cu un abonament Pro opțional.
+Fără cont, fără cloud, fără reclame. Gratuit, cu funcții Pro opționale.
 
 https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dfacebook%26utm_medium%3Dgrup%26utm_campaign%3Dlansare
 
@@ -113,7 +115,7 @@ Feedbackul tehnic e binevenit.
 
 ### TikTok / Reels / Shorts
 ```
-3.000 de poze în telefon? Cherrypic le alege pe cele mai reușite pentru tine, direct pe telefon. Gratuit, link în bio 🍒
+3.000 de poze în telefon? Cherrypic le alege pe cele mai reușite pentru tine, direct pe telefon. Gratuit, cu funcții Pro opționale. Link în bio 🍒
 #poze #android #aplicatie #ai #fotografie #organizare #galerie #telefon #romania
 ```
 
@@ -134,7 +136,7 @@ Hi r/androidapps! We just released Cherrypic, a photo culling app for Android.
 - Cleanup for duplicates, blurry shots and old screenshots (everything goes to the system trash, recoverable)
 - Collages and short films from your best shots
 
-Everything runs on the device: no account, no cloud upload, no ads. Free, with an optional Pro subscription.
+Everything runs on the device: no account, no cloud upload, no ads. Free, with optional Pro features.
 
 https://play.google.com/store/apps/details?id=com.luminculler.app&referrer=utm_source%3Dreddit%26utm_campaign%3Dlaunch
 

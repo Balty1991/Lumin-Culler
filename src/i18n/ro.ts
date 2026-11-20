@@ -3074,7 +3074,7 @@ export const ro = {
   "premium.cp.trust": "Totul rămâne pe telefonul tău. Fără cont. Fără reclame. Nimic nu se șterge definitiv fără tine.",
   "premium.cp.promise.title": "Ce e gratuit azi rămâne gratuit",
   "premium.cp.promise.sub": "Promisiune: nicio funcție gratuită de azi nu se mută în Pro. Sortarea, Studio, guma și o curățenie mare pe lună rămân ale tale.",
-  "premium.cp.indie": "Cherrypic e făcut în România de un dezvoltator independent, fără investitori și fără reclame. Pro ține aplicația vie.",
+  "premium.cp.indie": "Cherrypic e dezvoltat în România de Vanzo studio. Abonamentul Pro susține funcțiile noi și actualizările, fără reclame.",
   "premium.notNow": "Nu acum, continui gratuit",
   "premium.plan.lifetime": "Pe viață",
   "premium.price.tagOnce": "{price} o singură dată · Pro pe viață",
