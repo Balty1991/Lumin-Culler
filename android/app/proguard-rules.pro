@@ -70,6 +70,11 @@
 # clasa, iar reparatia e un -keep pe ea, nu inapoi pe tot pachetul.
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
+# Flogger (jurnalul folosit de MediaPipe): GoogleLogger.forEnclosingClass() isi cauta
+# apelantul in stiva dupa numele claselor flogger. Redenumite, Graph.<clinit> cade cu
+# „no caller found on the stack” la primul FaceLandmarker (crash-ul din testul 870).
+-keep class com.google.common.flogger.** { *; }
+-dontwarn com.google.common.flogger.**
 -keepclasseswithmembernames class * {
     native <methods>;
 }
