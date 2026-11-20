@@ -296,3 +296,14 @@ export function isTextOnlyMatch(p: SearchablePhoto, query: string): boolean {
     return options.some(o => ocr.includes(o)) && !options.some(o => rest.includes(o));
   });
 }
+
+/**
+ * Căutarea numește doar lucruri pe care le recunoaștem după etichete („câine”, „pisici”,
+ * „tort”), într-un singur cuvânt. Atunci etichetele decid, iar căutarea „după cum arată”
+ * (CLIP) nu mai adaugă nimic: aducea pisici, o ladă cu carne și un pachet de vitamine la
+ * „câine” (raportat). Combinațiile („copii la apus”) rămân și la CLIP.
+ */
+export function isLabelQuery(query: string): boolean {
+  const terms = words(query);
+  return terms.length === 1 && termOptions(terms[0]).length > 1;
+}

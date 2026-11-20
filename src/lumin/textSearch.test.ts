@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTextOnlyMatch, searchPhotos } from './textSearch';
+import { isLabelQuery, isTextOnlyMatch, searchPhotos } from './textSearch';
 
 const base = { fileName: 'IMG.jpg', importedAt: 0, personNames: [], faceCount: 0 };
 
@@ -70,5 +70,17 @@ describe('culori', () => {
   });
   it('o culoare care nu apare nu se aruncă', () => {
     expect(ids('geaca verde')).toEqual([]);
+  });
+});
+
+describe('isLabelQuery', () => {
+  it('recunoaște căutările de obiecte cunoscute', () => {
+    expect(isLabelQuery('câine')).toBe(true);
+    expect(isLabelQuery('câini')).toBe(true);
+    expect(isLabelQuery('pisici')).toBe(true);
+  });
+  it('lasă căutările libere pentru CLIP', () => {
+    expect(isLabelQuery('copii la apus')).toBe(false);
+    expect(isLabelQuery('')).toBe(false);
   });
 });

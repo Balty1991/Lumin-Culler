@@ -29,7 +29,7 @@ import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdi
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
-import { isTextOnlyMatch, searchPhotos } from './textSearch';
+import { isLabelQuery, isTextOnlyMatch, searchPhotos } from './textSearch';
 import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
@@ -263,7 +263,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
       // făcea aceeași lună să apară de două ori (auditul).
       const byText = [...found].sort((a, b) => photoTime(b) - photoTime(a));
       // Apoi ce se vede în poze, în ordinea potrivirii, fără documente și fără dubluri.
-      if (visual?.q === searchQuery.trim() && visual.ids.length) {
+      if (visual?.q === searchQuery.trim() && visual.ids.length && !(byText.length && isLabelQuery(searchQuery))) {
         const have = new Set(byText.map(p => p.id));
         const byId = new Map(searchable.map(p => [p.id, p]));
         const seen = visual.ids.map(id => byId.get(id)).filter((p): p is PhotoView => !!p && !have.has(p.id) && (withDocs || !p.aside));
