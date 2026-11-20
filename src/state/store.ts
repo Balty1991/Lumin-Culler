@@ -89,6 +89,7 @@ import { startOfDay } from '../core/todayDigest';
 import { summariseFeedback } from '../core/aiFeedback';
 import { recordImportOutcome, summariseOutcomes } from '../core/importOutcome';
 import { keepScreenAwake } from '../core/wakeLock';
+import { repairSeriesOnce } from '../core/seriesRepair';
 import { createStallTracker, type StallTracker, type StallTally } from '../core/stallTally';
 import { maybeAskForReview, maybeAskForReviewAfterWin } from './reviewPrompt';
 import { passTrashGuard, setLastTrash } from './lastTrash';
@@ -3102,6 +3103,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     if (get().booted) return;
     try {
+      await repairSeriesOnce().catch(() => undefined);
       const [views, persons, history, collections] = await Promise.all([
         reloadPhotoViews(),
         db.persons.toArray(),

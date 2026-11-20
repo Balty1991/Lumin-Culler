@@ -4,7 +4,7 @@ import { SELECT_THRESHOLD, REJECT_THRESHOLD } from '../core/scoreThresholds';
 import { AiRetouch } from './AiRetouch';
 import { onDeviceEditAvailable } from '../core/onDeviceEdit';
 import { memo, useCallback, useContext, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
-import { canVoiceSearch, haptic, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
+import { canVoiceSearch, haptic, hdrViewOn, isUltraHdr, setHdrMode, voiceSearch } from '../core/device';
 import { useLx } from './lxStore';
 import { closeWithTransition, openWithTransition } from './viewTransition';
 import { PaneActive, useLxPhotos } from './useLxPhotos';
@@ -761,6 +761,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
   // stă deschisă o poză făcută așa, ca luminile ei să arate cum au fost.
   useEffect(() => {
     let alive = true;
+    if (!hdrViewOn()) return;
     void originalUri(id).then(uri => uri ? isUltraHdr(uri) : false).then(hdr => { if (alive) setHdrMode(hdr); });
     return () => { alive = false; };
   }, [id]);

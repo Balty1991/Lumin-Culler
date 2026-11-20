@@ -499,6 +499,20 @@ function paletteDistance(a: string[], b: string[]): number | null {
 const SCENE_PALETTE_DELTA = 0.18;
 
 /**
+ * Sub atat, amprentele CLIP spun că sunt două poze diferite, oricât de aproape ar fi
+ * în timp și oricât ar semăna dHash-ul. Cadrele dintr-o rafală stau la ~0,9+, chiar
+ * când subiectul se mișcă; două scene diferite cu același copil, sub ~0,8.
+ * Raportat cu înregistrare: fetița cu geaca portocalie, toamna, și aceeași fetiță
+ * cu câinele în grădină, la un minut distanță, erau „aproape la fel”.
+ */
+const CLIP_SCENE_VETO = 0.78;
+
+function clipContradicts(a: HashInput, b: HashInput): boolean {
+  if (!a.clipEmbedding?.length || !b.clipEmbedding?.length) return false;
+  return cosineSimilarity(a.clipEmbedding, b.clipEmbedding) < CLIP_SCENE_VETO;
+}
+
+/**
  * "Dovada ca NU e acelasi loc", folosita doar la nivelul 3.
  *
  * De ce e nevoie de ea: la nivelul 3, dovada de subiect vine aproape mereu din
@@ -513,6 +527,7 @@ const SCENE_PALETTE_DELTA = 0.18;
  * exact ca inainte, si nicio serie reala nu se rupe din lipsa de date.
  */
 function sceneContradicts(a: HashInput, b: HashInput): boolean {
+  if (clipContradicts(a, b)) return true;
   const paletteDelta = paletteDistance(a.dominantColors ?? [], b.dominantColors ?? []);
   if (paletteDelta !== null && paletteDelta > SCENE_PALETTE_DELTA) return true;
 
@@ -622,7 +637,7 @@ export class HashCompareService {
           //    Doar copiile aproape identice (≤4 biți) trec oricum.
           if (distance <= SIMILARITY_THRESHOLD && (distance <= 4 || (!sceneContradicts(photo, m.photo) && !farApartInTime(photo, m.photo)))) { acceptate.add(m.bucket); motive.legatVizual++; continue; }
           // 2. rafala: prag relaxat, dar doar la cateva zeci de secunde distanta
-          if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTimeTo(photo, m.photo, BURST_WINDOW_MS)) {
+          if (distance <= TIME_CLOSE_SIMILARITY_THRESHOLD && closeInTimeTo(photo, m.photo, BURST_WINDOW_MS) && !clipContradicts(photo, m.photo)) {
             acceptate.add(m.bucket); motive.legatRafala++; continue;
           }
           // 3. moment: prag larg si minute intregi, DAR numai cu dovada ca e

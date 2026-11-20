@@ -3313,6 +3313,8 @@ export const ro = {
   "lx.palette.cherry": "Cherrypic",
   "lx.palette.aurora": "Aurora",
   "lx.palette.phone": "Ale telefonului",
+  "lx.hdr.title": "Luminozitate HDR",
+  "lx.hdr.sub": "Pozele Ultra HDR ridică luminozitatea ecranului cât sunt deschise",
   "lx.haptics.title": "Vibrații fine",
   "lx.haptics.sub": "La Păstrez/Nu păstrez, la final și la ștergere",
   "lx.search.voice": "Caută cu vocea",

@@ -520,3 +520,23 @@ describe('HashCompareService.groupPhotos — cat a lipsit pana la dovada', () =>
     expect(motive!.dovada).toMatchObject({ faraSemnal: 0, peFete: 0, peImagine: 0 });
   });
 });
+
+describe('HashCompareService.groupPhotos — vetoul CLIP', () => {
+  const unit = (i: number) => Array.from({ length: 512 }, (_, k) => (k === i ? 1 : 0));
+  const mix = (w: number) => Array.from({ length: 512 }, (_, k) => (k === 0 ? w : k === 1 ? Math.sqrt(1 - w * w) : 0));
+  const near = '1'.repeat(10) + '0'.repeat(54);
+  it('două scene diferite la câteva secunde nu fac serie (raportat: geaca portocalie vs. câinele)', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: 1_000_000, clipEmbedding: unit(0) },
+      { id: 'b', hash: near, score: 50, capturedAt: 1_010_000, clipEmbedding: mix(0.6) }
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+  it('cadrele unei rafale (CLIP apropiat) rămân serie', async () => {
+    const { groups } = await new HashCompareService().groupPhotos([
+      { id: 'a', hash: '0'.repeat(64), score: 50, capturedAt: 1_000_000, clipEmbedding: unit(0) },
+      { id: 'b', hash: near, score: 50, capturedAt: 1_010_000, clipEmbedding: mix(0.93) }
+    ]);
+    expect(groups).toHaveLength(1);
+  });
+});

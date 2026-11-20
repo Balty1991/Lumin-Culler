@@ -125,7 +125,16 @@ export async function startUpdate(onDownloaded: () => void): Promise<boolean> {
 }
 export function completeUpdate(): void { if (native()) void Device.completeUpdate().catch(() => {}); }
 
-export function setHdrMode(on: boolean): void { if (native()) void Device.setHdr({ on }).catch(() => {}); }
+// Modul HDR al ecranului ridică luminozitatea la pozele Ultra HDR, chiar cu luminozitatea
+// automată oprită (raportat: „se schimbă lumina”). Oprit implicit; se pornește din Setări.
+const HDR_KEY = 'lumin-hdr-view';
+export function hdrViewOn(): boolean {
+  try { return localStorage.getItem(HDR_KEY) === '1'; } catch { return false; }
+}
+export function setHdrViewOn(on: boolean): void {
+  try { localStorage.setItem(HDR_KEY, on ? '1' : '0'); } catch { /* fără stocare */ }
+}
+export function setHdrMode(on: boolean): void { if (native()) void Device.setHdr({ on: on && hdrViewOn() }).catch(() => {}); }
 export async function isUltraHdr(uri: string): Promise<boolean> {
   if (!native()) return false;
   try { return (await Device.isUltraHdr({ uri })).hdr; } catch { return false; }

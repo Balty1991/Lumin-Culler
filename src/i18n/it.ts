@@ -1115,6 +1115,8 @@ export const dict: Record<string, string> = {
   "lx.palette.cherry": "Cherrypic",
   "lx.palette.aurora": "Aurora",
   "lx.palette.phone": "Colori del telefono",
+  "lx.hdr.title": "Luminosità HDR",
+  "lx.hdr.sub": "Le foto Ultra HDR aumentano la luminosità dello schermo quando sono aperte",
   "lx.haptics.title": "Vibrazioni leggere",
   "lx.haptics.sub": "Su Tengo/Non oggi, alla fine e quando elimini",
   "lx.search.voice": "Cerca con la voce",

@@ -17,7 +17,7 @@ import { useStore } from '../state/store';
 import type { CullingStrictness } from '../core/scoreThresholds';
 import type { Theme } from '../state/theme';
 import { PALETTES, applyPalette, phonePaletteAvailable, readStoredPalette, type Palette } from '../state/palette';
-import { haptic, hapticsOn, setHapticsOn } from '../core/device';
+import { haptic, hapticsOn, hdrViewOn, setHapticsOn, setHdrViewOn } from '../core/device';
 import { requestNotificationAccess, isNativeNotificationsAvailable } from '../core/nativeNotifications';
 import { useLx } from './lxStore';
 import { refreshModels, useModelsState } from './aiModels';
@@ -146,6 +146,7 @@ export function SettingsScreen() {
         <PaletteRow />
         <TextSizeRow />
         <HapticsRow />
+        <HdrRow />
         {devUnlimitedAvailable && <DevUnlimitedRow />}
         <button className="lx-row button" onClick={() => useLx.getState().setTourOpen(true)}>
           <span><b>{tr('lx.tour.open')}</b><small>{tr('lx.tour.openSub')}</small></span>
@@ -322,6 +323,18 @@ function TextSizeRow() {
         ))}
       </div>
     </div>
+  );
+}
+
+function HdrRow() {
+  const tr = useTr();
+  const [on, setOn] = useState(hdrViewOn);
+  const toggle = () => { setHdrViewOn(!on); setOn(!on); };
+  return (
+    <button className="lx-row button" role="switch" aria-checked={on} onClick={toggle}>
+      <span><b>{tr('lx.hdr.title')}</b><small>{tr('lx.hdr.sub')}</small></span>
+      <span className={on ? 'lx-pill ok' : 'lx-pill'}>{on ? '✓' : tr('lx.autoBackup.off')}</span>
+    </button>
   );
 }
 

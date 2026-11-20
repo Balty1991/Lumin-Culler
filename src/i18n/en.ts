@@ -3227,6 +3227,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.palette.cherry": "Cherrypic",
   "lx.palette.aurora": "Aurora",
   "lx.palette.phone": "Phone colors",
+  "lx.hdr.title": "HDR brightness",
+  "lx.hdr.sub": "Ultra HDR photos raise screen brightness while open",
   "lx.haptics.title": "Gentle vibrations",
   "lx.haptics.sub": "On Keep/Don't keep, at the end and when deleting",
   "lx.search.voice": "Search by voice",
