@@ -2247,6 +2247,8 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
   display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 20px;
   background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--lx-line);
   box-shadow: 0 12px 30px -12px rgb(0 0 0 / .5); backdrop-filter: blur(16px); }
+/* Bara poartă și clasa .lx (temele), care cere tot ecranul: raportat, la apăsare lungă bara acoperea galeria. */
+.lx.lx-select-bar { min-height: 0; }
 .lx-select-bar b { flex: 1; font-size: 14px; white-space: nowrap; }
 .lx-select-bar button { min-height: 44px; padding: 0 10px; border-radius: 14px; border: 0; background: transparent; color: var(--text);
   font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
