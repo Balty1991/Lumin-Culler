@@ -144,6 +144,15 @@ android {
             // Acelasi fisier ca release-ul, ca testul sa insemne ceva.
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        // Copia release-ului pentru testul de pe emulator (scripts/smoke-start.sh): aceleasi
+        // optimizari R8 si aceeasi obscurizare ca AAB-ul, dar semnat cu cheia de test.
+        // Un debug minificat nu e de ajuns: fiind `debuggable`, R8 nu redenumeste nimic
+        // acolo, deci nici testul, nici procentul de obscurizare nu spuneau adevarul.
+        smoke {
+            initWith release
+            signingConfig signingConfigs.luminDebug
+            matchingFallbacks = ['release']
+        }
     }
     // trebuie sa coincida cu sourceCompatibility/targetCompatibility (Java 21) din
     // capacitor.build.gradle (auto-generat) — un target JVM diferit intre Java si

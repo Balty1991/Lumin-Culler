@@ -69,6 +69,13 @@ class DevicePlugin : Plugin() {
         call.resolve()
     }
 
+    /** Un reper în logcat, pentru testul de pe emulator (scripts/smoke-start.sh). Funcționează și în release. */
+    @PluginMethod
+    fun mark(call: PluginCall) {
+        android.util.Log.i("Cherrypic", call.getString("text") ?: "")
+        call.resolve()
+    }
+
     // ── Vibrații ──────────────────────────────────────────────────────────
 
     @PluginMethod

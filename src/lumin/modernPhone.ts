@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
 import { LOCALES, t, type Locale } from '../i18n';
-import { checkForUpdate, clearSharedFiles, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
+import { checkForUpdate, clearSharedFiles, nativeMark, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
 import { useLx } from './lxStore';
 import { onBackgroundCancel, onNativeShown, setBackgroundStopLabel, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
 import { stopGalleryReader } from './galleryReader';
@@ -30,7 +30,7 @@ async function importShared(runImport: RunImport): Promise<void> {
   await runImport(files);
   clearSharedFiles();
   // Testul de pornire din CI (scripts/smoke-start.sh) caută acest rând în logcat.
-  console.info(`Cherrypic: shared import done ${files.length}`);
+  nativeMark(`shared import done ${files.length}`);
 }
 
 async function offerUpdate(): Promise<void> {

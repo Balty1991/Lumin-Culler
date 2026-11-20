@@ -27,6 +27,7 @@ interface DeviceApi {
   setHdr(o: { on: boolean }): Promise<void>;
   isUltraHdr(o: { uri: string }): Promise<{ hdr: boolean }>;
   appReady(): Promise<void>;
+  mark(o: { text: string }): Promise<void>;
   addListener(event: 'shared' | 'updateDownloaded', cb: () => void): Promise<PluginListenerHandle>;
 }
 
@@ -131,6 +132,12 @@ export async function isUltraHdr(uri: string): Promise<boolean> {
 }
 
 /** „Azi” e desenat: splash-ul sistemului (cireașa) poate pleca, fără ecran gol între ele. */
+/** Un reper în logcat (testul de pe emulator îl caută). Pe web nu face nimic. */
+export function nativeMark(text: string): void {
+  if (!native()) return;
+  void Device.mark({ text }).catch(() => undefined);
+}
+
 export function signalAppReady(): void {
   if (!native()) return;
   void Device.appReady().catch(() => undefined);
