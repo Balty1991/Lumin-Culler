@@ -59,11 +59,15 @@
 # Cordova, cat timp puntea capacitor-cordova-android-plugins e in build.
 -keep class org.apache.cordova.** { *; }
 
-# ML Kit si MediaPipe isi incarca modelele si delegatii prin reflexie si JNI.
-# Numele native trebuie sa ramana neschimbate, altfel legarea la .so pica in
-# executie — si numai in release, unde e cel mai greu de prins.
--keep class com.google.mlkit.** { *; }
--keep class com.google.android.gms.internal.mlkit_** { *; }
+# MediaPipe isi incarca modelele si delegatii prin reflexie si JNI, fara reguli
+# proprii: numele raman neschimbate, altfel legarea la .so pica in executie.
+#
+# ML Kit NU mai e pastrat intreg (noiembrie 2026): trimite singur regulile tintite
+# (native <methods>, campurile de protobuf, @UsedByReflection), iar regula noastra
+# larga tinea 7293 de clase neredenumite si cobora obscurizarea sub pragul Play de
+# 25%. Verificat pe emulator, pe copia de release (tipul „smoke”): pornire, import
+# de poze si analiza. Daca vreo cale ML Kit cade in release, urma de stiva arata
+# clasa, iar reparatia e un -keep pe ea, nu inapoi pe tot pachetul.
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
 -keepclasseswithmembernames class * {
