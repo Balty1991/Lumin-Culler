@@ -18,6 +18,10 @@ conf="$(dirname "$map")/configuration.txt"
 if [ -f "$conf" ]; then
   echo "── -dontobfuscate în configurație (cu fișierul de unde vine) ──"
   awk '/^# The proguard configuration file for the following section is /{src=$0} /^-dontobfuscate/{print src; print "   " $0}' "$conf" | head -20
+  echo "── Reguli care pot păstra tot (class * / class ** / -keepnames / -keeppackagenames) ──"
+  awk '/^# The proguard configuration file for the following section is /{src=$0} /^-(keep[a-z,]*|keepnames|keeppackagenames|keepclassmembernames)/ && /(class|interface|enum) +(\*\*?|\*\*\.\*)( |$|\{)|^-keeppackagenames|^-keepnames|^-dontoptimize|^-dontshrink/ {print src; print "   " $0}' "$conf" | head -40
+  echo "── Exemple de clase nepăstrate de reguli dar neredenumite ──"
+  grep -E '^(androidx|kotlin)\.[^ ]* -> (androidx|kotlin)\.' "$map" | head -5
   echo "── Regulile -keep cele mai largi ──"
   grep -nE '^-keep[a-z]* (public )?class [a-zA-Z0-9_.]+\.\*\* *\{ *\*; *\}' "$conf" | head -30
 fi
