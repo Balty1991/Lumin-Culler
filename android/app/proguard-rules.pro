@@ -70,6 +70,12 @@
 # clasa, iar reparatia e un -keep pe ea, nu inapoi pe tot pachetul.
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
+# ML Kit Image Labeling pastrat tintit: in testele cu R8 aproape toate pozele primeau
+# eticheta „Dog” (cautarea „caine” aducea pisici, carne, capturi de ecran). Doar
+# etichetarea si partea comuna de vision, nu tot ML Kit (vezi obscurizarea de mai sus).
+-keep class com.google.mlkit.vision.label.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_label** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_common** { *; }
 # Flogger (jurnalul folosit de MediaPipe): GoogleLogger.forEnclosingClass() isi cauta
 # apelantul in stiva dupa numele claselor flogger. Redenumite, Graph.<clinit> cade cu
 # „no caller found on the stack” la primul FaceLandmarker (crash-ul din testul 870).
