@@ -40,6 +40,7 @@ on:
       - 'src/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/**'
       - '.github/workflows/android-debug-build.yml'
   push:
     branches:
@@ -48,6 +49,7 @@ on:
       - 'android/**'
       - 'src/**'
       - 'package.json'
+      - 'scripts/**'
       - '.github/workflows/android-debug-build.yml'
 
 jobs:
