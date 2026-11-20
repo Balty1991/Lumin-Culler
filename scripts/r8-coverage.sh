@@ -12,3 +12,12 @@ line="R8: $renamed din $total clase redenumite (${pct}%); din codul Cherrypic: $
 echo "$line"
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "### $line" >> "$GITHUB_STEP_SUMMARY"
 if [ "$pct" -lt 25 ]; then echo "::warning::Obscurizarea R8 e ${pct}%, sub pragul Play de 25%."; fi
+
+# De ce e mic procentul: cine oprește obscurizarea (-dontobfuscate) și ce reguli păstrează tot.
+conf="$(dirname "$map")/configuration.txt"
+if [ -f "$conf" ]; then
+  echo "── -dontobfuscate în configurație (cu fișierul de unde vine) ──"
+  awk '/^# The proguard configuration file for the following section is /{src=$0} /^-dontobfuscate/{print src; print "   " $0}' "$conf" | head -20
+  echo "── Regulile -keep cele mai largi ──"
+  grep -nE '^-keep[a-z]* (public )?class [a-zA-Z0-9_.]+\.\*\* *\{ *\*; *\}' "$conf" | head -30
+fi
