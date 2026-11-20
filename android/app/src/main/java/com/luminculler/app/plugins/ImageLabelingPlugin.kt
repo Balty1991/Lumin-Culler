@@ -110,6 +110,10 @@ class ImageLabelingPlugin : Plugin() {
                         obj.put("score", label.confidence.toDouble())
                         labelsArray.put(obj)
                     }
+                // Un rând în logcat (fără date personale: doar numele etichetelor), citit de
+                // testul de pe emulator ca să prindă etichete stricate în build-ul cu R8.
+                android.util.Log.i("Cherrypic", "labels: " + labels.sortedByDescending { it.confidence }
+                    .take(MAX_RETURNED).joinToString(", ") { "${it.text} ${"%.2f".format(it.confidence)}" })
                 val result = JSObject()
                 result.put("labels", labelsArray)
                 call.resolve(result)

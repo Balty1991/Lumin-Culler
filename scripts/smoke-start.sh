@@ -61,6 +61,8 @@ if [ "$fail" = 0 ] && [ -n "$PHOTOS_DIR" ] && [ -d "$PHOTOS_DIR" ]; then
       echo "::error::Aplicația a căzut la import sau la analiză:"; grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -50; fail=1
     fi
     if grep -q "Cherrypic: shared import done" "$OUT/logcat.txt"; then echo "Importul pozelor trimise s-a terminat."; else echo "::error::Importul pozelor trimise nu s-a terminat în 150 s."; fail=1; fi
+    echo "── Etichetele ML Kit ale pozelor de test ──"
+    grep -o "Cherrypic: labels: .*" "$OUT/logcat.txt" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" || echo "(nicio etichetă în jurnal)"
     echo "── Urme ale modelelor native (ultimele rânduri) ──"
     grep -iE "onnx|tflite|litert|mediapipe|mlkit|Cherrypic|Capacitor/Console" "$OUT/logcat.txt" | tail -40
   fi
