@@ -1100,5 +1100,7 @@ function searchReasons(list: readonly PhotoView[], query: string): string {
     const r = matchReason(p, query) ?? 'fără cuvânt (după cum arată / AI)';
     counts.set(r, (counts.get(r) ?? 0) + 1);
   }
-  return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([r, n]) => `${r} (${n})`).join(' · ');
+  // Etichetele brute ale primelor poze: ML Kit le scrie cu majusculă („Dog”), CLIP cu literă mică („dog”).
+  const raw = list.slice(0, 3).map(p => `[${(p.sceneTags ?? []).join(', ')}]`).join(' ');
+  return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([r, n]) => `${r} (${n})`).join(' · ') + ' — ' + raw;
 }
