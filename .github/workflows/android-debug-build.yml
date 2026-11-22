@@ -315,7 +315,7 @@ jobs:
         with:
           name: cherrypic-test-${{ github.run_number }}
           path: cherrypic-*.apk
-          retention-days: 1
+          retention-days: 3
       # Același APK, dar pentru x86_64 (emulatoarele din GitHub nu rulează arm64) și
       # trecut prin R8 cu regulile de release: testul de pe emulator verifică astfel și
       # minificarea, înainte ca ea să fie pornită în AAB.
