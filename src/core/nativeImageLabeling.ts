@@ -41,5 +41,26 @@ export async function labelImageNative(source: NativeImageSource): Promise<Nativ
   if (!isNativeImageLabelingAvailable()) {
     throw new Error('Etichetarea nativa de imagini e disponibila doar in aplicatia Android (Capacitor), nu in browser.');
   }
-  return ImageLabelingNative.labelImage(await nativeImageParams(source));
+  const res = await ImageLabelingNative.labelImage(await nativeImageParams(source));
+  return { ...res, labels: trustedLabels(res.labels) };
+}
+
+/** Speciile pe care ML Kit le ghicește prea ușor. */
+const SPECIES = new Set(['dog', 'cat', 'bird', 'horse', 'rabbit', 'hamster', 'cow', 'sheep', 'goat', 'duck', 'chicken', 'fish', 'bear']);
+/** Sub atât, o specie nu e crezută (restul etichetelor rămân la pragul general, 0,6). */
+export const SPECIES_MIN = 0.8;
+
+/**
+ * ML Kit pune „Dog” cu 0,6–0,75 pe aproape orice: baloane, o pisică, un copil pe pernă
+ * (raportat cu etichetele brute: „câine” găsea toate pozele din galerie). O specie trece
+ * doar sigură, și doar una dintre câine/pisică: cea mai probabilă.
+ */
+export function trustedLabels(labels: readonly NativeImageLabel[]): NativeImageLabel[] {
+  const species = labels.filter(l => SPECIES.has(l.label.toLowerCase()));
+  const best = species.reduce<NativeImageLabel | null>((a, l) => (!a || l.score > a.score ? l : a), null);
+  return labels.filter(l => {
+    if (!SPECIES.has(l.label.toLowerCase())) return true;
+    if (l.score < SPECIES_MIN) return false;
+    return l === best || l.score >= 0.9;
+  });
 }

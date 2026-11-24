@@ -233,6 +233,12 @@ export function LuminApp() {
     let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => signalAppReady()); });
     return () => cancelAnimationFrame(id);
   }, [booted]);
+  // O singură dată: speciile din etichete, refăcute cu regula nouă (câinele pus peste tot de ML Kit).
+  useEffect(() => {
+    if (!booted) return;
+    const id = window.setTimeout(() => { void import('./speciesRelabel').then(m => m.relabelSpeciesOnce()).catch(() => undefined); }, 20_000);
+    return () => window.clearTimeout(id);
+  }, [booted]);
   // Memento-ul de sfârșit de probă se reface la fiecare pornire (Android pierde alarmele la repornire).
   useEffect(() => {
     if (!booted) return;
