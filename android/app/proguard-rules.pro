@@ -56,8 +56,8 @@
 -keep class com.luminculler.app.ModelRegistry { *; }
 -keep class com.luminculler.app.ReleasableModel { *; }
 
-# Cordova, cat timp puntea capacitor-cordova-android-plugins e in build.
--keep class org.apache.cordova.** { *; }
+# Cordova: fără regulă proprie din 3.6.2. Capacitor trimite deja
+# `-keep public class * extends org.apache.cordova.*`, iar aplicația nu are pluginuri Cordova.
 
 # MediaPipe isi incarca modelele si delegatii prin reflexie si JNI, fara reguli
 # proprii: numele raman neschimbate, altfel legarea la .so pica in executie.
@@ -68,8 +68,18 @@
 # 25%. Verificat pe emulator, pe copia de release (tipul „smoke”): pornire, import
 # de poze si analiza. Daca vreo cale ML Kit cade in release, urma de stiva arata
 # clasa, iar reparatia e un -keep pe ea, nu inapoi pe tot pachetul.
--keep class com.google.mediapipe.** { *; }
--keep class com.google.protobuf.** { *; }
+# Strânse în 3.6.2 (raportul R8 pe pachete: MediaPipe 857 de clase, protobuf 364, iar Play
+# măsura optimizarea la 44%). Rămân întregi doar părțile pe care codul nativ le caută
+# după nume (JNI): framework-ul (Graph, Packet, PacketGetter, AndroidAssetUtil...) și
+# nucleul tasks (TaskRunner, ModelResourcesCache). Restul MediaPipe (FaceLandmarker,
+# ImageSegmenter, PoseLandmarker, rezultatele lor) e cod Java obișnuit și poate fi
+# redenumit. Protobuf-lite citește câmpurile mesajelor după nume (reflexie), deci se
+# păstrează câmpurile oricărui mesaj, nu tot runtime-ul. Dacă pică ceva pe telefon,
+# urma de stivă arată clasa: un -keep pe ea, nu înapoi pe tot pachetul.
+-keep class com.google.mediapipe.framework.** { *; }
+-keep class com.google.mediapipe.tasks.core.** { *; }
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
+-keep class * extends com.google.protobuf.GeneratedMessageLite$Builder
 # Flogger (jurnalul folosit de MediaPipe): GoogleLogger.forEnclosingClass() isi cauta
 # apelantul in stiva dupa numele claselor flogger. Redenumite, Graph.<clinit> cade cu
 # „no caller found on the stack” la primul FaceLandmarker (crash-ul din testul 870).
@@ -102,8 +112,9 @@
 # cand exista timp de testat ca lumea — pe rand, nu toate trei odata, si cu un
 # APK minificat pe telefon inainte de orice AAB.
 #
-# MediaPipe si protobuf NU se ating: nu apar deloc in lista de surse de reguli,
-# deci nu trimit nimic, iar codul lor nativ cheama inapoi in Java pe nume.
+# MediaPipe si protobuf nu trimit reguli proprii, iar codul lor nativ cheama inapoi
+# in Java pe nume: de aceea in 3.6.2 s-au strans doar la framework, tasks.core si
+# campurile mesajelor protobuf (vezi mai sus), nu s-au scos de tot.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Kotlin: metadatele si obiectele companion, folosite tot prin reflexie.
