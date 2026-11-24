@@ -13,6 +13,10 @@ echo "$line"
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "### $line" >> "$GITHUB_STEP_SUMMARY"
 if [ "$pct" -lt 25 ]; then echo "::warning::Obscurizarea R8 e ${pct}%, sub pragul Play de 25%."; fi
 
+# Unde stau clasele neredenumite, pe pachete (primele 3 niveluri): aici se strâng regulile.
+echo "── Clase neredenumite, pe pachete ──"
+grep -E '^[^ #].* -> .*:$' "$map" | awk '{orig=$1; sub(/:$/,"",$3); if (orig == $3) { n=split(orig,a,"."); k=a[1]; for(i=2;i<=3 && i<n;i++) k=k"."a[i]; c[k]++ } } END {for (k in c) print c[k], k}' | sort -rn | head -20 | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
 # De ce e mic procentul: cine oprește obscurizarea (-dontobfuscate) și ce reguli păstrează tot.
 conf="$(dirname "$map")/configuration.txt"
 if [ -f "$conf" ]; then
