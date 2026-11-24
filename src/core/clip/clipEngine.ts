@@ -141,8 +141,10 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
   // pătură moale dădea „pisică”). Specia rămâne doar dacă CLIP n-o vede clar pe cealaltă.
   const wrongSpecies = (tag: string) => {
     const t = tag.toLowerCase();
-    if (t === 'cat' || t === 'kitten') return catP < 0.05 && (dogP > catP * 3 || animalP < 0.15);
-    if (t === 'dog' || t === 'puppy') return dogP < 0.05 && (catP > dogP * 3 || animalP < 0.15);
+    // Și când CLIP vede clar CEALALTĂ specie (de două ori mai probabilă): raportat, fetița cu
+    // pisica primea „Dog” 0,9 de la ML Kit, iar regula de mai sus cerea câinele sub 5%.
+    if (t === 'cat' || t === 'kitten') return (catP < 0.05 && (dogP > catP * 3 || animalP < 0.15)) || (dogP > 0.1 && dogP > catP * 2);
+    if (t === 'dog' || t === 'puppy') return (dogP < 0.05 && (catP > dogP * 3 || animalP < 0.15)) || (catP > 0.1 && catP > dogP * 2);
     return false;
   };
   const out = (mlkit ?? []).filter(tag => !(ANIMAL_TAGS.has(tag.toLowerCase()) && animalP < 0.08) && !wrongSpecies(tag));
