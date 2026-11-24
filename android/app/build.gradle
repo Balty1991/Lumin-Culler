@@ -105,6 +105,9 @@ android {
     }
     buildTypes {
         release {
+            // Simbolurile bibliotecilor native intră în AAB, ca Play să poată citi căderile
+            // și ANR-urile din ML Kit / MediaPipe / ONNX (avertismentul la versiunea 49).
+            ndk { debugSymbolLevel 'SYMBOL_TABLE' }
             // R8 PORNIT (noiembrie 2026), după ce a fost oprit pentru căderi la analiză.
             //
             // Ce s-a schimbat: testul de pe emulator din CI (android-debug-build.yml,
