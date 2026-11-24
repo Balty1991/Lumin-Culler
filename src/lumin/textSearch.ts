@@ -307,34 +307,3 @@ export function isLabelQuery(query: string): boolean {
   const terms = words(query);
   return terms.length === 1 && termOptions(terms[0]).length > 1;
 }
-
-/**
- * De unde vine potrivirea, pentru APK-ul de test: câmpul și cuvântul găsit
- * (ex. „etichete: dog”). Folosit ca să vedem de ce o poză apare la o căutare.
- */
-export function matchReason(p: SearchablePhoto, query: string): string | null {
-  const terms = words(query);
-  if (!terms.length) return null;
-  const when = new Date(p.capturedAt ?? p.importedAt);
-  const fields: [string, string][] = [
-    ['etichete', (p.sceneTags ?? []).flatMap(t => [t, translateSceneTag(t, 'ro')]).join(' ')],
-    ['culori', (p.dominantColors ?? []).flatMap(colorWords).join(' ')],
-    ['descriere', `${p.aiDescription ?? ''} ${p.aiDescriptionTr ?? ''}`],
-    ['text', (p.ocrText ?? '').slice(0, 400)],
-    ['oameni', p.personNames.join(' ')],
-    ['animale', (p.petNames ?? []).join(' ')],
-    ['fel', p.aside === 'document' ? 'document bon act' : p.aside === 'screenshot' ? 'captura screenshot' : ''],
-    ['fete', p.faceCount > 0 ? 'persoana oameni person' : ''],
-    ['data', [MONTHS_RO[when.getMonth()], MONTHS_EN[when.getMonth()], SEASONS_RO[when.getMonth()], SEASONS_EN[when.getMonth()], String(when.getFullYear())].join(' ')],
-  ];
-  for (const term of terms) {
-    for (const o of termOptions(term)) {
-      for (const [name, txt] of fields) {
-        const text = ' ' + fold(txt).replace(/[^a-z0-9]+/g, ' ');
-        const i = text.indexOf(' ' + fold(o));
-        if (i >= 0) return `${name}: ${text.slice(i + 1).split(' ').slice(0, 3).join(' ')}`;
-      }
-    }
-  }
-  return null;
-}
