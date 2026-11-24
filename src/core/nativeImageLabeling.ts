@@ -48,7 +48,7 @@ export async function labelImageNative(source: NativeImageSource): Promise<Nativ
 /** Speciile pe care ML Kit le ghicește prea ușor. */
 const SPECIES = new Set(['dog', 'cat', 'bird', 'horse', 'rabbit', 'hamster', 'cow', 'sheep', 'goat', 'duck', 'chicken', 'fish', 'bear']);
 /** Sub atât, o specie nu e crezută (restul etichetelor rămân la pragul general, 0,6). */
-export const SPECIES_MIN = 0.8;
+export const SPECIES_MIN = 0.9;
 /** Cât de aproape pot fi două specii ca ML Kit să fie socotit nesigur. */
 const AMBIGUOUS_GAP = 0.2;
 
@@ -67,6 +67,6 @@ export function trustedLabels(labels: readonly NativeImageLabel[]): NativeImageL
     if (unsure && SPECIES.has(l.label.toLowerCase())) return false;
     if (!SPECIES.has(l.label.toLowerCase())) return true;
     if (l.score < SPECIES_MIN) return false;
-    return l === best || l.score >= 0.9;
+    return l === best || l.score >= 0.95;
   });
 }
