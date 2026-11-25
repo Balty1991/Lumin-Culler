@@ -17,8 +17,11 @@ describe('trustedLabels', () => {
   });
 });
 
-describe('trustedLabels — pragul 0,9', () => {
-  it('câinele de 0,85 la fetița cu pisica nu mai trece (raportat)', () => {
-    expect(trustedLabels([{ label: 'Pet', score: 0.9 }, { label: 'Dog', score: 0.86 }]).map(l => l.label)).toEqual(['Pet']);
+describe('trustedLabels — pragul 0,7', () => {
+  it('pisica de 0,78 trece (raportat: „pisică” nu mai găsea nimic)', () => {
+    expect(trustedLabels([{ label: 'Pet', score: 0.9 }, { label: 'Cat', score: 0.78 }]).map(l => l.label)).toEqual(['Pet', 'Cat']);
+  });
+  it('câinele de 0,66 de pe baloane tot nu trece', () => {
+    expect(trustedLabels([{ label: 'Balloon', score: 0.9 }, { label: 'Dog', score: 0.66 }]).map(l => l.label)).toEqual(['Balloon']);
   });
 });

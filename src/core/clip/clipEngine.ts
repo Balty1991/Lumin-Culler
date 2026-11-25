@@ -154,7 +154,21 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
     out.push(r.key);
     have.add(r.key);
   }
+  // Specia o pune și CLIP, când vede clar animalul, iar ML Kit l-a ratat sau l-a scos
+  // pragul lui (raportat: după pragul 0,9, „pisică” nu mai găsea nicio pisică). Doar
+  // animalul cel mai probabil, și doar dacă nu există deja o specie în etichete.
+  const top = ranked.find(r => ANIMALS.has(r.key));
+  if (top && top.p >= SPECIES_ADD_AT && !out.some(t => SPECIES_TAGS.has(t.toLowerCase()))) out.push(top.key);
   return out;
+}
+
+/** Cât de sigur trebuie să fie CLIP ca să adauge singur specia. */
+const SPECIES_ADD_AT = 0.2;
+const SPECIES_TAGS = new Set([...ANIMALS, 'kitten', 'puppy']);
+
+/** Cât de mult vede CLIP un animal în poză (suma probabilităților speciilor). */
+export function animalMass(e: ArrayLike<number>): number {
+  return zeroShot(e).filter(r => ANIMALS.has(r.key)).reduce((a, r) => a + r.p, 0);
 }
 
 export function isClipPlatform(): boolean {

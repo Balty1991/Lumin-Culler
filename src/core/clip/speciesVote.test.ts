@@ -20,3 +20,15 @@ describe('refineTags — CLIP corectează specia', () => {
     expect(refineTags(['Pet', 'Dog'], vec('dog'))).toContain('Dog');
   });
 });
+
+describe('refineTags — CLIP adaugă specia', () => {
+  it('pune „cat” când CLIP vede pisica lângă un copil, iar ML Kit n-a dat specia', () => {
+    const e = mix(vec('cat'), vec('child'), 0.55);
+    const tags = refineTags(['Skin', 'Smile', 'Pet'], e);
+    expect(tags).toContain('cat');
+    expect(tags).not.toContain('dog');
+  });
+  it('nu pune nicio specie pe o poză fără animal', () => {
+    expect(refineTags(['Balloon', 'Party'], vec('party')).some(t => ['cat', 'dog'].includes(t))).toBe(false);
+  });
+});

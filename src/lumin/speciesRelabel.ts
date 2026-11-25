@@ -7,11 +7,11 @@
  */
 import { db } from '../core/db';
 import { isNativeImageLabelingAvailable, labelImageNative } from '../core/nativeImageLabeling';
-import { refineTags } from '../core/clip/clipEngine';
+import { animalMass, refineTags } from '../core/clip/clipEngine';
 import { waitForUserIdle } from '../core/userIdle';
 import { useStore } from '../state/store';
 
-const DONE_KEY = 'cherrypic.speciesRelabel.v4';
+const DONE_KEY = 'cherrypic.speciesRelabel.v5';
 const SPECIES = /^(dog|cat|bird|horse|rabbit|hamster|cow|sheep|goat|duck|chicken|fish|bear|puppy|kitten)$/i;
 
 /** Etichetele vechi fără specii, plus speciile sigure din etichetarea nouă. */
@@ -27,7 +27,10 @@ export async function relabelSpeciesOnce(): Promise<void> {
   try { if (localStorage.getItem(DONE_KEY)) return; } catch { return; }
   running = true;
   try {
-    const rows = await db.analyses.filter(a => (a.sceneTags ?? []).some(t => SPECIES.test(t))).toArray();
+    // Și pozele în care CLIP vede un animal, nu doar cele cu o specie în etichete: după
+    // pragul prea strict, pisicile adevărate pierduseră eticheta (raportat).
+    const rows = await db.analyses.filter(a => (a.sceneTags ?? []).some(t => SPECIES.test(t))
+      || (a.clipEmbedding?.length === 512 && animalMass(a.clipEmbedding) >= 0.1)).toArray();
     const changed = new Map<string, string[] | undefined>();
     for (const a of rows) {
       const photo = await db.photos.get(a.photoId);
