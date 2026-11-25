@@ -12,7 +12,7 @@
 import { db } from '../db';
 import { englishGloss } from '../searchSynonyms';
 import { normalizeForSearch } from '../sceneTagLabels';
-import { ClipNative as ClipText, isClipPlatform } from './clipEngine';
+import { ClipNative as ClipText, isClipPlatform, speciesMatches } from './clipEngine';
 
 let dense: { w: Float32Array; out: number; inp: number } | null = null;
 async function loadDense() {
@@ -109,8 +109,21 @@ export function scoreMatrix(m: Float32Array, n: number, texts: readonly Float32A
  * la cea mai bună potrivire (scorurile CLIP text↔imagine stau strâns, ~0,2–0,35),
  * cu o podea absolută ca o căutare fără sens să nu întoarcă toată galeria.
  */
+/** Specia cerută, din cuvântul căutat (și începutul lui: „pisi”, „căței”). */
+export function speciesOf(query: string): string | null {
+  const w = query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/^(pisi|pisoi|motan|cat|kitten)/.test(w)) return 'cat';
+  if (/^(cain|catel|catei|dog|pupp)/.test(w)) return 'dog';
+  return null;
+}
+
 export async function clipSearch(query: string, limit = 120): Promise<string[]> {
   const q = query.trim();
+  // Animalele: direct din amprentele pozelor (nu trebuie modelul de text).
+  const species = speciesOf(q);
+  if (species && q.length >= 3) {
+    try { const idx = await loadIndex(); return speciesMatches(idx.ids, idx.m, species).slice(0, 500); } catch { return []; }
+  }
   if (q.length < 3 || !(await clipSearchReady())) return [];
   try {
     // „o fotografie cu …”: CLIP a învățat din descrieri de poze, nu din cuvinte izolate.

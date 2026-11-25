@@ -118,7 +118,7 @@ export function tasteConcepts(w: ArrayLike<number>): { key: string; score: numbe
   }).filter(x => !x.key.includes('-')).sort((a, b) => b.score - a.score);
 }
 
-const ANIMALS = new Set(['dog', 'cat', 'bird', 'horse', 'bear', 'cow', 'sheep', 'duck', 'fish', 'elephant']);
+export const ANIMALS = new Set(['dog', 'cat', 'bird', 'horse', 'bear', 'cow', 'sheep', 'duck', 'fish', 'elephant']);
 /** Etichetele ML Kit de animale (vezi smartFolders „pets”). */
 const ANIMAL_TAGS = new Set(['cat', 'dog', 'bird', 'horse', 'kitten', 'puppy', 'rabbit', 'hamster', 'parrot', 'cow', 'sheep', 'goat', 'duck', 'chicken', 'fish', 'pet', 'animal']);
 /** Cât de sigur trebuie să fie CLIP ca să adauge o etichetă proprie (testat în CI pe poze COCO). */
@@ -204,3 +204,20 @@ export async function clipAnalyze(source: NativeImageSource): Promise<ClipResult
     return { aesthetic: aestheticOf(embedding), quality: qualityOf(embedding).score, embedding };
   } catch { return null; }
 }
+
+/**
+ * Pozele în care CLIP vede specia cerută ca animalul cel mai probabil, peste `minP`.
+ * Lucrează pe amprentele salvate, deci nu depinde de etichetele ML Kit (raportat:
+ * „pisică” găsea o singură poză din mai multe).
+ */
+export function speciesMatches(ids: readonly string[], m: Float32Array, key: string, minP = SPECIES_SEARCH_AT): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const ranked = zeroShot(m.subarray(i * DIM, (i + 1) * DIM));
+    const top = ranked.find(r => ANIMALS.has(r.key));
+    if (top && top.key === key && top.p >= minP) out.push(ids[i]);
+  }
+  return out;
+}
+/** Mai jos decât pragul de etichetare (0,2): la căutare, omul vrea toate pozele cu pisica. */
+export const SPECIES_SEARCH_AT = 0.12;

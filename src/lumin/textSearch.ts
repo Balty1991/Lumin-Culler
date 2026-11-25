@@ -305,5 +305,8 @@ export function isTextOnlyMatch(p: SearchablePhoto, query: string): boolean {
  */
 export function isLabelQuery(query: string): boolean {
   const terms = words(query);
+  // Animalele nu: pentru ele, căutarea CLIP întoarce doar pozele în care specia e chiar
+  // animalul cel mai probabil (clipSearch.speciesOf), deci adaugă exact ce lipsește din etichete.
+  if (terms.length === 1 && /^(pisi|pisoi|motan|cat|kitten|cain|catel|catei|dog|pupp)/.test(terms[0])) return false;
   return terms.length === 1 && termOptions(terms[0]).length > 1;
 }

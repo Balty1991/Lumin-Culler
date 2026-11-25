@@ -32,3 +32,22 @@ describe('refineTags — CLIP adaugă specia', () => {
     expect(refineTags(['Balloon', 'Party'], vec('party')).some(t => ['cat', 'dog'].includes(t))).toBe(false);
   });
 });
+
+import { speciesMatches } from './clipEngine';
+import { speciesOf } from './clipSearch';
+
+describe('căutarea după specie, din amprente', () => {
+  it('recunoaște cuvântul, și pe bucăți', () => {
+    expect(speciesOf('Pisi')).toBe('cat');
+    expect(speciesOf('pisică')).toBe('cat');
+    expect(speciesOf('câini')).toBe('dog');
+    expect(speciesOf('tort')).toBeNull();
+  });
+  it('găsește pisica lângă copil, nu și poza fără animal', () => {
+    const rows = [mix(vec('cat'), vec('child'), 0.55), vec('party'), mix(vec('dog'), vec('child'), 0.6)];
+    const m = new Float32Array(rows.length * 512);
+    rows.forEach((r, i) => m.set(r, i * 512));
+    expect(speciesMatches(['a', 'b', 'c'], m, 'cat')).toEqual(['a']);
+    expect(speciesMatches(['a', 'b', 'c'], m, 'dog')).toEqual(['c']);
+  });
+});

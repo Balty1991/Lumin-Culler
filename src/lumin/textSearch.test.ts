@@ -75,9 +75,11 @@ describe('culori', () => {
 
 describe('isLabelQuery', () => {
   it('recunoaște căutările de obiecte cunoscute', () => {
-    expect(isLabelQuery('câine')).toBe(true);
-    expect(isLabelQuery('câini')).toBe(true);
-    expect(isLabelQuery('pisici')).toBe(true);
+    expect(isLabelQuery('tort')).toBe(true);
+    expect(isLabelQuery('mașină')).toBe(true);
+    // Animalele trec și prin CLIP (specia din amprentă), nu doar prin etichete.
+    expect(isLabelQuery('câine')).toBe(false);
+    expect(isLabelQuery('pisici')).toBe(false);
   });
   it('lasă căutările libere pentru CLIP', () => {
     expect(isLabelQuery('copii la apus')).toBe(false);
