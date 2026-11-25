@@ -353,8 +353,13 @@ jobs:
       - name: Pozele de test, cu o serie
         run: |
           mkdir -p smoke-photos && cp scripts/smoke-photos/*.jpg smoke-photos/
-          convert smoke-photos/smoke-2.jpg -gravity center -crop 97%x97%+0+0 +repage -modulate 103 smoke-photos/smoke-5.jpg
-          convert smoke-photos/smoke-2.jpg -gravity northwest -crop 96%x96%+8+6 +repage -modulate 98 smoke-photos/smoke-6.jpg
+          pip install --quiet pillow
+          python3 -c "
+          from PIL import Image, ImageEnhance
+          im = Image.open('smoke-photos/smoke-2.jpg'); w, h = im.size
+          ImageEnhance.Brightness(im.crop((int(w*.015), int(h*.015), int(w*.985), int(h*.985)))).enhance(1.03).save('smoke-photos/smoke-5.jpg', quality=92)
+          ImageEnhance.Brightness(im.crop((8, 6, int(w*.96)+8, int(h*.96)+6))).enhance(0.98).save('smoke-photos/smoke-6.jpg', quality=92)
+          "
           ls -la smoke-photos
       - name: Pornește KVM
         run: |
@@ -383,7 +388,16 @@ jobs:
         run: |
           [ -d smoke-out/tur ] || exit 0
           mkdir -p ecrane
-          for f in smoke-out/tur/*.png smoke-out/*.png; do [ -f "$f" ] && convert "$f" -resize 540x -quality 70 "ecrane/$(basename "${f%.png}").jpg"; done
+          pip install --quiet pillow
+          python3 -c "
+          import glob, os
+          from PIL import Image
+          for f in glob.glob('smoke-out/tur/*.png') + glob.glob('smoke-out/*.png'):
+              try:
+                  im = Image.open(f).convert('RGB'); im.thumbnail((540, 1400))
+                  im.save('ecrane/' + os.path.basename(f)[:-4] + '.jpg', quality=72)
+              except Exception as e: print(f, e)
+          "
           cd ecrane
           git init -q -b ci-ecrane
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
