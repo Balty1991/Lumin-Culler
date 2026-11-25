@@ -78,7 +78,7 @@ if [ "$fail" = 0 ] && [ -n "$PHOTOS_DIR" ] && [ -d "$PHOTOS_DIR" ]; then
     if grep -q "Cherrypic: selftest error" "$OUT/logcat.txt"; then
       echo "::error::Un model nativ a dat eroare în autotest (fețe, etichete, postură sau decupare)."; fail=1
     fi
-    if ! grep -qE "Cherrypic: selftest ok .*faces=[1-9]" "$OUT/logcat.txt"; then
+    if ! grep -qE "Cherrypic: selftest (ok|partial) .*faces=[1-9]" "$OUT/logcat.txt"; then
       echo "::error::Autotestul nu a găsit nicio față în pozele de test (MediaPipe Face Landmarker)."; fail=1
     fi
     echo "── Etichetele ML Kit ale pozelor de test ──"

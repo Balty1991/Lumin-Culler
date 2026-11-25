@@ -78,8 +78,9 @@
 # urma de stivă arată clasa: un -keep pe ea, nu înapoi pe tot pachetul.
 -keep class com.google.mediapipe.framework.** { *; }
 -keep class com.google.mediapipe.tasks.core.** { *; }
--keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
--keep class * extends com.google.protobuf.GeneratedMessageLite$Builder
+# Protobuf: înapoi întreg. Autotestul de pe emulator a arătat că, strâns doar la câmpurile
+# mesajelor, ML Kit Image Labeling cădea („getClass() on a null object reference”).
+-keep class com.google.protobuf.** { *; }
 # Flogger (jurnalul folosit de MediaPipe): GoogleLogger.forEnclosingClass() isi cauta
 # apelantul in stiva dupa numele claselor flogger. Redenumite, Graph.<clinit> cade cu
 # „no caller found on the stack” la primul FaceLandmarker (crash-ul din testul 870).
