@@ -29,7 +29,7 @@ async function importShared(runImport: RunImport): Promise<void> {
   useLx.getState().setTab('days');
   useLx.getState().setGalleryView('wall');
   // Build-ul de test: căile, înainte ca fișierele primite să fie șterse (autotestul nativ).
-  const selfTestPaths = devUnlimitedAvailable ? await pendingSharePaths() : [];
+  const selfTestPaths = devUnlimitedAvailable ? [...pendingSharePaths()] : [];
   await runImport(files);
   // Testul de pornire din CI (scripts/smoke-start.sh) caută aceste rânduri în logcat.
   if (selfTestPaths.length) await (await import('./nativeSelfTest')).runNativeSelfTest(selfTestPaths, files).catch(e => nativeMark(`selftest error crash: ${String(e)}`));

@@ -90,6 +90,8 @@ export async function takeSharedFiles(): Promise<File[]> {
   if (!native()) return [];
   try {
     const { files } = await Device.pendingShares();
+    // pendingShares golește lista la citire: căile se țin aici (autotestul din build-ul de test).
+    lastSharePaths = files.map(f => f.path);
     const out: File[] = [];
     for (const f of files) {
       try {
@@ -100,11 +102,9 @@ export async function takeSharedFiles(): Promise<File[]> {
     return out;
   } catch { return []; }
 }
-/** Căile fișierelor primite, cât timp nu au fost șterse (pentru autotestul din build-ul de test). */
-export async function pendingSharePaths(): Promise<string[]> {
-  if (!native()) return [];
-  try { return (await Device.pendingShares()).files.map(f => f.path); } catch { return []; }
-}
+let lastSharePaths: string[] = [];
+/** Căile ultimelor fișiere primite, până la clearSharedFiles (pentru autotestul din build-ul de test). */
+export function pendingSharePaths(): string[] { return lastSharePaths; }
 export function clearSharedFiles(): void { if (native()) void Device.clearShares().catch(() => {}); }
 
 export async function onShared(cb: () => void): Promise<() => void> {
