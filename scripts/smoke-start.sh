@@ -42,9 +42,16 @@ if [ "$fail" = 0 ] && [ -n "$PHOTOS_DIR" ] && [ -d "$PHOTOS_DIR" ]; then
     echo "::warning::Pozele de test nu au apărut în MediaStore; partea cu importul e sărită."
   else
     # „Trimite către Cherrypic”, câte o poză (am nu poate trimite o listă de URI-uri).
+    # Pe rând: următoarea poză abia după ce importul (și autotestul) precedent s-a terminat,
+    # altfel curățarea fișierelor primite o ștergea pe cea nouă (ENOENT în autotest).
+    n=0
     for id in $ids; do
       adb shell am start -a android.intent.action.SEND -t image/jpeg --eu android.intent.extra.STREAM "content://media/external/images/media/$id" -n "$PKG/.MainActivity" > /dev/null
-      sleep 6
+      n=$((n + 1))
+      for i in $(seq 1 24); do
+        sleep 5
+        [ "$(adb logcat -d | grep -c 'Cherrypic: shared import done')" -ge "$n" ] && break
+      done
     done
     for i in $(seq 1 30); do
       sleep 5
