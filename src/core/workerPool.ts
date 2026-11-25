@@ -200,6 +200,10 @@ function nativeAnalysisConcurrency(): number {
   // (thermalConcurrencyCap) îl coboară singur dacă telefonul se încălzește.
   const mem = deviceMemoryGB();
   if (mem !== undefined && mem >= 6) return Math.max(2, Math.min(6, Math.floor(cores * 0.75)));
+  // Telefoanele slabe (4 GB sau mai puțin): două poze în zbor. Fiecare poză ține un bitmap
+  // de 1280 px plus modelele ei; patru deodată umpleau memoria, iar colectarea ei încetinea
+  // tot (prima analiză, pe telefoane modeste).
+  if (mem !== undefined && mem <= 4) return 2;
   return Math.max(2, Math.min(4, Math.floor(cores / 2)));
 }
 

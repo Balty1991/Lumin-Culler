@@ -773,7 +773,9 @@ export async function analyzeNative(
       : Promise.resolve(undefined),
     // Postura — vezi AnalysisRecord.bodyCroppedAtEdge: doar cand exista fete
     // (postura n-are subiect de verificat pe un peisaj/obiect).
-    () => faces.length > 0
+    // Pe telefoanele slabe (4 GB sau mai puțin), fără postură la prima analiză: un model
+    // MediaPipe întreg per poză cu oameni, pentru un singur semnal mic (corp tăiat de margine).
+    () => faces.length > 0 && !lowMemoryDevice()
       ? timed('mPose', () => detectPoseNative(source)).then(r => hasAwkwardBodyCrop(r.people))
       : Promise.resolve(undefined)
   ] as const;
@@ -837,4 +839,9 @@ export async function analyzeNative(
  */
 let serialDecider: () => boolean = () => false;
 export function setModelsSerial(fn: () => boolean): void { serialDecider = fn; }
+/** Memoria raportată de WebView (navigator.deviceMemory, plafonată la 8): 4 GB sau mai puțin. */
+export function lowMemoryDevice(): boolean {
+  const mem = (globalThis.navigator as Navigator & { deviceMemory?: number } | undefined)?.deviceMemory;
+  return typeof mem === 'number' && mem <= 4;
+}
 function modelsSerial(): boolean { try { return serialDecider(); } catch { return false; } }
