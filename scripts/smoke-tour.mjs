@@ -5,7 +5,8 @@
 // din pagină sunt listate. Capturile ajung în ramura ci-ecrane (workflow-ul).
 // Emulatorul e în engleză, deci textele sunt cele din en.ts.
 import { _android as android } from 'playwright-core';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, openSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 
 const OUT = `${process.argv[2] || 'smoke-out'}/tur`;
 const PKG = 'com.luminculler.app';
@@ -21,6 +22,9 @@ await device.shell('wm density 300');
 await device.shell(`am force-stop ${PKG}`);
 await device.shell('logcat -c');
 await device.shell(`am start -W -n ${PKG}/.MainActivity`);
+// Jurnalul curge într-un fișier pe toată durata turului: dacă emulatorul cade, rămâne ce s-a
+// întâmplat chiar înainte (la Galerie a cedat de două ori).
+const live = spawn('adb', ['logcat', '-v', 'time'], { stdio: ['ignore', openSync(`${OUT}/live-logcat.txt`, 'w'), 'ignore'] });
 const webview = await device.webView({ pkg: PKG }, { timeout: 90_000 });
 const page = await webview.page();
 const errors = [];
@@ -53,15 +57,6 @@ await step('pas2', () => page.getByText('Start', { exact: true }).click({ timeou
 await step('motor-ai', () => page.getByText('Later', { exact: true }).click({ timeout: 8000 }));
 await step('azi', dismiss);
 await step('azi-jos', scroll);
-await step('galerie', () => nav('Gallery'));
-await step('galerie-jos', scroll);
-await step('cautare-dog', async () => { const s = page.locator('input[type=search]').first(); await s.fill('dog'); await sleep(3000); });
-await step('cautare-bicycle', async () => { const s = page.locator('input[type=search]').first(); await s.fill('bicycle'); await sleep(3000); });
-await page.locator('input[type=search]').first().fill('').catch(() => {});
-await step('poza', async () => { await page.locator('.lx-wall-wrap img').first().click({ timeout: 8000 }); });
-await step('poza-detalii', scroll);
-await page.keyboard.press('Escape').catch(() => {});
-await device.shell('input keyevent 4').catch(() => {}); await sleep(2000);
 await step('curatenie', () => nav('Clean up'));
 await step('curatenie-jos', scroll);
 await step('studio', () => nav('Studio'));
@@ -78,6 +73,17 @@ await step('pro', () => page.getByText('Cherrypic Pro', { exact: true }).first()
 await step('pro-jos', scroll);
 await step('pro-jos2', scroll);
 
+// Galeria la urmă: de două ori emulatorul din CI a cedat imediat după ea.
+await dismiss();
+await step('galerie', () => nav('Gallery'));
+await step('galerie-jos', scroll);
+await step('cautare-dog', async () => { const s = page.locator('input[type=search]').first(); await s.fill('dog'); await sleep(3000); });
+await step('cautare-bicycle', async () => { const s = page.locator('input[type=search]').first(); await s.fill('bicycle'); await sleep(3000); });
+await page.locator('input[type=search]').first().fill('').catch(() => {});
+await step('poza', async () => { await page.locator('.lx-wall-wrap img').first().click({ timeout: 8000 }); });
+await step('poza-detalii', scroll);
+await page.keyboard.press('Escape').catch(() => {});
+await device.shell('input keyevent 4').catch(() => {}); await sleep(2000);
 const log = await device.shell('logcat -d').catch(() => Buffer.from('(emulatorul nu mai răspunde)'));
 writeFileSync(`${OUT}/logcat.txt`, log);
 const txt = log.toString();
@@ -89,6 +95,12 @@ if (/FATAL EXCEPTION[\s\S]{0,3000}com\.luminculler\.app/.test(txt)) { console.lo
 if (txt.includes(`ANR in ${PKG}`)) { console.log('::error::Aplicația a înghețat (ANR) în turul ecranelor'); fail = true; }
 console.log(`── Erori din pagină în tur (${errors.length}) ──`);
 for (const e of [...new Set(errors)].slice(0, 30)) console.log(e);
+live.kill();
+try {
+  const tail = readFileSync(`${OUT}/live-logcat.txt`, 'utf8').split('\n')
+    .filter(l => /luminculler|chromium|Cherrypic|lowmemorykiller|ActivityManager: (Process|Kill)|FATAL|ANR|libc|DEBUG|Choreographer/i.test(l)).slice(-40);
+  console.log('── Ultimele rânduri din jurnal în tur ──'); for (const l of tail) console.log(l);
+} catch { /* fără jurnal */ }
 await device.close().catch(() => {});
 if (!fail) console.log('Turul ecranelor: în regulă.');
 process.exit(fail ? 1 : 0);
