@@ -54,7 +54,7 @@ Legendă: ✅ gata și verificat · 🔄 în lucru · ⏳ urmează · ⏸️ am�
 
 | # | Pas | Stare |
 | --- | --- | --- |
-| 5.1 | SigLIP2 | ⏸️ amânat: înseamnă un model nou (~400 MB), refacerea amprentelor pentru toată galeria și recalibrarea etichetelor, a calității și a căutării. Merită doar după o comparație pe telefon real |
+| 5.1 | SigLIP2 | ⏸️ măsurat, amânat (25 nov.). Workflow „Evaluare SigLIP2”, 300 de poze COCO, descriere → poză: CLIP acum EN R@1 66 / R@5 90, RO R@1 50 / R@5 82, 31 ms/poză; SigLIP2 base EN 82 / 99, RO 57 / 87, 131 ms/poză, 93 M + 282 M parametri (Apache 2.0). Câștig mare în engleză, mic în română (+7 / +5 puncte), la un model de ~4× mai lent și de ~4× mai mare, plus refacerea amprentelor și recalibrarea etichetelor, a calității, a gustului, a seriilor și a speciilor. De reluat ca model DOAR pentru căutare, descărcabil opțional, dacă oamenii caută mult în cuvinte proprii |
 | 5.2 | Căutare: toate amprentele într-o singură matrice Float32, refăcută doar când se schimbă numărul de poze | ✅ test |
 
 ## Etapa 6 — Explicații și rezumatul anului
