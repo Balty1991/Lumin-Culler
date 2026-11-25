@@ -143,8 +143,10 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
     const t = tag.toLowerCase();
     // Și când CLIP vede clar CEALALTĂ specie (de două ori mai probabilă): raportat, fetița cu
     // pisica primea „Dog” 0,9 de la ML Kit, iar regula de mai sus cerea câinele sub 5%.
-    if (t === 'cat' || t === 'kitten') return (catP < 0.05 && (dogP > catP * 3 || animalP < 0.15)) || (dogP > 0.1 && dogP > catP * 2);
-    if (t === 'dog' || t === 'puppy') return (dogP < 0.05 && (catP > dogP * 3 || animalP < 0.15)) || (catP > 0.1 && catP > dogP * 2);
+    // Pragul 0,03 e cel măsurat pe COCO pentru căutare (pisică mică lângă un copil, raportat:
+    // fetița cu pisica în frunze ieșea la „câine”).
+    if (t === 'cat' || t === 'kitten') return (catP < 0.05 && (dogP > catP * 3 || animalP < 0.15)) || (dogP >= 0.03 && dogP > catP * 2);
+    if (t === 'dog' || t === 'puppy') return (dogP < 0.05 && (catP > dogP * 3 || animalP < 0.15)) || (catP >= 0.03 && catP > dogP * 2);
     return false;
   };
   const out = (mlkit ?? []).filter(tag => !(ANIMAL_TAGS.has(tag.toLowerCase()) && animalP < 0.08) && !wrongSpecies(tag));
@@ -225,3 +227,8 @@ export function speciesMatches(ids: readonly string[], m: Float32Array, key: str
  * pisică singură 85% → 91%, iar poze fără animal tot ~0-1%. Sub 0,03 nu mai câștigă nimic.
  */
 export const SPECIES_SEARCH_AT = 0.03;
+/** CLIP vede clar ALT animal decât cel căutat (pisica, la „câine”): poza nu intră la căutare. */
+export function otherSpecies(e: ArrayLike<number>, key: string, minP = SPECIES_SEARCH_AT): boolean {
+  const top = zeroShot(e).find(r => ANIMALS.has(r.key));
+  return !!top && top.key !== key && top.p >= minP;
+}

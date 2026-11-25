@@ -51,3 +51,16 @@ describe('căutarea după specie, din amprente', () => {
     expect(speciesMatches(['a', 'b', 'c'], m, 'dog')).toEqual(['c']);
   });
 });
+
+import { otherSpecies } from './clipEngine';
+describe('pisica mică lângă un copil', () => {
+  it('scoate „Dog” pus de ML Kit când CLIP vede puțină pisică și deloc câine', () => {
+    const e = mix(vec('cat'), vec('child'), 0.41);
+    const p = Object.fromEntries(zeroShot(e).map(r => [r.key, r.p]));
+    expect(p.cat).toBeLessThan(0.1); // regula veche cerea 0,1
+    expect(p.cat).toBeGreaterThanOrEqual(0.03);
+    expect(refineTags(['Person', 'Dog'], e)).not.toContain('Dog');
+    expect(otherSpecies(e, 'dog')).toBe(true);
+    expect(otherSpecies(e, 'cat')).toBe(false);
+  });
+});
