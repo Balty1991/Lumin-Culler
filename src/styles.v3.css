@@ -432,6 +432,19 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 .fr-trust { margin: 2px 0 0; font-size: 12px; letter-spacing: .02em; color: var(--text-dim, #8a93a3); }
 .fr-hero .fr-title { font-size: 36px; line-height: 1.08; }
 .fr-hero .fr-sub { font-size: 15px; max-width: 340px; }
+/* Telefoanele obișnuite (~800 px înălțime utilă): „Începe” trebuie să se vadă fără derulare
+   (turul de pe emulator, 1080×2400: butonul rămânea sub margine). Scena mai mică, textul mai strâns. */
+@media (max-height: 880px) {
+  .fr-hero { gap: 10px; }
+  .fr-stage { height: 170px; margin: 0 auto; transform: scale(.78); transform-origin: 50% 20%; }
+  .fr-hero .fr-title { font-size: 31px; }
+  .fr-hero .fr-sub { font-size: 14px; line-height: 1.4; }
+  .fr-feats { margin: 0; gap: 6px; }
+  .fr-feats span { padding: 7px 11px; font-size: 12.5px; }
+}
+@media (max-height: 720px) {
+  .fr-stage { display: none; }
+}
 
 /* „Vezi cum merge” (ui/HowItWorks.tsx) */
 .fr-demo-link { background: none; border: none; color: var(--accent-text, var(--accent)); font-weight: 600; font-size: 14px; padding: 8px; }
