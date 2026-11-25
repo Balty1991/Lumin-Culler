@@ -219,5 +219,9 @@ export function speciesMatches(ids: readonly string[], m: Float32Array, key: str
   }
   return out;
 }
-/** Mai jos decât pragul de etichetare (0,2): la căutare, omul vrea toate pozele cu pisica. */
-export const SPECIES_SEARCH_AT = 0.12;
+/**
+ * Mai jos decât pragul de etichetare (0,2): la căutare, omul vrea toate pozele cu pisica.
+ * Măsurat pe COCO (scripts/species-eval): pisică lângă oameni 67% → 71% de la 0,12 la 0,03,
+ * pisică singură 85% → 91%, iar poze fără animal tot ~0-1%. Sub 0,03 nu mai câștigă nimic.
+ */
+export const SPECIES_SEARCH_AT = 0.03;

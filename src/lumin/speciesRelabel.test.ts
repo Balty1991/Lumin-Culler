@@ -9,3 +9,12 @@ describe('mergeSpecies', () => {
     expect(mergeSpecies(['Skin', 'Cat', 'Dog', 'Pet'], ['Cat', 'Pet'])).toEqual(['Skin', 'Pet', 'Cat']);
   });
 });
+
+import { lacksMlkitLabels } from './speciesRelabel';
+describe('lacksMlkitLabels', () => {
+  it('pozele din 3.6.1 fără etichete ML Kit (doar chei CLIP sau nimic)', () => {
+    expect(lacksMlkitLabels(undefined)).toBe(true);
+    expect(lacksMlkitLabels(['cat', 'child'])).toBe(true);
+    expect(lacksMlkitLabels(['Person', 'Smile', 'cat'])).toBe(false);
+  });
+});
