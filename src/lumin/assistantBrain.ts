@@ -25,7 +25,13 @@ export type AssistantReply =
   /** „Șterge pozele de pe WhatsApp”: duce la curățenia pe dosare (FolderClean). */
   | { kind: 'cleanFolders' }
   /** „Fă-mi un colaj cu Sofia”: pozele găsite, gata de colaj. */
-  | { kind: 'collage'; query: string; photos: PhotoView[] };
+  | { kind: 'collage'; query: string; photos: PhotoView[] }
+  /** „Când a fost ultima / prima dată la mare?”: data, plus pozele în ordinea timpului. */
+  | { kind: 'when'; query: string; at: number; first: boolean; photos: PhotoView[] }
+  /** „Câte poze am cu Ana?” */
+  | { kind: 'count'; query: string; photos: PhotoView[] }
+  /** „Cine apare cel mai des?” */
+  | { kind: 'people'; top: { name: string; count: number }[]; photos: PhotoView[] };
 
 /** Cuvinte de umplutură din întrebări: nu se caută. */
 const FILLER = new Set(('arata arati mi imi vreau sa vad vezi gaseste cauta da poze pozele poza fotografii fotografiile cu de la din pe in si unde e este sunt toate ale lui ei cele mai ' +
@@ -59,6 +65,38 @@ export function answer(input: string, photos: readonly PhotoView[], now = Date.n
   if (has(q, /\b(anul meu|rezumatul anului|my year|year in review|wrapped)\b/) || /^(anul (asta|acesta)|this year)$/.test(q)) return { kind: 'year', year: new Date(now).getFullYear() };
   if (has(q, /\b(adauga|importa|incarca|add|import|upload)\b/)) return { kind: 'add' };
   if (has(q, /\b(antrene|invata|train|teach|gustul)\w*/)) return { kind: 'train' };
+  // Întrebări, nu doar căutări (raportat: „Întreabă mai deștept”).
+  // „Cine apare cel mai des?”, „cu cine am cele mai multe poze?”
+  if (has(q, /\b(cine|who)\b/) && has(q, /\b(des|mult|multe|often|most)\b/)) {
+    const counts = new Map<string, number>();
+    for (const p of photos) for (const n of new Set(p.personNames ?? [])) counts.set(n, (counts.get(n) ?? 0) + 1);
+    const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+    const lead = top[0]?.name;
+    return { kind: 'people', top, photos: lead ? photos.filter(p => p.personNames?.includes(lead) && !p.aside).sort((a, b) => beautyScore(b) - beautyScore(a)) : [] };
+  }
+  // „Când a fost ultima dată la mare?”, „prima dată cu Ana”, „when was the last beach”
+  const whenQ = /^(cand|when)\b/.test(q) || has(q, /\b(ultima|prima) (data|oara)\b|\b(last|first) time\b/);
+  if (whenQ) {
+    const first = has(q, /\b(prima|first)\b/);
+    const subject = q.replace(/\b(cand|when|a|am|fost|fosta|ultima|prima|data|oara|last|first|time|was|were|did|i|we|the|ultimul|ultimele|facut|fac)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    if (subject) {
+      const inner = answer(subject, photos, now);
+      if (inner.kind === 'results' && inner.photos.length) {
+        const byTime = [...inner.photos].sort((a, b) => first ? photoTime(a) - photoTime(b) : photoTime(b) - photoTime(a));
+        return { kind: 'when', query: subject, at: photoTime(byTime[0]), first, photos: byTime };
+      }
+      if (inner.kind === 'none') return inner;
+    }
+  }
+  // „Câte poze am cu Ana?”: un număr, cu pozele. Fără subiect: statisticile de mai jos.
+  if (has(q, /\b(cate|cati|how many)\b/)) {
+    const subject = q.replace(/\b(cate|cati|how many|poze|pozele|fotografii|photos?|am|ai|have|i|do|with|cu|de)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    if (subject) {
+      const inner = answer(subject, photos, now);
+      if (inner.kind === 'results') return { kind: 'count', query: subject, photos: inner.photos };
+      if (inner.kind === 'none') return { kind: 'count', query: subject, photos: [] };
+    }
+  }
   if (has(q, /\b(cate|cati|statistic|how many|stats|numar)\w*/)) {
     const names = new Set<string>();
     for (const p of photos) for (const n of p.personNames ?? []) names.add(n);

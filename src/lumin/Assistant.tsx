@@ -81,8 +81,25 @@ export function Assistant({ onClose }: { onClose: () => void }) {
   const sort = (ids: string[], title: string) => { onClose(); lx().openSort(ids, title); };
 
   const photoById = new Map(photos.map(p => [p.id, p]));
+  const grid = (list: readonly { id: string; lqip?: string; edits?: unknown }[]) => {
+    const ids = list.map(p => p.id);
+    return (
+      <>
+        <div className="lx-ask-grid">
+          {(list as typeof photos).slice(0, 9).map((p, i) => (
+            <button key={p.id} onClick={() => view(ids, i)}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></button>
+          ))}
+        </div>
+        {list.length > 9 && <button className="lx-btn ghost small" onClick={() => view(ids)}>{tr('lx.ask.seeAll', { count: list.length })}</button>}
+      </>
+    );
+  };
+  const longDate = (t: number) => new Date(t).toLocaleDateString(useStore.getState().locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const renderReply = (r: AssistantReply) => {
     switch (r.kind) {
+      case 'when': return (<><p>{tr(r.first ? 'lx.ask.whenFirst' : 'lx.ask.whenLast', { date: longDate(r.at), count: r.photos.length, query: r.query })}</p>{grid(r.photos)}</>);
+      case 'count': return r.photos.length ? (<><p>{tr('lx.ask.count', { count: r.photos.length, query: r.query })}</p>{grid(r.photos)}</>) : <p>{tr('lx.ask.none', { query: r.query })}</p>;
+      case 'people': return r.top.length ? (<><p>{tr('lx.ask.people', { list: r.top.map(x => `${x.name} (${x.count})`).join(', ') })}</p>{grid(r.photos)}</>) : <p>{tr('lx.ask.peopleNone')}</p>;
       case 'results': {
         const ids = r.photos.map(p => p.id);
         return (

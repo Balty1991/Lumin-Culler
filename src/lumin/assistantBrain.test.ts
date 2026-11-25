@@ -83,3 +83,36 @@ describe('asistentul: cereri noi din auditul pe persoane', () => {
     expect(r.kind === 'results' && r.photos.map(x => x.id)).toEqual(['bon1']);
   });
 });
+
+describe('întrebări, nu doar căutări', () => {
+  const D = (s: string) => Date.parse(s);
+  const lib = [
+    p('m1', { capturedAt: D('2025-07-10'), sceneTags: ['beach', 'sea'], personNames: ['Ana'] }),
+    p('m2', { capturedAt: D('2026-08-02'), sceneTags: ['beach'], personNames: ['Ana', 'Dan'] }),
+    p('c1', { capturedAt: D('2026-09-01'), sceneTags: ['cake'], personNames: ['Ana'] }),
+    p('x1', { capturedAt: D('2026-09-05'), sceneTags: ['car'], personNames: ['Dan'] }),
+  ];
+  const now = D('2026-11-25');
+  it('„când a fost ultima dată la mare?” dă data celei mai noi poze', () => {
+    const r = answer('Când a fost ultima dată la mare?', lib, now);
+    expect(r.kind).toBe('when');
+    if (r.kind === 'when') { expect(r.first).toBe(false); expect(r.at).toBe(D('2026-08-02')); expect(r.photos[0].id).toBe('m2'); }
+  });
+  it('„prima dată la mare” dă cea mai veche', () => {
+    const r = answer('prima dată la mare', lib, now);
+    expect(r.kind === 'when' && r.first && r.at === D('2025-07-10')).toBe(true);
+  });
+  it('„câte poze am cu Ana?” dă un număr', () => {
+    const r = answer('Câte poze am cu Ana?', lib, now);
+    expect(r.kind).toBe('count');
+    if (r.kind === 'count') expect(r.photos.length).toBe(3);
+  });
+  it('„câte poze am?” rămâne statistica', () => {
+    expect(answer('câte poze am?', lib, now).kind).toBe('stats');
+  });
+  it('„cine apare cel mai des?” numără oamenii', () => {
+    const r = answer('Cine apare cel mai des?', lib, now);
+    expect(r.kind).toBe('people');
+    if (r.kind === 'people') expect(r.top[0]).toEqual({ name: 'Ana', count: 3 });
+  });
+});
