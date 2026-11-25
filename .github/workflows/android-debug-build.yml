@@ -341,12 +341,21 @@ jobs:
   smoke:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           name: smoke-apk
+      # Și o serie (trei cadre aproape la fel, ca o rafală), ca turul să arate și gruparea.
+      - name: Pozele de test, cu o serie
+        run: |
+          mkdir -p smoke-photos && cp scripts/smoke-photos/*.jpg smoke-photos/
+          convert smoke-photos/smoke-2.jpg -gravity center -crop 97%x97%+0+0 +repage -modulate 103 smoke-photos/smoke-5.jpg
+          convert smoke-photos/smoke-2.jpg -gravity northwest -crop 96%x96%+8+6 +repage -modulate 98 smoke-photos/smoke-6.jpg
+          ls -la smoke-photos
       - name: Pornește KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -360,10 +369,24 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash scripts/smoke-start.sh smoke-x86_64.apk smoke-out scripts/smoke-photos
+          script: bash scripts/smoke-start.sh smoke-x86_64.apk smoke-out smoke-photos && bash scripts/smoke-tour.sh smoke-out
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke-pornire
           path: smoke-out
           retention-days: 3
+      # Capturile turului, micșorate, în ramura ci-ecrane (suprascrisă de fiecare dată):
+      # artefactele nu se pot citi din sesiunile de lucru, ramura da.
+      - name: Capturile în ramura ci-ecrane
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          [ -d smoke-out/tur ] || exit 0
+          mkdir -p ecrane
+          for f in smoke-out/tur/*.png smoke-out/*.png; do [ -f "$f" ] && convert "$f" -resize 540x -quality 70 "ecrane/$(basename "${f%.png}").jpg"; done
+          cd ecrane
+          git init -q -b ci-ecrane
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "Capturi din turul de pe emulator, commit ${GITHUB_SHA}" > README.md
+          git add . && git commit -qm "Ecrane ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-ecrane
