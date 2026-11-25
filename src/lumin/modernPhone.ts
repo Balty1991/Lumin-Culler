@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
 import { LOCALES, t, type Locale } from '../i18n';
-import { checkForUpdate, clearSharedFiles, nativeMark, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
+import { checkForUpdate, clearSharedFiles, nativeMark, pendingSharePaths, completeUpdate, onShared, setSystemAppLocale, startUpdate, systemAppLocale, takeSharedFiles } from '../core/device';
 import { useLx } from './lxStore';
 import { onBackgroundCancel, onNativeShown, setBackgroundStopLabel, stopBackgroundAnalysis } from '../core/backgroundAnalysis';
 import { stopGalleryReader } from './galleryReader';
+import { devUnlimitedAvailable } from '../core/entitlement';
 
 /**
  * lumin/modernPhone.ts
@@ -27,9 +28,12 @@ async function importShared(runImport: RunImport): Promise<void> {
   useStore.getState().setNotice(t(locale, 'lx.share.received', { count: files.length }));
   useLx.getState().setTab('days');
   useLx.getState().setGalleryView('wall');
+  // Build-ul de test: căile, înainte ca fișierele primite să fie șterse (autotestul nativ).
+  const selfTestPaths = devUnlimitedAvailable ? await pendingSharePaths() : [];
   await runImport(files);
+  // Testul de pornire din CI (scripts/smoke-start.sh) caută aceste rânduri în logcat.
+  if (selfTestPaths.length) await (await import('./nativeSelfTest')).runNativeSelfTest(selfTestPaths, files).catch(e => nativeMark(`selftest error crash: ${String(e)}`));
   clearSharedFiles();
-  // Testul de pornire din CI (scripts/smoke-start.sh) caută acest rând în logcat.
   nativeMark(`shared import done ${files.length}`);
 }
 

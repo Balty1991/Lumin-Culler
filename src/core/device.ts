@@ -100,6 +100,11 @@ export async function takeSharedFiles(): Promise<File[]> {
     return out;
   } catch { return []; }
 }
+/** Căile fișierelor primite, cât timp nu au fost șterse (pentru autotestul din build-ul de test). */
+export async function pendingSharePaths(): Promise<string[]> {
+  if (!native()) return [];
+  try { return (await Device.pendingShares()).files.map(f => f.path); } catch { return []; }
+}
 export function clearSharedFiles(): void { if (native()) void Device.clearShares().catch(() => {}); }
 
 export async function onShared(cb: () => void): Promise<() => void> {

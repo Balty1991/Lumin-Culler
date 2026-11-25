@@ -52,8 +52,17 @@ if [ "$fail" = 0 ] && [ -n "$PHOTOS_DIR" ] && [ -d "$PHOTOS_DIR" ]; then
       grep -q "Cherrypic: shared import done" "$OUT/logcat.txt" && break
       grep -A30 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "$PKG" && break
     done
-    # Analiza continuă după import: încă 45 s în care modelele native lucrează.
-    sleep 45
+    # Autotestul nativ (lumin/nativeSelfTest.ts, doar în build-ul de test): fețe (MediaPipe),
+    # etichete (ML Kit), postură, decupare, pe fiecare poză trimisă. Până la 150 s.
+    want=$(echo $ids | wc -w)
+    for i in $(seq 1 30); do
+      adb logcat -d > "$OUT/logcat.txt"
+      [ "$(grep -c 'Cherrypic: selftest done' "$OUT/logcat.txt")" -ge "$want" ] && break
+      grep -A30 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "$PKG" && break
+      sleep 5
+    done
+    # Analiza continuă după import: încă 30 s în care modelele native lucrează.
+    sleep 30
     adb exec-out screencap -p > "$OUT/dupa-import.png" || true
     adb logcat -d > "$OUT/logcat.txt"
     if ! adb shell pidof "$PKG" > /dev/null; then echo "::error::Aplicația nu mai rulează după importul pozelor"; fail=1; fi
@@ -61,6 +70,17 @@ if [ "$fail" = 0 ] && [ -n "$PHOTOS_DIR" ] && [ -d "$PHOTOS_DIR" ]; then
       echo "::error::Aplicația a căzut la import sau la analiză:"; grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -50; fail=1
     fi
     if grep -q "Cherrypic: shared import done" "$OUT/logcat.txt"; then echo "Importul pozelor trimise s-a terminat."; else echo "::error::Importul pozelor trimise nu s-a terminat în 150 s."; fail=1; fi
+    echo "── Autotestul modelelor native ──"
+    grep -o "Cherrypic: selftest .*" "$OUT/logcat.txt" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" || true
+    if ! grep -q "Cherrypic: selftest done" "$OUT/logcat.txt"; then
+      echo "::error::Autotestul modelelor native nu s-a terminat (vezi mai sus)."; fail=1
+    fi
+    if grep -q "Cherrypic: selftest error" "$OUT/logcat.txt"; then
+      echo "::error::Un model nativ a dat eroare în autotest (fețe, etichete, postură sau decupare)."; fail=1
+    fi
+    if ! grep -qE "Cherrypic: selftest ok .*faces=[1-9]" "$OUT/logcat.txt"; then
+      echo "::error::Autotestul nu a găsit nicio față în pozele de test (MediaPipe Face Landmarker)."; fail=1
+    fi
     echo "── Etichetele ML Kit ale pozelor de test ──"
     grep -o "Cherrypic: labels: .*" "$OUT/logcat.txt" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" || echo "(nicio etichetă în jurnal)"
     echo "── Urme ale modelelor native (ultimele rânduri) ──"
