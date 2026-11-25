@@ -78,6 +78,8 @@
 # urma de stivă arată clasa: un -keep pe ea, nu înapoi pe tot pachetul.
 -keep class com.google.mediapipe.framework.** { *; }
 -keep class com.google.mediapipe.tasks.core.** { *; }
+# Variantă de control: MediaPipe întreg (dacă protobuf singur nu repară etichetarea ML Kit).
+-keep class com.google.mediapipe.** { *; }
 # Protobuf: înapoi întreg. Autotestul de pe emulator a arătat că, strâns doar la câmpurile
 # mesajelor, ML Kit Image Labeling cădea („getClass() on a null object reference”).
 -keep class com.google.protobuf.** { *; }
