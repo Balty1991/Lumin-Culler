@@ -442,7 +442,7 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
   .fr-feats { margin: 0; gap: 6px; }
   .fr-feats span { padding: 7px 11px; font-size: 12.5px; }
 }
-@media (max-height: 720px) {
+@media (max-height: 640px) {
   .fr-stage { display: none; }
 }
 

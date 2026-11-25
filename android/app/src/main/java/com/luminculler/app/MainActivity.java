@@ -216,6 +216,10 @@ public class MainActivity extends BridgeActivity {
         // Vibrații, culorile telefonului, dictare, limba aplicației, „Trimite către
         // Cherrypic”, actualizare din aplicație, Ultra HDR — vezi plugins/DevicePlugin.kt.
         registerPlugin(DevicePlugin.class);
+        // Doar copia de test din CI (tipul „smoke”, nu ajunge niciodată în magazin): pagina
+        // se poate conduce din afară (scripts/smoke-tour.mjs), ca turul ecranelor să apese
+        // butoanele ca un om. Build-ul de release rămâne fără depanare.
+        if ("smoke".equals(BuildConfig.BUILD_TYPE)) android.webkit.WebView.setWebContentsDebuggingEnabled(true);
         super.onCreate(savedInstanceState);
         // Ecran întreg (după super.onCreate, când fereastra are decorul) și pe Android 8–14 (pe 15+ e oricum impus): barele de sistem
         // devin transparente, iar --safe-top/--safe-bottom (mai jos) păstrează
