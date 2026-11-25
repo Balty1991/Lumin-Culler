@@ -2509,3 +2509,18 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-lic-text { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--font-mono, ui-monospace, monospace); }
 /* Cardul tras are stratul lui: fundalul estompat și umbra se desenează o dată, apoi doar se mută. */
 .lx-card-photo.top { will-change: transform; contain: layout paint; }
+
+/* Galerie, partea de sus (raportat: „dezordine totală”, „mai lizibil, mai profesional”).
+   Un singur rând de unelte sub filtre, cu text clar și cifre în capsule discrete; marginea
+   din dreapta se estompează ca să se vadă că rândul se derulează. */
+.lx-wall-wrap .lx-wall-tools { margin: 10px 0 4px; padding: 2px 24px 2px 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.lx-wall-wrap .lx-wall-tools .lx-chip-btn { height: 38px; min-height: 38px; padding: 0 14px; border-radius: 999px;
+  color: var(--text); font-size: 14px; font-weight: 600; letter-spacing: 0; }
+.lx-wall-wrap .lx-wall-tools .lx-chip-btn b { font-family: var(--mono); font-size: 12px; font-weight: 600; opacity: 1;
+  padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text-dim); }
+.lx-wall-wrap .lx-wall-tools .lx-chip-btn.on, .lx-wall-wrap .lx-wall-tools .lx-chip-3d { color: #1a0d14; }
+.lx-wall-wrap .lx-wall-tools .lx-chip-btn.on b, .lx-wall-wrap .lx-wall-tools .lx-chip-3d b { background: rgb(0 0 0 / .15); color: inherit; }
+.lx-wall-wrap .lx-wall-bar { margin-top: 10px; }
+.lx-wall-seg button { color: var(--text); }
+.lx-wall-seg button b { opacity: .8; }

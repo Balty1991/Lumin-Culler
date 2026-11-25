@@ -460,19 +460,11 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
       {actions}
       </div>
       {toolbar}
-      {!query.trim() && !similar && (folder ? (
+      {!query.trim() && !similar && folder && (
         <div className="lx-chips">
           <button className="lx-chip-btn on" onClick={() => setFolder(null)}>✕ {folder.emoji} {tr(`lx.folder.${folder.id}`)} <b>{list.length}</b></button>
         </div>
-      ) : (
-        <div className="lx-chips lx-folders">
-          {/* Galeria 3D la vedere, primul buton din rând (raportat: ascunsă în „⋯”, nimeni n-o găsea). */}
-          {list.length > 0 && <button className="lx-chip-btn lx-chip-3d" onClick={() => setTunnel(true)}>✨ {tr('lx.tunnel.title')}</button>}
-          {SMART_FOLDERS.filter(f => (folders.get(f.id) ?? 0) >= 3).map(f => (
-            <button key={f.id} className="lx-chip-btn" onClick={() => setFolder(f)}>{f.emoji} {tr(`lx.folder.${f.id}`)} <b>{folders.get(f.id)}</b></button>
-          ))}
-        </div>
-      ))}
+      )}
       {focused && !query.trim() && peopleIdeas.length > 0 && (
         <div className="lx-chips lx-search-ideas">
           {peopleIdeas.map(n => <button key={n} className="lx-chip-btn" onMouseDown={e => e.preventDefault()} onClick={() => { setSimilar(null); setQuery(n); }}>{n}</button>)}
@@ -525,13 +517,15 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
           </div>
         </div>
       )}
-      {plain && (issues.blinks > 0 || issues.blurry > 0 || asideCount > 0) && (
-        <div className="lx-chips">
-          {/* „Toate” nu numără capturile și documentele: le spunem unde sunt (raportat:
-              „De ce în Galerie apar 364, dar ele sunt 1615?”). */}
-          {asideCount > 0 && filter === 'all' && (
-            <button className="lx-chip-btn" onClick={() => useLx.getState().setGalleryView('aside')}>
-              {tr('lx.wall.asideHint')} <b>{asideCount}</b>
+      {/* Un singur rând, derulabil, sub filtre (raportat: „dezordine totală” cu cinci rânduri):
+          Galeria 3D, apoi problemele (neclare, ochi închiși), apoi dosarele, la final capturile.
+          „Documente” nu mai e dosar separat: e deja în „Capturi și documente”. */}
+      {plain && !folder && (
+        <div className="lx-chips lx-folders lx-wall-tools">
+          {list.length > 0 && <button className="lx-chip-btn lx-chip-3d" onClick={() => setTunnel(true)}>✨ {tr('lx.tunnel.title')}</button>}
+          {issues.blurry > 0 && (
+            <button className={filter === 'blurry' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f => f === 'blurry' ? 'all' : 'blurry'))}>
+              {tr('lx.wall.blurry')} <b>{issues.blurry}</b>
             </button>
           )}
           {issues.blinks > 0 && (
@@ -539,9 +533,14 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
               {tr('lx.wall.blinks')} <b>{issues.blinks}</b>
             </button>
           )}
-          {issues.blurry > 0 && (
-            <button className={filter === 'blurry' ? 'lx-chip-btn on' : 'lx-chip-btn'} onClick={() => withTransition(() => setFilter(f => f === 'blurry' ? 'all' : 'blurry'))}>
-              {tr('lx.wall.blurry')} <b>{issues.blurry}</b>
+          {SMART_FOLDERS.filter(f => !f.aside && (folders.get(f.id) ?? 0) >= 3).map(f => (
+            <button key={f.id} className="lx-chip-btn" onClick={() => setFolder(f)}>{f.emoji} {tr(`lx.folder.${f.id}`)} <b>{folders.get(f.id)}</b></button>
+          ))}
+          {/* „Toate” nu numără capturile și documentele: le spunem unde sunt (raportat:
+              „De ce în Galerie apar 364, dar ele sunt 1615?”). */}
+          {asideCount > 0 && filter === 'all' && (
+            <button className="lx-chip-btn" onClick={() => useLx.getState().setGalleryView('aside')}>
+              📄 {tr('lx.wall.asideHint')} <b>{asideCount}</b>
             </button>
           )}
         </div>
