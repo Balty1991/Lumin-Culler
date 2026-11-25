@@ -92,6 +92,9 @@
 # Protobuf: înapoi întreg. Autotestul de pe emulator a arătat că, strâns doar la câmpurile
 # mesajelor, ML Kit Image Labeling cădea („getClass() on a null object reference”).
 -keep class com.google.protobuf.** { *; }
+# Câmpurile mesajelor protobuf-lite (inclusiv cele din MediaPipe, ex. `platform_`) se citesc
+# după nume: fără regula asta FaceLandmarker/Pose/Segmenter cad cu „Field platform_ not found”.
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
 # Flogger (jurnalul folosit de MediaPipe): GoogleLogger.forEnclosingClass() isi cauta
 # apelantul in stiva dupa numele claselor flogger. Redenumite, Graph.<clinit> cade cu
 # „no caller found on the stack” la primul FaceLandmarker (crash-ul din testul 870).
