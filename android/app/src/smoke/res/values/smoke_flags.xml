@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copia de test din CI (scripts/smoke-tour.mjs o conduce din pagină). Nu ajunge în magazin. -->
+<resources>
+    <bool name="cp_webview_debug">true</bool>
+</resources>

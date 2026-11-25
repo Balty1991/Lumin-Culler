@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Depanarea paginii (WebView): oprită. Doar tipul de build „smoke” (src/smoke) o pornește. -->
+<resources>
+    <bool name="cp_webview_debug">false</bool>
+</resources>
