@@ -1,0 +1,27 @@
+# Comparația CLIP vs. SigLIP2 pentru căutare (scripts/siglip-eval). Nu atinge aplicația.
+name: Evaluare SigLIP2
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/**'
+    paths:
+      - 'scripts/siglip-eval/**'
+      - '.github/workflows/siglip-eval.yml'
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install --quiet "transformers>=4.50" sentence-transformers sentencepiece sacremoses protobuf pillow numpy
+      - run: python scripts/siglip-eval/eval.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siglip-eval
+          path: siglip-eval.json
+          retention-days: 7
