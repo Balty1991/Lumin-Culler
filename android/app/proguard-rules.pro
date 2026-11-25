@@ -80,6 +80,9 @@
 -keep class com.google.mediapipe.tasks.core.** { *; }
 # Variantă de control: MediaPipe întreg (dacă protobuf singur nu repară etichetarea ML Kit).
 -keep class com.google.mediapipe.** { *; }
+# Variantă de control 2: tot ML Kit întreg (dacă etichetarea tot cade pe emulator, cauza nu e R8).
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
 # Protobuf: înapoi întreg. Autotestul de pe emulator a arătat că, strâns doar la câmpurile
 # mesajelor, ML Kit Image Labeling cădea („getClass() on a null object reference”).
 -keep class com.google.protobuf.** { *; }
