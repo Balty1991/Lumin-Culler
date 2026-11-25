@@ -59,7 +59,9 @@ from sentence_transformers import SentenceTransformer
 cm = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").eval(); cp = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 t0 = time.time(); I = []
 with torch.no_grad():
-    for k in range(0, N, 32): I.append(cm.get_image_features(**cp(images=pics[k:k+32], return_tensors="pt")).numpy())
+    for k in range(0, N, 32):
+        px = cp(images=pics[k:k+32], return_tensors="pt")["pixel_values"]
+        I.append(cm.visual_projection(cm.vision_model(pixel_values=px).pooler_output).numpy())
 clip_ms = (time.time() - t0) / N * 1000
 I = norm(np.concatenate(I))
 mtxt = SentenceTransformer("sentence-transformers/clip-ViT-B-32-multilingual-v1")
