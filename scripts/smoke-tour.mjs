@@ -37,11 +37,19 @@ const step = async (name, fn) => {
   try { await fn(); await sleep(2500); await shot(name); } catch (e) { warn(`${name}: ${e.message.split('\n')[0]}`); }
 };
 const scroll = async () => { await page.mouse.wheel(0, 700); await sleep(1500); };
-const nav = label => page.getByRole('button', { name: label, exact: true }).last().click({ timeout: 8000 });
+// Foile care apar singure (descărcarea motorului AI, sfaturi): „Later” / „Not now”, dacă sunt.
+const dismiss = async () => {
+  for (const label of ['Later', 'Not now', 'Got it']) {
+    const b = page.getByRole('button', { name: label, exact: true });
+    if (await b.count().catch(() => 0)) { await b.last().click({ timeout: 3000 }).catch(() => {}); await sleep(1200); }
+  }
+};
+const nav = async label => { await dismiss(); await page.getByRole('button', { name: label, exact: true }).last().click({ timeout: 8000 }); };
 
 await shot('bun-venit');
 await step('pas2', () => page.getByText('Start', { exact: true }).click({ timeout: 8000 }));
-await step('azi', () => page.getByText('Later', { exact: true }).click({ timeout: 8000 }));
+await step('motor-ai', () => page.getByText('Later', { exact: true }).click({ timeout: 8000 }));
+await step('azi', dismiss);
 await step('azi-jos', scroll);
 await step('galerie', () => nav('Gallery'));
 await step('galerie-jos', scroll);
