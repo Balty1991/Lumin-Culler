@@ -34,8 +34,16 @@ caps_ro = []
 with torch.no_grad():
     for k in range(0, N, 32):
         b = mt_tok(caps_en[k:k+32], return_tensors="pt", padding=True, truncation=True)
-        caps_ro += mt_tok.batch_decode(mt.generate(**b, max_new_tokens=64), skip_special_tokens=True)
+        caps_ro += mt_tok.batch_decode(mt.generate(**b, max_new_tokens=64, max_length=None), skip_special_tokens=True)
 print("Exemplu:", caps_en[0], "→", caps_ro[0], flush=True)
+
+def emb(o):
+    # transformers 5 întoarce un obiect, nu un tensor, din get_*_features.
+    if torch.is_tensor(o): return o
+    for k in ("image_embeds", "text_embeds", "pooler_output"):
+        v = getattr(o, k, None)
+        if v is not None: return v
+    return o[0]
 
 def norm(x): x = np.asarray(x, dtype=np.float32); return x / np.linalg.norm(x, axis=1, keepdims=True)
 def recall(T, I):
@@ -69,7 +77,7 @@ for name in ["google/siglip2-base-patch16-224", "google/siglip2-base-patch16-256
         print("lipsește", name, e); continue
     t0 = time.time(); J = []
     with torch.no_grad():
-        for k in range(0, N, 32): J.append(sm.get_image_features(**sp(images=pics[k:k+32], return_tensors="pt")).numpy())
+        for k in range(0, N, 32): J.append(emb(sm.get_image_features(**sp(images=pics[k:k+32], return_tensors="pt"))).numpy())
     ms = (time.time() - t0) / N * 1000
     J = norm(np.concatenate(J))
     def txt(c):
@@ -77,7 +85,7 @@ for name in ["google/siglip2-base-patch16-224", "google/siglip2-base-patch16-256
         with torch.no_grad():
             for k in range(0, len(c), 64):
                 b = sp(text=[x.lower() for x in c[k:k+64]], return_tensors="pt", padding="max_length", max_length=64, truncation=True)
-                out.append(sm.get_text_features(**b).numpy())
+                out.append(emb(sm.get_text_features(**b)).numpy())
         return norm(np.concatenate(out))
     results[name] = {"en": recall(txt(caps_en), J), "ro": recall(txt(caps_ro), J), "ms/poză (CPU CI)": round(ms),
                      "parametri imagine (M)": round(sum(p.numel() for p in sm.vision_model.parameters()) / 1e6),
