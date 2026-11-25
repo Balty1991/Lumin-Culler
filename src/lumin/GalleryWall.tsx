@@ -466,6 +466,8 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
         </div>
       ) : (
         <div className="lx-chips lx-folders">
+          {/* Galeria 3D la vedere, primul buton din rând (raportat: ascunsă în „⋯”, nimeni n-o găsea). */}
+          {list.length > 0 && <button className="lx-chip-btn lx-chip-3d" onClick={() => setTunnel(true)}>✨ {tr('lx.tunnel.title')}</button>}
           {SMART_FOLDERS.filter(f => (folders.get(f.id) ?? 0) >= 3).map(f => (
             <button key={f.id} className="lx-chip-btn" onClick={() => setFolder(f)}>{f.emoji} {tr(`lx.folder.${f.id}`)} <b>{folders.get(f.id)}</b></button>
           ))}
@@ -507,13 +509,12 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
               </button>
             ))}
           </div>
-          {/* Un singur „⋯”: Galeria 3D și mărimea grilei (redesign: bara era aglomerată). Ciupitul
+          {/* „⋯”: mărimea grilei (Galeria 3D e acum un buton la vedere, sus). Ciupitul
               schimbă în continuare mărimea. */}
           <div className="lx-wall-more">
             <button className="lx-density-btn" aria-label={tr('lx.wall.more')} aria-expanded={wallMore} onClick={() => setWallMore(m => !m)}>⋯</button>
             {wallMore && (
               <div className="lx-gal-more lx-wall-menu" role="menu">
-                <button role="menuitem" disabled={list.length === 0} onClick={() => { setWallMore(false); setTunnel(true); }}>✨ {tr('lx.tunnel.open')}</button>
                 <div className="lx-wall-sizes" role="group" aria-label={tr('lx.wall.density')}>
                   {([2, 3, 4, 5] as Density[]).map(d => (
                     <button key={d} className={density === d ? 'on' : ''} onClick={e => { setDensity(d, e.currentTarget); setWallMore(false); }}>{d}</button>
