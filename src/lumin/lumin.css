@@ -1,3 +1,7 @@
+/* Fără „font boosting” (Chrome pe Android mărea singur unele texte după așezare: eticheta
+   „Cea mai bună din lună” ieșea din fundalul ei, raportat). Mărimea o hotărăsc doar
+   „Text mare” și setarea de font a telefonului. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /*
  * lumin/lumin.css — Lumin AI.
  * Un singur limbaj vizual: fundal adânc (sau „laborator” luminos), sticlă cu
@@ -2227,7 +2231,7 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
   padding: 10px 0 6px; background: rgb(14 16 24); }
 :root[data-theme="light"] .lx-enhance .lx-viewer-info > .lx-decide-actions { background: var(--surface); }
 /* Insigna „Cea mai bună din lună”: într-un singur rând, lizibilă. */
-.lx-hero-badge { display: inline-flex; width: max-content; max-width: 100%; white-space: nowrap; font-size: 10.5px; letter-spacing: .06em; color: #06070a; }
+.lx-hero-badge { display: inline-block; width: auto; max-width: 100%; white-space: normal; line-height: 1.25; font-size: 10.5px; letter-spacing: .06em; color: #06070a; }
 /* Prima carte „Alese de AI” nu mai stă lipită de marginea ecranului. */
 .lx-picks { scroll-padding-inline: 18px; }
 /* Tema deschisă: textul alb pe butonul principal (contrast AA) și plăcile Studio cu margini vizibile. */
