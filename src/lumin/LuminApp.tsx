@@ -380,6 +380,10 @@ export function LuminApp() {
       void syncPeopleAlbums().catch(() => 0);
       // Apoi restul galeriei, în fundal, de la cele mai noi spre cele vechi.
       void readWholeGallery();
+      // Și CLIP pe pozele care nu l-au primit încă (și după fiecare import). Până acum pornea
+      // doar după descărcarea motoarelor și la sfârșitul citirii galeriei: pozele noi rămâneau
+      // „fără CLIP”, deci fără frumusețe, căutare după ce se vede și corectarea speciei (raportat).
+      void import('./clipBackfill').then(m => { m.watchImportsForClip(); void m.startClipBackfill(); });
       // Lumi Cloud (doar dacă omul l-a pornit): a doua părere pe pozele rămase nesigure.
       const c = await superviseUnsure();
       if (c.decided) useStore.getState().setNotice(t(useStore.getState().locale, 'lx.cloud.auto', { decided: c.decided }));

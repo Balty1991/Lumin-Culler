@@ -53,10 +53,18 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
     // Rețeaua a fost verificată deja; prepare() nu mai are voie să refuze Wi-Fi-ul real.
     await downloadModels(true);
     if (!getModelsState().visionReady && !(await prepareClip(true))) return;
-    const todo = await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys();
+    // Lista se reface până nu mai rămâne nimic: pozele citite DUPĂ ce trecerea a pornit (citirea
+    // galeriei merge în paralel) rămâneau fără CLIP, iar cardul arăta „Gata” (raportat: „fără CLIP”
+    // la sute de poze după citirea întregii galerii). Pozele la care CLIP dă greș nu se reiau la infinit.
+    const failed = new Set<string>();
+    let total = 0;
+    for (let round = 0; round < 20; round++) {
+    const todo = (await db.analyses.filter(a => a.clipEmbedding === undefined).primaryKeys()).filter(id => !failed.has(id as string));
+    if (round > 0 && !todo.length) break;
+    total += todo.length;
     setModelsState({ phase: 'scanning', scanned: 0, toScan: todo.length });
     const bgText = (d: number) => t(useStore.getState().locale, 'lx.models.scanning', { done: d, total: todo.length });
-    if (todo.length > 0) { await holdBackgroundAnalysis(todo.length, bgText(0)); holding = true; }
+    if (todo.length > 0 && !holding) { await holdBackgroundAnalysis(todo.length, bgText(0)); holding = true; }
     for (let i = 0; i < todo.length; i += BATCH) {
       const changed = new Map<string, { sceneTags?: string[]; aiScore: number; aesthetic: number }>();
       for (const id of todo.slice(i, i + BATCH)) {
@@ -65,7 +73,7 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
         const [photo, analysis] = await Promise.all([db.photos.get(id as string), db.analyses.get(id as string)]);
         if (!photo?.mediaUri || !analysis || analysis.clipEmbedding !== undefined) continue;
         const clip = await clipAnalyze({ uri: photo.mediaUri, maxSide: 480 });
-        if (!clip) { await sleep(PAUSE_MS); continue; }
+        if (!clip) { failed.add(id as string); await sleep(PAUSE_MS); continue; }
         const tags = refineTags(analysis.sceneTags, clip.embedding);
         const next = { ...analysis, aesthetic: clip.aesthetic, clipEmbedding: clip.embedding, clipQuality: clip.quality, sceneTags: tags.length ? tags : undefined };
         const prediction = await contextEngine.predict(next, photo.genre);
@@ -88,10 +96,11 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
         }));
       }
     }
+    }
     setModelsState({ phase: getModelsState().textReady ? 'ready' : getModelsState().phase === 'scanning' ? 'idle' : getModelsState().phase });
     // O dată, după o trecere mare: omul află că poate căuta în cuvinte.
-    if (todo.length >= 50 && getModelsState().textReady) {
-      useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: todo.length }));
+    if (total >= 50 && getModelsState().textReady) {
+      useStore.getState().setNotice(t(useStore.getState().locale, 'lx.models.doneNotice', { count: total }));
     }
     await recheckSpecies();
     // Claritatea pe față: portretele cu fundal estompat nu mai sunt „neclare”; apoi plasele.
