@@ -64,3 +64,10 @@ describe('pisica mică lângă un copil', () => {
     expect(otherSpecies(e, 'cat')).toBe(false);
   });
 });
+
+describe('alt animal văzut clar', () => {
+  it('scoate „Cat” de pe poza cu vaca', () => {
+    const e = mix(vec('cow'), vec('child'), 0.6);
+    expect(refineTags(['Person', 'Cat', 'Grass'], e)).not.toContain('Cat');
+  });
+});

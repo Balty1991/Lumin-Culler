@@ -168,6 +168,11 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
   const sceneCat = pet >= 0.03 ? catOverDog(e) > 0 : null;
   const wrongSpecies = (tag: string) => {
     const t = tag.toLowerCase();
+    // CLIP vede clar ALT animal (vaca de lângă fetiță ieșea la „pisică”, raportat): pisica
+    // sau câinele lui ML Kit cad, dacă CLIP aproape nu le vede.
+    const other = ranked.find(r => ANIMALS.has(r.key));
+    if (other && other.key !== 'cat' && other.key !== 'dog' && other.p >= 0.3 && pet < 0.05
+      && ['cat', 'kitten', 'dog', 'puppy'].includes(t)) return true;
     // Frazele de scenă hotărăsc între pisică și câine, când CLIP vede un animal de companie.
     if (sceneCat !== null && (t === 'cat' || t === 'kitten')) return !sceneCat;
     if (sceneCat !== null && (t === 'dog' || t === 'puppy')) return sceneCat;
