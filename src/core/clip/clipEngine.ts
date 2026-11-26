@@ -41,7 +41,7 @@ function half(h: number): number {
 }
 
 const DIM = 512;
-let tables: { keys: string[]; text: Float32Array; qkeys: string[]; q: Float32Array } | null = null;
+let tables: { keys: string[]; text: Float32Array; qkeys: string[]; q: Float32Array; cat: Float32Array; dog: Float32Array } | null = null;
 function halves(s: string): Float32Array {
   const raw = b64(s);
   const u16 = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
@@ -51,7 +51,7 @@ function halves(s: string): Float32Array {
 }
 function load() {
   if (tables) return tables;
-  tables = { keys: data.keys, text: halves(data.text), qkeys: data.qkeys, q: halves(data.q) };
+  tables = { keys: data.keys, text: halves(data.text), qkeys: data.qkeys, q: halves(data.q), cat: halves(data.catScene), dog: halves(data.dogScene) };
   return tables;
 }
 
@@ -102,6 +102,31 @@ export function zeroShot(e: ArrayLike<number>): { key: string; p: number }[] {
 }
 
 /**
+ * Pisică sau câine, din fraze de scenă („a child with a cat”, „a kid petting a dog”…), nu din
+ * „a photo of a cat/dog”: lângă oameni, pisica alb-negru ieșea câine (raportat, la ML Kit și la
+ * CLIP deopotrivă). Măsurat pe COCO (scripts/species-eval/catdog.py), cu înclinarea 0,002:
+ * oameni+pisică 100% (față de 86%), oameni+câine 95% (97%), pisică 98%, câine 94%.
+ * > 0 = pisică. Are sens doar când e un animal în poză (vezi petMass).
+ */
+export function catOverDog(e: ArrayLike<number>): number {
+  const t = load();
+  let c = 0, d = 0;
+  for (let i = 0; i < DIM; i++) { c += e[i] * t.cat[i]; d += e[i] * t.dog[i]; }
+  return c - d + 0.002;
+}
+/** Cât de mult vede CLIP un animal de companie (pisică + câine), din etichetele lui. */
+function petMass(ranked: readonly { key: string; p: number }[]): number {
+  return ranked.reduce((a, r) => a + (r.key === 'cat' || r.key === 'dog' ? r.p : 0), 0);
+}
+/** Specia văzută: pisică/câine din frazele de scenă, celelalte animale din etichetele CLIP. */
+function seenSpecies(e: ArrayLike<number>, ranked: readonly { key: string; p: number }[], minP: number): string | null {
+  const top = ranked.find(r => ANIMALS.has(r.key));
+  if (!top) return null;
+  if ((top.key === 'cat' || top.key === 'dog') && petMass(ranked) >= minP) return catOverDog(e) > 0 ? 'cat' : 'dog';
+  return top.p >= minP ? top.key : null;
+}
+
+/**
  * Ce a învățat modelul de gust personal, în cuvinte: direcția învățată (w) comparată cu
  * descrierile CLIP ale etichetelor. Pozitive = ce păstrează omul, negative = ce scoate.
  * Cheile cu „-” sunt doar repere și nu se spun.
@@ -139,8 +164,13 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
   const catP = pOf('cat'), dogP = pOf('dog');
   // Pisică sau câine: ML Kit le confundă (raportat: „poze cu câini” arăta pisici, iar o
   // pătură moale dădea „pisică”). Specia rămâne doar dacă CLIP n-o vede clar pe cealaltă.
+  const pet = petMass(ranked);
+  const sceneCat = pet >= 0.03 ? catOverDog(e) > 0 : null;
   const wrongSpecies = (tag: string) => {
     const t = tag.toLowerCase();
+    // Frazele de scenă hotărăsc între pisică și câine, când CLIP vede un animal de companie.
+    if (sceneCat !== null && (t === 'cat' || t === 'kitten')) return !sceneCat;
+    if (sceneCat !== null && (t === 'dog' || t === 'puppy')) return sceneCat;
     // Și când CLIP vede clar CEALALTĂ specie (de două ori mai probabilă): raportat, fetița cu
     // pisica primea „Dog” 0,9 de la ML Kit, iar regula de mai sus cerea câinele sub 5%.
     // Pragul 0,03 e cel măsurat pe COCO pentru căutare (pisică mică lângă un copil, raportat:
@@ -153,6 +183,8 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
   const have = new Set(out.map(tag => tag.toLowerCase()));
   for (const r of ranked.slice(0, 2)) {
     if (r.p < (STRICT.has(r.key) ? STRICT_AT : ADD_AT) || r.key.startsWith('-') || have.has(r.key)) continue;
+    // Pisica/câinele CLIP doar dacă frazele de scenă sunt de acord (altfel „Dog” și „cat” deodată).
+    if (sceneCat !== null && ((r.key === 'cat' && !sceneCat) || (r.key === 'dog' && sceneCat))) continue;
     out.push(r.key);
     have.add(r.key);
   }
@@ -160,7 +192,7 @@ export function refineTags(mlkit: readonly string[] | undefined, e: ArrayLike<nu
   // pragul lui (raportat: după pragul 0,9, „pisică” nu mai găsea nicio pisică). Doar
   // animalul cel mai probabil, și doar dacă nu există deja o specie în etichete.
   const top = ranked.find(r => ANIMALS.has(r.key));
-  if (top && top.p >= SPECIES_ADD_AT && !out.some(t => SPECIES_TAGS.has(t.toLowerCase()))) out.push(top.key);
+  if (top && top.p >= SPECIES_ADD_AT && !out.some(t => SPECIES_TAGS.has(t.toLowerCase()))) out.push(seenSpecies(e, ranked, 0) ?? top.key);
   return out;
 }
 
@@ -215,9 +247,8 @@ export async function clipAnalyze(source: NativeImageSource): Promise<ClipResult
 export function speciesMatches(ids: readonly string[], m: Float32Array, key: string, minP = SPECIES_SEARCH_AT): string[] {
   const out: string[] = [];
   for (let i = 0; i < ids.length; i++) {
-    const ranked = zeroShot(m.subarray(i * DIM, (i + 1) * DIM));
-    const top = ranked.find(r => ANIMALS.has(r.key));
-    if (top && top.key === key && top.p >= minP) out.push(ids[i]);
+    const e = m.subarray(i * DIM, (i + 1) * DIM);
+    if (seenSpecies(e, zeroShot(e), minP) === key) out.push(ids[i]);
   }
   return out;
 }
@@ -229,6 +260,6 @@ export function speciesMatches(ids: readonly string[], m: Float32Array, key: str
 export const SPECIES_SEARCH_AT = 0.03;
 /** CLIP vede clar ALT animal decât cel căutat (pisica, la „câine”): poza nu intră la căutare. */
 export function otherSpecies(e: ArrayLike<number>, key: string, minP = SPECIES_SEARCH_AT): boolean {
-  const top = zeroShot(e).find(r => ANIMALS.has(r.key));
-  return !!top && top.key !== key && top.p >= minP;
+  const seen = seenSpecies(e, zeroShot(e), minP);
+  return seen !== null && seen !== key;
 }

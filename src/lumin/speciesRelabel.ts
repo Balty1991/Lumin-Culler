@@ -11,7 +11,7 @@ import { animalMass, refineTags, SPECIES_SEARCH_AT } from '../core/clip/clipEngi
 import { waitForUserIdle } from '../core/userIdle';
 import { useStore } from '../state/store';
 
-const DONE_KEY = 'cherrypic.speciesRelabel.v7';
+const DONE_KEY = 'cherrypic.speciesRelabel.v8';
 const SPECIES = /^(dog|cat|bird|horse|rabbit|hamster|cow|sheep|goat|duck|chicken|fish|bear|puppy|kitten)$/i;
 
 /** Etichetele vechi fără specii, plus speciile sigure din etichetarea nouă. */

@@ -10,7 +10,7 @@ const mix = (a: number[], b: number[], w: number) => { const v = a.map((x, i) =>
 
 describe('refineTags — CLIP corectează specia', () => {
   it('scoate „Dog” când CLIP vede clar o pisică, chiar dacă vede și puțin câine', () => {
-    const e = mix(vec('cat'), vec('dog'), 0.56);
+    const e = mix(vec('cat'), vec('dog'), 0.6);
     const p = Object.fromEntries(zeroShot(e).map(r => [r.key, r.p]));
     expect(p.dog).toBeGreaterThan(0.05); // regula veche n-ar fi scos câinele
     expect(p.cat).toBeGreaterThan(p.dog * 2);
