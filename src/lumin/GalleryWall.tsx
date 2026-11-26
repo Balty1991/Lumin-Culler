@@ -29,7 +29,9 @@ import { cloudAvailable, cloudConcepts, cloudEnabled, cloudSearchText, readVerdi
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useTr } from './context';
 import { Thumb } from './Thumb';
-import { isLabelQuery, isTextOnlyMatch, searchPhotos } from './textSearch';
+import { isLabelQuery, isTextOnlyMatch, matchReason, searchPhotos } from './textSearch';
+import { devUnlimitedAvailable } from '../core/entitlement';
+import { catOverDog, zeroShot } from '../core/clip/clipEngine';
 import { clipSearch } from '../core/clip/clipSearch';
 import { db } from '../core/db';
 import { findSimilarPhotos } from '../core/similarPhotos';
@@ -480,6 +482,7 @@ export function GalleryWall({ toolbar, actions }: { toolbar?: ReactNode; /** But
           )}
         </p>
       )}
+      {query.trim() && devUnlimitedAvailable && list.length > 0 && <SearchDiag list={list} query={query} />}
       {query.trim() && visualCount.current > 0 && (
         <p className="lx-hint">👁 {tr('lx.search.visual', { count: visualCount.current })}</p>
       )}
@@ -1087,4 +1090,27 @@ function SelectionBar() {
       {sheet === 'reel' && chosen.length > 0 && <FilmCreator startId={chosen[0].id} initialIds={chosen.map(p => p.id)} initialTransition="fade" preset="reel" onClose={() => { setSheet(null); clear(); }} />}
     </>
   );
+}
+
+/**
+ * Doar în APK-ul de test (niciodată în magazin): de ce apare fiecare poză la căutare —
+ * câmpul și cuvântul găsit, plus ce vede CLIP (pisică, câine, frazele de scenă).
+ */
+function SearchDiag({ list, query }: { list: readonly PhotoView[]; query: string }) {
+  const [rows, setRows] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(list.slice(0, 8).map(async (p, k) => {
+      const a = await db.analyses.get(p.id).catch(() => undefined);
+      const e = a?.clipEmbedding;
+      let clip = 'fără CLIP';
+      if (e?.length === 512) {
+        const z = Object.fromEntries(zeroShot(e).map(r => [r.key, r.p]));
+        clip = `pis ${z.cat.toFixed(2)} câi ${z.dog.toFixed(2)} scenă ${catOverDog(e) > 0 ? '+' : ''}${(catOverDog(e) * 100).toFixed(1)}`;
+      }
+      return `${k + 1}. ${matchReason(p, query) ?? 'după cum arată'} · ${clip} · [${(p.sceneTags ?? []).slice(0, 6).join(',')}]`;
+    })).then(r => { if (alive) setRows(r); });
+    return () => { alive = false; };
+  }, [list, query]);
+  return <div className="lx-hint" style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>🔧 {rows.join('\n')}</div>;
 }
