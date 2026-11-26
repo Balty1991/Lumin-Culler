@@ -35,7 +35,10 @@ export async function startClipBackfill(anyNetwork = dataMode() !== 'wifi'): Pro
   if (dataMode() === null) { await refreshModels().catch(() => undefined); if (!getModelsState().visionReady) return; }
   running = true;
   try {
-    const allow = anyNetwork || await syncDownloadGate();
+    // Motoarele deja pe telefon: analiza nu descarcă nimic, deci merge și pe date mobile
+    // (altfel, pornită acum la fiecare deschidere, ar fi arătat „aștept Wi-Fi” degeaba).
+    const ready = await (await import('./engines')).enginesReadyForGallery().catch(() => false);
+    const allow = ready || anyNetwork || await syncDownloadGate();
     if (!allow) {
       setModelsState({ phase: 'metered', error: undefined });
       return;
