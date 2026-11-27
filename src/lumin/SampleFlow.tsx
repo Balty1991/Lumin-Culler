@@ -15,6 +15,7 @@ import { translateSceneTag } from '../core/sceneTagLabels';
 import { useEngines } from './engines';
 import { useModelsState } from './aiModels';
 import { recordPair } from '../core/learning/pairs';
+import { WhoIsThis } from './WhoIsThis';
 
 /**
  * lumin/SampleFlow.tsx
@@ -255,6 +256,9 @@ export function WorkModeOverlay() {
           </div>
         )}
         {!finished && !preparing && live.real.length >= 12 && <TastePairs pool={live.real} />}
+        {/* „Cine e ea?”: fața văzută cel mai des, numită dintr-un cuvânt. De aici totul devine
+            personal: „Am păstrat-o: e Angi…”, căutarea „Angi la mare”. Pe Azi era jos, nevăzut. */}
+        {finished && <div className="lx-work-who"><WhoIsThis /></div>}
         {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
         {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
         {finished && guessIds.length >= 6 && (
