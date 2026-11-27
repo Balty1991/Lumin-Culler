@@ -2543,6 +2543,8 @@ export const ro = {
   "lx.work.pickDone": "Mulțumesc! Am învățat din {count} alegeri.",
   "lx.work.pickLeft": "Prima poză",
   "lx.work.pickRight": "A doua poză",
+  "lx.work.guess": "Te-am ghicit? Verifică {count} alegeri de-ale mele",
+  "lx.work.guessTitle": "Te-am ghicit?",
   "lx.enhance.stylesTitle": "Sau alege un stil",
   "lx.enhance.resetAll": "Resetează",
   "lx.enhance.shareBA": "Trimite înainte/după",

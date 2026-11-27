@@ -180,6 +180,17 @@ export function WorkModeOverlay() {
       best: [...(withPeople.length >= 2 ? withPeople : kept)].sort((a, b) => b.aiScore - a.aiScore).slice(0, 4)
     };
   }, [photos, open]); // eslint-disable-line react-hooks/exhaustive-deps -- base se schimbă odată cu open
+  // „Te-am ghicit?”: la final, 12 alegeri ale AI-ului din prima citire, jumătate păstrate,
+  // jumătate scoase, puse pe rând. Omul confirmă sau corectează cu un deget; fiecare răspuns
+  // intră în „copia ta” (twin.ts), deci procentul „aleg ca tine” apare din prima zi. Scopul
+  // aplicației e un AI care alege ca omul, nu un raport: asta e dovada, chiar de la început.
+  const guessIds = useMemo(() => {
+    const keep = live.real.filter(p => p.status === 'selected').sort((a, b) => b.aiScore - a.aiScore).slice(0, 6);
+    const drop = live.real.filter(p => p.status === 'rejected').sort((a, b) => a.aiScore - b.aiScore).slice(0, 6);
+    const out: string[] = [];
+    for (let i = 0; i < 6; i++) { if (keep[i]) out.push(keep[i].id); if (drop[i]) out.push(drop[i].id); }
+    return out;
+  }, [live.real]);
   // Ultimele poze citite, ca „orbită” în jurul inelului.
   // Pozele adevărate (nu capturile și documentele), cele mai noi citite.
   const orbit = useMemo(() => {
@@ -252,7 +263,12 @@ export function WorkModeOverlay() {
         {!finished && !preparing && live.real.length >= 12 && <TastePairs pool={live.real} />}
         {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
         {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
-        <button className={finished ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={close}>
+        {finished && guessIds.length >= 6 && (
+          <button className="lx-btn primary wide lx-work-guess" onClick={() => { close(); useLx.getState().openSort(guessIds, tr('lx.work.guessTitle'), true); }}>
+            {tr('lx.work.guess', { count: guessIds.length })}
+          </button>
+        )}
+        <button className={finished && guessIds.length < 6 ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={close}>
           {finished ? tr('lx.work.see') : tr('lx.work.useApp')}
         </button>
       </div>
