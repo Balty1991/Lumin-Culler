@@ -24,6 +24,7 @@ import { openBatterySettings, readBatteryRestriction } from '../core/backgroundA
 import { continueOnLowBattery, continueWithoutTraining, readerStarted, readerStopped, resumeGalleryReader, stopGalleryReader } from './galleryReader';
 import { Thumb } from './Thumb';
 import { readTwin } from './twin';
+import { AutonomyOfferCard } from './TwinParts';
 import { plural } from '../i18n';
 import { dayLabel, daySummary } from './format';
 import { buildCoverage, useGalleryMonths } from './coverage';
@@ -216,6 +217,7 @@ export function TodayScreen() {
       </section>}
 
       <TrialEndCard />
+      {!sortingActive && !focusSample && <AutonomyOfferCard />}
       {/* Redesign (video 13 nov.: 6–7 carduri care spuneau același lucru): câte unul, pe rând.
           Raportul de dimineață doar dimineața și nu peste rezultatul citirii. */}
       {!sortingActive && !focusSample && !readerResult && new Date().getHours() < 12 && <MorningReportCard />}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { autonomyOfferFor, readOfferSnooze, snoozeOffer } from './autonomyOffer';
 import { useStore } from '../state/store';
 import { useTr } from './context';
 import { Orb } from './Orb';
@@ -66,6 +67,45 @@ export function AutonomyPicker() {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Autonomia câștigată, pe Azi: când copia te nimerește des și sigur, îți
+ * propune pasul următor. „Mai târziu” o amână 7 zile; la „tot” nu mai apare.
+ */
+export function AutonomyOfferCard() {
+  const tr = useTr();
+  const premiumLocked = useStore(s => s.premiumLocked);
+  const [hidden, setHidden] = useState(false);
+  const offer = useMemo(() => {
+    const twin = readTwin();
+    return autonomyOfferFor({
+      percent: twin.percent, decisions: twin.decisions, safe: readSafety().safe,
+      autonomy: readAutonomy(), snoozedUntil: readOfferSnooze(), now: Date.now(),
+    });
+  }, []);
+  if (!offer || hidden) return null;
+  const accept = () => {
+    const st = useStore.getState();
+    // „Decid tot” e Pro: fără abonament se deschide ecranul Pro și cardul rămâne.
+    if (offer.pro && st.premiumLocked && st.gatePremium('acceptAll')) return;
+    writeAutonomy(offer.to);
+    useStore.setState({ notice: tr(`lx.twin.auto.${offer.to}.sub`) });
+    setHidden(true);
+  };
+  return (
+    <section className="lx-card lx-auto-result" role="status">
+      <span className="lx-eyebrow">{tr('lx.twin.offer.eyebrow')}</span>
+      <b>{tr(`lx.twin.offer.${offer.to}`, { percent: offer.percent })}</b>
+      {offer.pro && <span>{tr('lx.twin.offer.allSub')}</span>}
+      <div className="lx-decide-actions">
+        <button className="lx-btn primary" onClick={accept}>
+          {tr('lx.twin.offer.yes')}{offer.pro && premiumLocked && <b className="lx-pro">PRO</b>}
+        </button>
+        <button className="lx-btn ghost" onClick={() => { snoozeOffer(); setHidden(true); }}>{tr('lx.twin.offer.later')}</button>
+      </div>
+    </section>
   );
 }
 
