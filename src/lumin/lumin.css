@@ -2528,3 +2528,36 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-wall-wrap .lx-wall-bar { margin-top: 10px; }
 .lx-wall-seg button { color: var(--text); }
 .lx-wall-seg button b { opacity: .8; }
+
+/* „Prima privire” vie (SampleFlow, WorkModeOverlay): în inel, ultima poză citită, cu o linie de
+   scanare; sub titlu, ce a văzut AI-ul în ea; apoi descoperirile care cresc; la final, cele mai
+   bune poze ale omului, una după alta. */
+.lx-work-eye { position: absolute; inset: 16px; border-radius: 50%; overflow: hidden; z-index: 1; animation: lx-work-in .45s ease-out both;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .12), 0 0 40px rgb(var(--accent-rgb, 255 59 107) / .35); }
+.lx-work-eye .lx-thumb, .lx-work-eye img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-work-scan { position: absolute; left: 0; right: 0; height: 38%; top: -40%;
+  background: linear-gradient(180deg, transparent, rgb(125 211 252 / .0) 20%, rgb(125 211 252 / .35) 85%, rgb(255 255 255 / .9) 100%);
+  mix-blend-mode: screen; animation: lx-work-scan 1.6s cubic-bezier(.5, 0, .5, 1) infinite; }
+.lx-work-pct { position: relative; z-index: 2; }
+.lx-work-pct.over { position: absolute; bottom: 6px; font-size: 20px !important; padding: 3px 12px; border-radius: 999px;
+  background: rgb(7 6 12 / .72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.lx-work-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 30px; margin-top: 2px; }
+.lx-work-chips span { padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: #fff;
+  background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .14); animation: lx-work-in .35s ease-out both; }
+.lx-work-chips span:nth-child(2) { animation-delay: .08s; } .lx-work-chips span:nth-child(3) { animation-delay: .16s; }
+.lx-work-chips span:nth-child(4) { animation-delay: .24s; } .lx-work-chips span:nth-child(5) { animation-delay: .32s; }
+.lx-work-found { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; margin: 8px 0 4px; }
+.lx-work-found span { display: flex; flex-direction: column; gap: 2px; padding: 10px 4px; border-radius: 16px; font-size: 11.5px; color: rgb(255 255 255 / .7);
+  background: rgb(255 255 255 / .05); border: 1px solid rgb(255 255 255 / .09); }
+.lx-work-found b { font-size: 22px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.lx-work-best { width: 100%; display: flex; flex-direction: column; gap: 8px; margin: 6px 0 8px; }
+.lx-work-best small { font-size: 13px; font-weight: 700; color: rgb(255 255 255 / .85); }
+.lx-work-best > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.lx-work-best i { --i: 0; aspect-ratio: 1; border-radius: 14px; overflow: hidden; display: block;
+  box-shadow: 0 10px 24px -10px rgb(0 0 0 / .8), 0 0 0 1px rgb(255 255 255 / .14); animation: lx-work-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: calc(var(--i) * .12s); }
+.lx-work-best i .lx-thumb, .lx-work-best i img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes lx-work-scan { from { top: -40%; } to { top: 100%; } }
+@keyframes lx-work-in { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes lx-work-pop { from { opacity: 0; transform: scale(.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lx-work-scan { display: none; } .lx-work-eye, .lx-work-chips span, .lx-work-best i { animation: none; } }
+@media (max-height: 720px) { .lx-work-ring { margin: 40px 0 56px; width: 190px; height: 190px; } .lx-work-found b { font-size: 18px; } }

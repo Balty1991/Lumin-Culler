@@ -11,6 +11,7 @@ import { seriesExtras } from './LumiFeed';
 import { EnhanceSheet } from './Enhance';
 import { startFullRead, storedSampleResult } from './galleryReader';
 import { useLxPhotos } from './useLxPhotos';
+import { translateSceneTag } from '../core/sceneTagLabels';
 
 /**
  * lumin/SampleFlow.tsx
@@ -148,6 +149,27 @@ export function WorkModeOverlay() {
     }
     if (!reader && started.current) setFinished(true);
   }, [open, reader]);
+  // Ce s-a citit de când e deschis ecranul: scanerul arată ultima poză, cu ce a văzut AI-ul
+  // în ea, iar descoperirile (fețe, serii, neclare, ochi închiși) cresc pe loc. Primele minute
+  // decid dacă omul rămâne: să vadă AI-ul lucrând pe pozele LUI, nu doar un procent.
+  const locale = useStore(s => s.locale);
+  const base = useRef<Set<string> | null>(null);
+  if (open && !base.current) base.current = new Set(photos.map(p => p.id));
+  if (!open && base.current) base.current = null;
+  const live = useMemo(() => {
+    const fresh = base.current ? photos.filter(p => !base.current!.has(p.id)) : [];
+    const real = fresh.filter(p => !p.aside);
+    const kept = real.filter(p => p.status === 'selected');
+    const withPeople = kept.filter(p => p.faceCount > 0);
+    return {
+      latest: real[real.length - 1] ?? fresh[fresh.length - 1],
+      faces: real.reduce((a, p) => a + (p.faceCount || 0), 0),
+      series: seriesExtras(real).extras.length,
+      blurry: selectBlurry(real).length,
+      blinks: selectBlinks(real).length,
+      best: [...(withPeople.length >= 2 ? withPeople : kept)].sort((a, b) => b.aiScore - a.aiScore).slice(0, 4)
+    };
+  }, [photos, open]); // eslint-disable-line react-hooks/exhaustive-deps -- base se schimbă odată cu open
   // Ultimele poze citite, ca „orbită” în jurul inelului.
   // Pozele adevărate (nu capturile și documentele), cele mai noi citite.
   const orbit = useMemo(() => {
@@ -184,10 +206,39 @@ export function WorkModeOverlay() {
               <span key={p.id} style={{ ['--i' as string]: `${i}` }}><i><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></i></span>
             ))}
           </div>
-          <b>{pct}%</b>
+          {live.latest && !finished && (
+            <div className="lx-work-eye" key={live.latest.id} aria-hidden="true">
+              <Thumb id={live.latest.id} lqip={live.latest.lqip} edits={live.latest.edits} />
+              <i className="lx-work-scan" />
+            </div>
+          )}
+          <b className={live.latest && !finished ? 'lx-work-pct over' : 'lx-work-pct'}>{pct}%</b>
         </div>
         <h2>{finished ? tr('lx.work.done') : tr(forSample ? 'lx.sample.eyebrow' : 'lx.work.title')}</h2>
         <p>{finished ? tr(forSample ? 'lx.sample.doneSub' : 'lx.work.doneSub') : total ? tr('lx.work.count', { done, total }) : tr('lx.work.starting')}</p>
+        {live.latest && !finished && (
+          <div className="lx-work-chips" key={live.latest.id} aria-live="polite">
+            {live.latest.faceCount > 0 && <span>👤 {tr('lx.work.chip.faces', { count: live.latest.faceCount })}</span>}
+            {live.latest.bestSmile >= 0.5 && <span>😊 {tr('lx.work.chip.smile')}</span>}
+            {live.latest.faceCount > 0 && !live.latest.allEyesOpen && <span>😑 {tr('lx.work.chip.eyes')}</span>}
+            {(live.latest.sceneTags ?? []).filter(t => !/^(fun|leisure|event|skin|flesh)$/i.test(t)).slice(0, 2).map(t => <span key={t}>{translateSceneTag(t, locale)}</span>)}
+            {live.latest.aiScore > 0 && <span>★ {Math.round(live.latest.aiScore)}</span>}
+          </div>
+        )}
+        {(live.faces + live.series + live.blurry + live.blinks > 0 || finished) && (
+          <div className="lx-work-found">
+            <span><b>{live.faces}</b>{tr('lx.work.found.faces')}</span>
+            <span><b>{live.series}</b>{tr('lx.work.found.series')}</span>
+            <span><b>{live.blurry}</b>{tr('lx.work.found.blurry')}</span>
+            <span><b>{live.blinks}</b>{tr('lx.work.found.blinks')}</span>
+          </div>
+        )}
+        {finished && live.best.length > 0 && (
+          <div className="lx-work-best">
+            <small>{tr('lx.work.best')}</small>
+            <div>{live.best.map((p, i) => <i key={p.id} style={{ ['--i' as string]: `${i}` }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></i>)}</div>
+          </div>
+        )}
         {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
         {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
         <button className={finished ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={close}>
