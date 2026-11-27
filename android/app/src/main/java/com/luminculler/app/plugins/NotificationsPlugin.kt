@@ -165,6 +165,22 @@ class NotificationsPlugin : Plugin() {
         call.resolve()
     }
 
+    /** Mesajul de seară al copiei, din datele zilei — vezi DailyDigestReceiver.setAssistant. */
+    @PluginMethod
+    fun setDailyAssistant(call: PluginCall) {
+        runCatching {
+            DailyDigestReceiver.setAssistant(
+                context,
+                call.getString("day") ?: "",
+                call.getString("title") ?: "",
+                call.getString("body") ?: "",
+                call.getString("action") ?: DailyDigestReceiver.ACTION_TODAY,
+                call.getInt("known") ?: 0
+            )
+        }
+        call.resolve()
+    }
+
     /**
      * „Acum un an” dimineața: textele (în limba aplicației) și poza aleasă
      * pentru fiecare din zilele următoare ({"MM-DD": {uri, years}}).

@@ -17,7 +17,10 @@ import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * „Ziua de azi”: seara, dacă azi s-au făcut poze, o notificare care spune câte
@@ -32,6 +35,10 @@ import java.util.Calendar
  * deranjează. Textele vin din JS, în limba aplicației (scheduleDailyDigest).
  * Programarea se reface la fiecare pornire a aplicației, deci nu e nevoie de
  * BOOT_COMPLETED.
+ *
+ * Când aplicația a văzut deja ziua, vorbește copia: „Azi am sortat 23 de poze
+ * ca tine. Pe 19 sunt sigur — te întreb doar de 4.” (setAssistant), iar
+ * atingerea duce la pozele de ales.
  */
 class DailyDigestReceiver : BroadcastReceiver() {
 
@@ -76,6 +83,23 @@ class DailyDigestReceiver : BroadcastReceiver() {
             val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             alarms.setInexactRepeating(AlarmManager.RTC_WAKEUP, next.timeInMillis, AlarmManager.INTERVAL_DAY, alarmIntent(context))
         }
+
+        /**
+         * Mesajul copiei pentru ziua `day` („2026-11-27”), compus în JS din datele
+         * zilei (lumin/dailyAssistant.ts). Titlu gol = azi n-a fost nimic nou.
+         * `known` = pozele de azi deja văzute de aplicație.
+         */
+        fun setAssistant(context: Context, day: String, title: String, body: String, action: String, known: Int) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString("ai_day", day)
+                .putString("ai_title", title)
+                .putString("ai_body", body)
+                .putString("ai_action", action)
+                .putInt("ai_known", known)
+                .apply()
+        }
+
+        private fun todayKey(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         fun cancel(context: Context) {
             val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -131,21 +155,37 @@ class DailyDigestReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val count = photosToday(context)
-        if (count < MIN_PHOTOS) return
+        // Aplicația a văzut ziua de azi: vorbește copia, cu cifrele ei. Fără nimic de spus
+        // tace, afară de cazul în care s-au mai făcut destule poze pe care nu le-a văzut.
+        val aiToday = prefs.getString("ai_day", null) == todayKey()
+        val aiTitle = if (aiToday) prefs.getString("ai_title", null)?.takeIf { it.isNotBlank() } else null
+        if (aiTitle == null) {
+            if (count < MIN_PHOTOS) return
+            if (aiToday && count - prefs.getInt("ai_known", 0) < MIN_PHOTOS) return
+        }
         val enabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
         val permitted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         if (!enabled || !permitted) return
 
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val title = (prefs.getString("title", null) ?: "{n} photos today").replace("{n}", count.toString())
-        val body = (prefs.getString("body", null) ?: "Tap and the AI picks the best ones.").replace("{n}", count.toString())
+        val title = aiTitle ?: (prefs.getString("title", null) ?: "{n} photos today").replace("{n}", count.toString())
+        val body = if (aiTitle != null) {
+            prefs.getString("ai_body", null) ?: ""
+        } else {
+            (prefs.getString("body", null) ?: "Tap and the AI picks the best ones.").replace("{n}", count.toString())
+        }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, prefs.getString("channel", null) ?: "Today", NotificationManager.IMPORTANCE_DEFAULT)
         )
-        val open = LuminWidgetProvider.launch(context, ACTION_TODAY, REQUEST_CODE)
+        val action = if (aiTitle != null) {
+            prefs.getString("ai_action", null)?.takeIf { it.isNotBlank() } ?: ACTION_TODAY
+        } else {
+            ACTION_TODAY
+        }
+        val open = LuminWidgetProvider.launch(context, action, REQUEST_CODE)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setContentTitle(title)

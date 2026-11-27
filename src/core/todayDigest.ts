@@ -47,6 +47,7 @@ export function dayStats(photos: readonly DayPhoto[], now: number = Date.now()):
 interface DigestPluginApi {
   scheduleDailyDigest(options: { hour: number; minute: number; title: string; body: string; channelName: string; shareLabel?: string; dayLabel?: string }): Promise<void>;
   cancelDailyDigest(): Promise<void>;
+  setDailyAssistant(options: { day: string; title: string; body: string; action: string; known: number }): Promise<void>;
   scheduleMorningMemory(options: { hour: number; minute: number; texts: Record<string, string>; picks: Record<string, { uri: string; years: number }> }): Promise<void>;
   consumeLaunchAction(): Promise<{ action?: string }>;
   updateWidget(options: { title: string; subtitle: string; uri?: string; shareLabel?: string }): Promise<void>;
@@ -72,6 +73,20 @@ export async function scheduleDailyDigest(texts: { title: string; body: string; 
   }
 }
 
+/**
+ * Mesajul de seară al copiei (lumin/dailyAssistant.ts), pentru ziua `day`
+ * („2026-11-27”). Titlu gol = azi nu e nimic nou de spus: notificarea tace.
+ * `known` = pozele de azi deja cunoscute, ca nativul să vorbească doar despre ce e nou.
+ */
+export async function setDailyAssistant(options: { day: string; title: string; body: string; action: string; known: number }): Promise<void> {
+  if (!available()) return;
+  try {
+    await Native.setDailyAssistant(options);
+  } catch {
+    // o versiune nativă mai veche: rămâne notificarea de seară obișnuită
+  }
+}
+
 /** „Acum un an”, dimineața (MorningMemoryReceiver.kt): după ce te-ai trezit, înainte de muncă. */
 export const MEMORY_HOUR = 9;
 export const MEMORY_MINUTE = 15;
@@ -87,11 +102,11 @@ export async function scheduleMorningMemory(texts: Record<string, string>, picks
 
 /**
  * Cu ce a fost deschisă aplicația din notificarea de seară sau din widget:
- * „today” (sortează ziua), „share_pod” (trimite poza zilei), „see_day” (vezi ziua).
+ * „today” (sortează ziua), „review_today” (pozele de ales ale zilei), „share_pod” (trimite poza zilei), „see_day” (vezi ziua).
  */
-export type LaunchAction = 'today' | 'share_pod' | 'see_day' | 'share_memory' | 'see_memory' | 'search' | 'map';
+export type LaunchAction = 'today' | 'review_today' | 'share_pod' | 'see_day' | 'share_memory' | 'see_memory' | 'search' | 'map';
 /** „search” și „map” vin din scurtăturile de pe iconiță (res/xml/shortcuts.xml). */
-const LAUNCH_ACTIONS: readonly string[] = ['today', 'share_pod', 'see_day', 'share_memory', 'see_memory', 'search', 'map'];
+const LAUNCH_ACTIONS: readonly string[] = ['today', 'review_today', 'share_pod', 'see_day', 'share_memory', 'see_memory', 'search', 'map'];
 
 /** Cheamă `cb` când aplicația e deschisă din notificarea „Ziua de azi” sau din widget (la pornire sau din fundal). */
 export async function onTodayLaunch(cb: (action: LaunchAction) => void): Promise<() => void> {
