@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { isClipPlatform } from '../core/clip/clipEngine';
 import { useStore } from '../state/store';
 import { useTr } from './context';
+import { useLx } from './lxStore';
 import { dataMode, deferEnginesPrompt, setDataMode, type DataMode } from './dataMode';
 import { ENGINES, essentialMb, ENGINES_READY_EVENT } from './engines';
 
@@ -26,6 +27,8 @@ export function EnginesIntro() {
     setDataMode(m);
     setChosen(m);
     void import('./clipBackfill').then(x => x.startClipBackfill(m === 'any'));
+    // Descărcarea și prima citire pe ecranul „Lucrez la galeria ta”, nu ascunse pe Azi.
+    if (m === 'any') useLx.getState().setWorkMode(true);
   };
   const perks = ['lx.intro.perk.taste', 'lx.intro.perk.search', 'lx.intro.perk.edit', 'lx.intro.perk.film'] as const;
   return createPortal(

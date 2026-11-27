@@ -387,6 +387,8 @@ export const dict: Record<string, string> = {
   "lx.work.found.blurry": "sfocate",
   "lx.work.found.blinks": "occhi chiusi",
   "lx.work.best": "Le tue migliori finora",
+  "lx.work.prep": "Preparo l’IA sul telefono",
+  "lx.work.prepSub": "Solo una volta. Tutto resta qui: le tue foto non lasciano mai il telefono.",
   "lx.enhance.stylesTitle": "Oppure scegli uno stile",
   "lx.enhance.resetAll": "Ripristina",
   "lx.enhance.shareBA": "Invia prima/dopo",

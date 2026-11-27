@@ -2451,6 +2451,8 @@ export const en: Record<TranslationKey, string> = {
   "lx.work.found.blurry": "blurry",
   "lx.work.found.blinks": "eyes closed",
   "lx.work.best": "Your best so far",
+  "lx.work.prep": "Setting up AI on your phone",
+  "lx.work.prepSub": "Just once. Everything runs here only: your photos never leave the phone.",
   "lx.enhance.stylesTitle": "Or pick a style",
   "lx.enhance.resetAll": "Reset",
   "lx.enhance.shareBA": "Share before/after",

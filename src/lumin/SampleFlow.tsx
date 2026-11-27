@@ -12,6 +12,8 @@ import { EnhanceSheet } from './Enhance';
 import { startFullRead, storedSampleResult } from './galleryReader';
 import { useLxPhotos } from './useLxPhotos';
 import { translateSceneTag } from '../core/sceneTagLabels';
+import { useEngines } from './engines';
+import { useModelsState } from './aiModels';
 
 /**
  * lumin/SampleFlow.tsx
@@ -153,6 +155,12 @@ export function WorkModeOverlay() {
   // în ea, iar descoperirile (fețe, serii, neclare, ochi închiși) cresc pe loc. Primele minute
   // decid dacă omul rămâne: să vadă AI-ul lucrând pe pozele LUI, nu doar un procent.
   const locale = useStore(s => s.locale);
+  // Înainte de citire: descărcarea motoarelor AI, pe același ecran (un singur drum, nu o fereastră
+  // și apoi un card mic pe Azi).
+  const eng = useEngines();
+  const models = useModelsState();
+  const preparing = !reader && (!!eng.busy || models.phase === 'downloading');
+  const prepPct = Math.round(100 * (eng.busy ? eng.progress : models.progress));
   const base = useRef<Set<string> | null>(null);
   if (open && !base.current) base.current = new Set(photos.map(p => p.id));
   if (!open && base.current) base.current = null;
@@ -179,7 +187,7 @@ export function WorkModeOverlay() {
   if (!open) return null;
   const done = reader?.done ?? 0;
   const total = reader?.total ?? 0;
-  const pct = finished ? 100 : total ? Math.round((done / total) * 100) : 0;
+  const pct = finished ? 100 : preparing ? prepPct : total ? Math.round((done / total) * 100) : 0;
   let eta = '';
   // Media de la deschiderea ecranului (nu doar ultimele poze: pachetele vin în rafale, iar
   // capturile cu text merg mai încet, așa că estimarea sărea între 9 min și 2 h — raportat).
@@ -214,8 +222,8 @@ export function WorkModeOverlay() {
           )}
           <b className={live.latest && !finished ? 'lx-work-pct over' : 'lx-work-pct'}>{pct}%</b>
         </div>
-        <h2>{finished ? tr('lx.work.done') : tr(forSample ? 'lx.sample.eyebrow' : 'lx.work.title')}</h2>
-        <p>{finished ? tr(forSample ? 'lx.sample.doneSub' : 'lx.work.doneSub') : total ? tr('lx.work.count', { done, total }) : tr('lx.work.starting')}</p>
+        <h2>{finished ? tr('lx.work.done') : preparing ? tr('lx.work.prep') : tr(forSample ? 'lx.sample.eyebrow' : 'lx.work.title')}</h2>
+        <p>{finished ? tr(forSample ? 'lx.sample.doneSub' : 'lx.work.doneSub') : preparing ? tr('lx.work.prepSub') : total ? tr('lx.work.count', { done, total }) : tr('lx.work.starting')}</p>
         {live.latest && !finished && (
           <div className="lx-work-chips" key={live.latest.id} aria-live="polite">
             {live.latest.faceCount > 0 && <span>👤 {tr('lx.work.chip.faces', { count: live.latest.faceCount })}</span>}

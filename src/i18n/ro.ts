@@ -2537,6 +2537,8 @@ export const ro = {
   "lx.work.found.blurry": "neclare",
   "lx.work.found.blinks": "ochi închiși",
   "lx.work.best": "Cele mai bune ale tale, până acum",
+  "lx.work.prep": "Pregătesc AI-ul pe telefon",
+  "lx.work.prepSub": "O singură dată. Totul rulează doar aici: pozele tale nu pleacă nicăieri.",
   "lx.enhance.stylesTitle": "Sau alege un stil",
   "lx.enhance.resetAll": "Resetează",
   "lx.enhance.shareBA": "Trimite înainte/după",
