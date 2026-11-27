@@ -3317,7 +3317,7 @@ export const ro = {
   "lx.book.button": "Cartea anului (PDF)",
   "lx.book.title": "Anul nostru în poze",
   "lx.book.subtitle": "{count} poze păstrate, alese cu Cherrypic",
-  "fr.estimate.ask": "Ai {count} de poze în galerie. Prima citire durează {time}: Cherrypic le analizează pe telefon, de la cele mai noi, în fundal, cât folosești aplicația (cel mai repede, cu telefonul la încărcat). Primele rezultate apar pe Azi în câteva secunde. O pornesc acum?",
+  "fr.estimate.ask": "Ai {count} de poze. Încep cu o primă privire peste cele mai noi: 2–3 minute, și vezi deja ce aleg pentru tine. Restul galeriei îl citesc apoi în fundal, cât folosești aplicația ({time} în total, cel mai repede la încărcat). Pornim?",
   "fr.estimate.minutes": "cam {minutes} minute",
   "fr.estimate.hours": "cam {hours} ore",
   "fr.estimate.go": "Pornește acum",

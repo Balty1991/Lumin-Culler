@@ -1,7 +1,7 @@
 import { jankSpan } from '../core/jankLog';
 import { crashSkippedUris } from '../core/crashGuard';
 import { quizReady } from './quizReady';
-import { getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
+import { allowGalleryPrompt, getPhotosAccess, isNativeMediaLibraryAvailable, listPhotosInRange, readPhotoFiles } from '../core/nativeMediaLibrary';
 import { useStore } from '../state/store';
 import { useLx } from './lxStore';
 import { t } from '../i18n';
@@ -197,6 +197,7 @@ export function readerRunning(): boolean {
 export async function readWholeGallery(byUser = false): Promise<void> {
   if (running || !isNativeMediaLibraryAvailable()) return;
   // Cerut de om: se reîncearcă și pozele sărite data trecută.
+  if (byUser) allowGalleryPrompt();
   if (byUser) { try { localStorage.removeItem(STOPPED_KEY); localStorage.removeItem(SKIPPED_KEY); localStorage.setItem(STARTED_KEY, '1'); } catch { /* fără stocare */ } }
   else if (readerStopped() || !readerStarted()) return;
   // După prima privire, restul galeriei pornește doar la cererea omului.

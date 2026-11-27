@@ -291,7 +291,9 @@ h1, h2, h3, .brand-name { font-family: var(--font-display); letter-spacing: -0.0
 
 /* ── Prima deschidere (ui/FirstRun.tsx) ─────────────────────────────── */
 .fr { z-index: 70; }
-.fr-inner { min-height: 100%; padding-top: calc(22px + var(--safe-top, 0px)); padding-bottom: calc(28px + var(--safe-bottom, 0px)); }
+/* Jos cel puțin cât bara cu 3 butoane a telefonului: --safe-bottom nu e mereu gata la prima pornire,
+   iar „Aleg eu fotografiile” intra sub ea (raportat). */
+.fr-inner { min-height: 100%; padding-top: calc(22px + var(--safe-top, 0px)); padding-bottom: calc(28px + max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px), 48px)); }
 .fr-top { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
 .fr-dots { display: flex; gap: 6px; }
 .fr-dots i { width: 18px; height: 4px; border-radius: 2px; background: rgb(255 255 255 / 0.1); transition: width 0.35s cubic-bezier(.2,.8,.2,1.2), background 0.3s; }

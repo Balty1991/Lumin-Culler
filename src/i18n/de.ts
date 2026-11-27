@@ -1119,7 +1119,7 @@ export const dict: Record<string, string> = {
   "lx.book.button": "Jahrbuch (PDF)",
   "lx.book.title": "Unser Jahr in Fotos",
   "lx.book.subtitle": "{count} behaltene Fotos, gewählt mit Cherrypic",
-  "fr.estimate.ask": "Du hast {count} Fotos in deiner Galerie. Das erste Lesen dauert {time}: Cherrypic analysiert sie auf deinem Handy, die neuesten zuerst, im Hintergrund, während du die App nutzt (am schnellsten beim Laden). Die ersten Ergebnisse siehst du in Sekunden unter Heute. Jetzt starten?",
+  "fr.estimate.ask": "Du hast {count} Fotos. Ich beginne mit einem ersten Blick auf die neuesten: 2–3 Minuten, und du siehst schon, was ich für dich wähle. Den Rest der Galerie lese ich danach im Hintergrund, während du die App nutzt (insgesamt {time}, am schnellsten beim Laden). Los?",
   "fr.estimate.minutes": "etwa {minutes} Minuten",
   "fr.estimate.hours": "etwa {hours} Stunden",
   "fr.estimate.go": "Jetzt starten",

@@ -213,7 +213,7 @@ export function WorkModeOverlay() {
     eta = tr('lx.work.etaWait');
   }
   return createPortal(
-    <div className="lx lx-work" role="dialog" aria-modal="true" aria-label={tr('lx.work.title')}>
+    <div className={live.latest && !finished ? 'lx lx-work scanning' : 'lx lx-work'} role="dialog" aria-modal="true" aria-label={tr('lx.work.title')}>
       <div className="lx-work-aurora" aria-hidden="true" />
       <div className="lx-work-core">
         <div className="lx-work-ring" style={{ ['--p' as string]: `${pct}` }}>

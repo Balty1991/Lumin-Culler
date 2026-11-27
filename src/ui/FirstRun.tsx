@@ -10,6 +10,7 @@ import { CheckIcon } from './icons';
 import { t } from '../i18n';
 import { galleryReadEstimate, readWholeGallery, stopGalleryReader } from '../lumin/galleryReader';
 import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
+import { allowGalleryPrompt } from '../core/nativeMediaLibrary';
 
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
@@ -62,6 +63,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
     // A ales să aleagă singur: galeria întreagă nu se mai citește de la sine (o pornește
     // oricând cu „Continuă citirea” pe Azi).
     stopGalleryReader();
+    allowGalleryPrompt();
     dismissWelcome();
     // Alegerea de mână nu are import în fundal: notificările se cer abia după primul
     // ritual terminat, când omul știe la ce folosesc (raportul de cercetare).
@@ -70,6 +72,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
   const auto = async () => {
     // Nimic nu pornește singur cât omul încă răspunde la întrebarea de mai jos.
     stopGalleryReader();
+    allowGalleryPrompt();
     dismissWelcome();
     askNotifications();
     // Nu mai așteaptă o săptămână întreagă (raportat: 297 de poze, „simt

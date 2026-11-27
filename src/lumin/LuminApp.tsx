@@ -1,3 +1,4 @@
+import { allowGalleryPrompt } from '../core/nativeMediaLibrary';
 import { startJankLog } from '../core/jankLog';
 import { useReaderYielding } from './readerYield';
 import { WorkModeOverlay } from './SampleFlow';
@@ -375,6 +376,9 @@ export function LuminApp() {
   const welcomeSeen = useStore(s => s.welcomeSeen);
   useEffect(() => {
     if (!booted || !welcomeSeen) return;
+    // Primii pași sunt gata și citirea n-a fost oprită („Mai târziu”): de acum galeria poate cere
+    // permisiunea (core/nativeMediaLibrary). Cu „Mai târziu”, o cere abia când omul pornește citirea.
+    if (!readerStopped()) allowGalleryPrompt();
     const run = () => {
       // A amânat sau a ales singur pozele la început: nu citim de capul nostru (nici pozele
       // zilei) până nu pornește el citirea o dată.

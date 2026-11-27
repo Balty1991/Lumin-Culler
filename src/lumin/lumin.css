@@ -2535,12 +2535,12 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work-eye { position: absolute; inset: 16px; border-radius: 50%; overflow: hidden; z-index: 1; animation: lx-work-in .45s ease-out both;
   box-shadow: 0 0 0 1px rgb(255 255 255 / .12), 0 0 40px rgb(var(--accent-rgb, 255 59 107) / .35); }
 .lx-work-eye .lx-thumb, .lx-work-eye img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lx-work-scan { position: absolute; left: 0; right: 0; height: 38%; top: -40%;
+.lx-work-scan { position: absolute; left: 0; right: 0; height: 38%; top: 0; will-change: transform;
   background: linear-gradient(180deg, transparent, rgb(125 211 252 / .0) 20%, rgb(125 211 252 / .35) 85%, rgb(255 255 255 / .9) 100%);
   mix-blend-mode: screen; animation: lx-work-scan 1.6s cubic-bezier(.5, 0, .5, 1) infinite; }
 .lx-work-pct { position: relative; z-index: 2; }
 .lx-work-pct.over { position: absolute; bottom: 6px; font-size: 20px !important; padding: 3px 12px; border-radius: 999px;
-  background: rgb(7 6 12 / .72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  background: rgb(7 6 12 / .78); }
 .lx-work-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 30px; margin-top: 2px; }
 .lx-work-chips span { padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: #fff;
   background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .14); animation: lx-work-in .35s ease-out both; }
@@ -2556,7 +2556,8 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work-best i { --i: 0; aspect-ratio: 1; border-radius: 14px; overflow: hidden; display: block;
   box-shadow: 0 10px 24px -10px rgb(0 0 0 / .8), 0 0 0 1px rgb(255 255 255 / .14); animation: lx-work-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: calc(var(--i) * .12s); }
 .lx-work-best i .lx-thumb, .lx-work-best i img { width: 100%; height: 100%; object-fit: cover; display: block; }
-@keyframes lx-work-scan { from { top: -40%; } to { top: 100%; } }
+/* Doar transform (fără „top”): nu mai reface așezarea paginii la fiecare cadru — sacada pe telefon. */
+@keyframes lx-work-scan { from { transform: translateY(-110%); } to { transform: translateY(270%); } }
 @keyframes lx-work-in { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes lx-work-pop { from { opacity: 0; transform: scale(.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .lx-work-scan { display: none; } .lx-work-eye, .lx-work-chips span, .lx-work-best i { animation: none; } }
@@ -2592,3 +2593,8 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 }
 .lx-reason-q { font-size: 12px; font-weight: 600; color: var(--text-dim); padding: 0 4px; }
 .lx-reason-chip { min-height: 32px; background: none; color: var(--text); border-color: var(--lx-line); }
+
+/* Cât scanează, fundalul stă pe loc: inelul, orbita și linia de scanare se mișcă deja, iar pe un
+   telefon care analizează poze în același timp, aurora rotită pe tot ecranul sacada (raportat). */
+.lx-work.scanning .lx-work-aurora { animation-play-state: paused; }
+.lx-work-orbit, .lx-work-orbit span > i { backface-visibility: hidden; transform: translateZ(0); }

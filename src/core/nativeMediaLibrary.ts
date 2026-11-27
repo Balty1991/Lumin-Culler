@@ -45,6 +45,20 @@ export interface MediaLocation {
  */
 export type PhotosAccess = 'full' | 'limited' | 'denied' | 'unavailable';
 
+/**
+ * Fereastra Android de permisiune pentru poze apare abia când omul a cerut ceva de la
+ * galerie („Analizează galeria” / „Aleg eu”), nu la deschiderea aplicației, peste ecranul
+ * de bun venit pe care încă îl citea (raportat). Până atunci, funcțiile care ar cere
+ * permisiunea întorc „fără acces” în liniște, dacă permisiunea nu e deja dată.
+ */
+let promptAllowed = false;
+export function allowGalleryPrompt(): void { promptAllowed = true; }
+async function mayTouchGallery(): Promise<boolean> {
+  if (promptAllowed) return true;
+  const access = await getPhotosAccess();
+  return access === 'full' || access === 'limited';
+}
+
 const MediaLibraryNative = registerPlugin<MediaLibraryPluginApi>('MediaLibrary');
 
 /** Sigur de apelat si pe web — registerPlugin() nu esueaza la incarcare, doar la apelul efectiv al unei metode. */
@@ -131,6 +145,7 @@ export async function deleteNativePhotos(uris: string[]): Promise<{ cancelled: b
  * NEVALIDAT inca pe device real — vezi comentariul din MediaLibraryPlugin.kt.
  */
 export async function readGalleryOverview(): Promise<{ granted: boolean; totalCount: number }> {
+  if (!(await mayTouchGallery())) return { granted: false, totalCount: 0 };
   return MediaLibraryNative.galleryOverview();
 }
 
@@ -141,6 +156,7 @@ export async function readGalleryOverview(): Promise<{ granted: boolean; totalCo
  * earliestMs/latestMs absente = galerie goala sau fara nicio poza cu data cunoscuta.
  */
 export async function readGalleryDateRange(): Promise<{ granted: boolean; earliestMs?: number; latestMs?: number }> {
+  if (!(await mayTouchGallery())) return { granted: false };
   return MediaLibraryNative.galleryDateRange();
 }
 
@@ -245,6 +261,7 @@ export async function pickPhotosInRange(
   startMs: number, endMs: number,
   onProgress?: (done: number, total: number) => void
 ): Promise<GalleryReadResult> {
+  if (!(await mayTouchGallery())) return { granted: false, photos: [] };
   const result = await MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
   if (!result.granted) return { granted: false, photos: [] };
   return { granted: true, photos: await toFiles(result.photos, onProgress) };
@@ -256,6 +273,7 @@ export async function pickPhotosInRange(
  * apoi citește doar acelea, câte puțin — nu 1.300 de fișiere în memorie deodată.
  */
 export async function listPhotosInRange(startMs: number, endMs: number): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }> {
+  if (!(await mayTouchGallery())) return { granted: false, photos: [] };
   return MediaLibraryNative.photosInRange({ startMs: String(startMs), endMs: String(endMs) });
 }
 
@@ -270,6 +288,7 @@ export async function readPhotoFiles(raw: { uri: string; name: string; capturedA
  * Vezi MediaLibraryPlugin.kt:galleryFolders (NEVALIDAT inca pe device real).
  */
 export async function readGalleryFolders(): Promise<{ granted: boolean; folders: { id: string; name: string; count: number }[] }> {
+  if (!(await mayTouchGallery())) return { granted: false, folders: [] };
   return MediaLibraryNative.galleryFolders();
 }
 
@@ -278,6 +297,7 @@ export async function pickPhotosInFolder(
   bucketId: string,
   onProgress?: (done: number, total: number) => void
 ): Promise<GalleryReadResult> {
+  if (!(await mayTouchGallery())) return { granted: false, photos: [] };
   const result = await MediaLibraryNative.photosInFolder({ bucketId });
   if (!result.granted) return { granted: false, photos: [] };
   return { granted: true, photos: await toFiles(result.photos, onProgress) };
@@ -347,5 +367,6 @@ export async function openAppSettings(): Promise<void> {
 
 /** Doar lista pozelor dintr-un dosar (fără să citească fișierele): pentru curățenia pe dosare. */
 export async function listPhotosInFolder(bucketId: string): Promise<{ granted: boolean; photos: { uri: string; name: string; capturedAt: number }[] }> {
+  if (!(await mayTouchGallery())) return { granted: false, photos: [] };
   return MediaLibraryNative.photosInFolder({ bucketId });
 }
