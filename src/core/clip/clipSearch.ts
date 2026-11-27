@@ -12,7 +12,7 @@
 import { db } from '../db';
 import { englishGloss } from '../searchSynonyms';
 import { normalizeForSearch } from '../sceneTagLabels';
-import { ClipNative as ClipText, isClipPlatform, otherSpecies, speciesMatches } from './clipEngine';
+import { ClipNative as ClipText, isClipPlatform, speciesMatches } from './clipEngine';
 
 let dense: { w: Float32Array; out: number; inp: number } | null = null;
 async function loadDense() {
@@ -120,15 +120,15 @@ export function speciesOf(query: string): string | null {
 export async function clipSearch(query: string, limit = 120): Promise<string[]> {
   const q = query.trim();
   // Animalele: direct din amprentele pozelor (nu trebuie modelul de text).
-  // Plus căutarea obișnuită după text, mai jos: pisica de lângă un copil iese mai bine așa
-  // decât din etichete (raportat: doar pozele cu pisica singură).
   const species = speciesOf(q);
   let bySpecies: string[] = [];
   if (species && q.length >= 3) {
     try { const idx = await loadIndex(); bySpecies = speciesMatches(idx.ids, idx.m, species).slice(0, 500); } catch { /* doar textul */ }
   }
-  const withSpecies = (ids: string[]) => (bySpecies.length ? [...new Set([...bySpecies, ...ids])] : ids);
-  if (q.length < 3 || !(await clipSearchReady())) return bySpecies;
+  // Doar atât, pentru animale: căutarea după frază aducea la „câine” străzi, oameni și cer
+  // (raportat), iar pisica de lângă copil o prind acum frazele de scenă (speciesMatches).
+  if (species) return bySpecies;
+  if (q.length < 3 || !(await clipSearchReady())) return [];
   try {
     // „o fotografie cu …”: CLIP a învățat din descrieri de poze, nu din cuvinte izolate.
     // Și în engleză, când știm cuvântul: modelul e mult mai sigur acolo („monede” nu găsea
@@ -143,13 +143,13 @@ export async function clipSearch(query: string, limit = 120): Promise<string[]> 
     if (enOut) texts.push(project(enOut.pooled, d));
     const sc = scoreMatrix(idx.m, idx.ids.length, texts);
     // La „câine”, nu pisicile pe care CLIP le vede clar (și invers): cele două stau aproape.
-    const scored = idx.ids.map((id, i) => ({ id, s: species && otherSpecies(idx.m.subarray(i * 512, (i + 1) * 512), species) ? -1 : sc[i] }))
+    const scored = idx.ids.map((id, i) => ({ id, s: sc[i] }))
       .sort((a, b) => b.s - a.s);
     const best = scored[0].s;
     const floor = Math.max(FLOOR, best - BAND);
-    return withSpecies(scored.filter(x => x.s >= floor).slice(0, limit).map(x => x.id));
+    return scored.filter(x => x.s >= floor).slice(0, limit).map(x => x.id);
   } catch {
-    return bySpecies;
+    return [];
   }
 }
 

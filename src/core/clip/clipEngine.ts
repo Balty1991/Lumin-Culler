@@ -249,7 +249,7 @@ export async function clipAnalyze(source: NativeImageSource): Promise<ClipResult
  * Lucrează pe amprentele salvate, deci nu depinde de etichetele ML Kit (raportat:
  * „pisică” găsea o singură poză din mai multe).
  */
-export function speciesMatches(ids: readonly string[], m: Float32Array, key: string, minP = SPECIES_SEARCH_AT): string[] {
+export function speciesMatches(ids: readonly string[], m: Float32Array, key: string, minP = SPECIES_SHOW_AT): string[] {
   const out: string[] = [];
   for (let i = 0; i < ids.length; i++) {
     const e = m.subarray(i * DIM, (i + 1) * DIM);
@@ -263,6 +263,14 @@ export function speciesMatches(ids: readonly string[], m: Float32Array, key: str
  * pisică singură 85% → 91%, iar poze fără animal tot ~0-1%. Sub 0,03 nu mai câștigă nimic.
  */
 export const SPECIES_SEARCH_AT = 0.03;
+/**
+ * Pragul pentru a ARĂTA o poză la căutarea după specie doar din ce vede CLIP (fără etichetă):
+ * la 0,03 veneau poze fără niciun animal (portret, stradă, cer; raportat de două ori). Pe COCO,
+ * 0,12 pierde puțin (pisică lângă oameni 67% față de 71%); restul vin din etichete.
+ */
+export const SPECIES_SHOW_AT = 0.12;
+/** Cât de mult vede CLIP o pisică sau un câine în poză (0..1). */
+export function petPresence(e: ArrayLike<number>): number { return petMass(zeroShot(e)); }
 /** CLIP vede clar ALT animal decât cel căutat (pisica, la „câine”): poza nu intră la căutare. */
 export function otherSpecies(e: ArrayLike<number>, key: string, minP = SPECIES_SEARCH_AT): boolean {
   const seen = seenSpecies(e, zeroShot(e), minP);
