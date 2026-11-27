@@ -9,6 +9,7 @@ import { LocaleToggle } from './LocaleToggle';
 import { CheckIcon } from './icons';
 import { t } from '../i18n';
 import { galleryReadEstimate, readWholeGallery, stopGalleryReader } from '../lumin/galleryReader';
+import { SORT_MODES, readSortMode, writeSortMode, type SortMode } from '../core/sortMode';
 
 
 const STRICTNESS: CullingStrictness[] = ['lax', 'balanced', 'strict'];
@@ -43,6 +44,7 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
   const [step, setStep] = useState(welcomeSeen ? 2 : 0);
   const [later, setLater] = useState(false);
   const [demo, setDemo] = useState(false);
+  const [mode, setMode] = useState<SortMode>(readSortMode);
   const ref = useRef<HTMLDivElement>(null);
   const open = !later && (!welcomeSeen || (photos.length === 0 && !progress));
   useModalFocusTrap(ref, open);
@@ -161,6 +163,16 @@ export function FirstRun({ onPickManually }: { onPickManually: () => void }) {
             <span className="v3-kicker">{tr('fr.photos.kicker')}</span>
             <h2 className="fr-title small">{tr('fr.photos.title')}</h2>
             <p className="fr-lead">{tr('fr.photos.lead')}</p>
+            {/* O atingere, și AI-ul pornește mai aproape de om (un părinte: o poză în plus cu copiii).
+                Era doar în Setări, unde un om nou nu ajunge în primele minute. */}
+            <div className="fr-modes" role="radiogroup" aria-label={tr('lx.mode.title')}>
+              <small>{tr('lx.mode.title')}</small>
+              {SORT_MODES.map(m => (
+                <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); writeSortMode(m); }}>
+                  <b>{tr(`lx.mode.${m}`)}</b><span>{tr(`lx.mode.${m}.sub`)}</span>
+                </button>
+              ))}
+            </div>
             {native && (
               <div className="fr-permission" aria-hidden="true">
                 <span>{tr('welcome.permission.limited')}</span>
