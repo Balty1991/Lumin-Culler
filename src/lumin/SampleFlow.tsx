@@ -14,6 +14,7 @@ import { useLxPhotos } from './useLxPhotos';
 import { translateSceneTag } from '../core/sceneTagLabels';
 import { useEngines } from './engines';
 import { useModelsState } from './aiModels';
+import { recordPair } from '../core/learning/pairs';
 
 /**
  * lumin/SampleFlow.tsx
@@ -170,6 +171,7 @@ export function WorkModeOverlay() {
     const kept = real.filter(p => p.status === 'selected');
     const withPeople = kept.filter(p => p.faceCount > 0);
     return {
+      real,
       latest: real[real.length - 1] ?? fresh[fresh.length - 1],
       faces: real.reduce((a, p) => a + (p.faceCount || 0), 0),
       series: seriesExtras(real).extras.length,
@@ -247,6 +249,7 @@ export function WorkModeOverlay() {
             <div>{live.best.map((p, i) => <i key={p.id} style={{ ['--i' as string]: `${i}` }}><Thumb id={p.id} lqip={p.lqip} edits={p.edits} /></i>)}</div>
           </div>
         )}
+        {!finished && !preparing && live.real.length >= 12 && <TastePairs pool={live.real} />}
         {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
         {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
         <button className={finished ? 'lx-btn primary wide' : 'lx-btn ghost wide'} onClick={close}>
@@ -255,5 +258,47 @@ export function WorkModeOverlay() {
       </div>
     </div>,
     document.body
+  );
+}
+
+/**
+ * Cât citesc pozele: „care îți place mai mult?”, de 3 ori, între două poze ale omului
+ * (din aceeași serie când se poate, altfel două cu oameni, apropiate în timp). Fiecare
+ * alegere e o pereche pentru modelul de gust (core/learning/pairs): AI-ul pornește deja
+ * personalizat, iar așteptarea devine joc, nu timp pierdut.
+ */
+const PAIRS_WANTED = 3;
+function pickPair(pool: readonly PhotoView[], used: ReadonlySet<string>): [PhotoView, PhotoView] | null {
+  const free = pool.filter(p => !used.has(p.id));
+  const groups = new Map<string, PhotoView[]>();
+  for (const p of free) if (p.groupId) groups.set(p.groupId, [...(groups.get(p.groupId) ?? []), p]);
+  for (const g of groups.values()) if (g.length >= 2) return [g[0], g[1]];
+  const people = free.filter(p => p.faceCount > 0);
+  const list = people.length >= 2 ? people : free;
+  return list.length >= 2 ? [list[list.length - 2], list[list.length - 1]] : null;
+}
+function TastePairs({ pool }: { pool: readonly PhotoView[] }) {
+  const tr = useTr();
+  const [used, setUsed] = useState<Set<string>>(() => new Set());
+  const [done, setDone] = useState(0);
+  // Perechea rămâne pe loc până alege omul (nu sare când vin poze noi).
+  const [pair, setPair] = useState<[PhotoView, PhotoView] | null>(null);
+  useEffect(() => { if (!pair && done < PAIRS_WANTED) setPair(pickPair(pool, used)); }, [pool, used, pair, done]);
+  if (done >= PAIRS_WANTED) return <p className="lx-work-pick-done">✓ {tr('lx.work.pickDone', { count: done })}</p>;
+  if (!pair) return null;
+  const choose = (w: PhotoView, l: PhotoView) => {
+    recordPair(w.id, l.id);
+    setUsed(u => new Set([...u, w.id, l.id]));
+    setDone(d => d + 1);
+    setPair(null);
+  };
+  return (
+    <div className="lx-work-pick" key={pair[0].id + pair[1].id}>
+      <small>{tr('lx.work.pick')} <span>{done + 1}/{PAIRS_WANTED}</span></small>
+      <div>
+        <button onClick={() => choose(pair[0], pair[1])} aria-label={tr('lx.work.pickLeft')}><Thumb id={pair[0].id} lqip={pair[0].lqip} edits={pair[0].edits} /></button>
+        <button onClick={() => choose(pair[1], pair[0])} aria-label={tr('lx.work.pickRight')}><Thumb id={pair[1].id} lqip={pair[1].lqip} edits={pair[1].edits} /></button>
+      </div>
+    </div>
   );
 }

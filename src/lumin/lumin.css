@@ -2561,3 +2561,15 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 @keyframes lx-work-pop { from { opacity: 0; transform: scale(.6) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .lx-work-scan { display: none; } .lx-work-eye, .lx-work-chips span, .lx-work-best i { animation: none; } }
 @media (max-height: 720px) { .lx-work-ring { margin: 40px 0 56px; width: 190px; height: 190px; } .lx-work-found b { font-size: 18px; } }
+/* „Care îți place mai mult?” cât citesc (SampleFlow, TastePairs). */
+.lx-work-pick { width: 100%; display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; animation: lx-work-in .4s ease-out both; }
+.lx-work-pick small { font-size: 13px; font-weight: 700; color: #fff; display: flex; justify-content: space-between; }
+.lx-work-pick small span { color: rgb(255 255 255 / .55); font-variant-numeric: tabular-nums; }
+.lx-work-pick > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 270px; margin: 0 auto; }
+.lx-work-pick button { aspect-ratio: 1; padding: 0; border: 0; border-radius: 18px; overflow: hidden; cursor: pointer;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .16), 0 12px 26px -14px rgb(0 0 0 / .9); transition: transform .15s; }
+.lx-work-pick button:active { transform: scale(.95); box-shadow: 0 0 0 3px rgb(var(--accent-rgb, 255 59 107) / .9); }
+.lx-work-pick button .lx-thumb, .lx-work-pick button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lx-work-pick-done { font-weight: 700; color: #a7f3d0 !important; margin: 6px 0 !important; animation: lx-work-in .4s ease-out both; }
+@media (max-height: 760px) { .lx-work-pick > div { grid-template-columns: 1fr 1fr; max-width: 260px; margin: 0 auto; } }
+.lx-work { overflow-y: auto; align-items: safe center; padding-block: 16px; }
