@@ -15,7 +15,7 @@ import { photoTime } from './days';
 import { monthLabel } from './format';
 import { monthStart } from './coverage';
 import { reasonsFor } from './reasons';
-import { personalWhy, useWhyContext } from './why';
+import { personalWhyFull, useWhyContext } from './why';
 import { TwinCompare, betterTwin } from './TwinCompare';
 import { learnFromOpen, learnFromShare } from './signals';
 import { findVisuallySimilar } from './visualSimilar';
@@ -757,6 +757,8 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
     for (const q of s.photos) if (q.id !== p.id && q.groupId === p.groupId && !q.aside && (!best || q.aiScore > best.aiScore)) best = q;
     return best && best.aiScore >= p.aiScore ? best : null;
   });
+  // „De ce?”: propoziția și etichetele, din aceleași semnale (whyText.ts).
+  const whyNow = useMemo(() => personalWhyFull(p, why, tr, twin), [p, why, tr, twin]);
   const start = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [dir, setDir] = useState<'next' | 'prev' | null>(null);
 
@@ -963,7 +965,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
         <button className="lx-sheet-handle" onClick={() => toggleDetails(!details)} aria-expanded={details} aria-label={tr(details ? 'lx.viewer.lessInfo' : 'lx.viewer.moreInfo')}>
           <i aria-hidden="true" />
         </button>
-        <p className="lx-why">{personalWhy(p, why, tr, !!twin)}</p>
+        <p className="lx-why">{whyNow.sentence}</p>
         {bestFix.length > 0 && (
           <button className="lx-twin-link" disabled={bestBusy} onClick={() => void makeBestTake()}>
             <Icon name="sparkle" size={16} /> {tr('lx.bestTake.hint', { count: bestFix.length })}
@@ -990,7 +992,7 @@ export function Viewer({ list, index, onIndex, onClose, onSimilar }: {
             {tr(p.status === 'selected' ? 'lx.wall.state.kept' : p.status === 'rejected' ? 'lx.wall.state.notToday' : 'lx.wall.state.waiting')}
           </span>
           <span className="lx-chip info">AI {p.aiScore}</span>
-          {reasonsFor(p).map(r => <span key={r.key} className={`lx-chip ${r.tone}`}>{tr(r.key)}</span>)}
+          {whyNow.chips.map(c => <span key={c.label} className={`lx-chip ${c.tone}`}>{c.label}</span>)}
         </div>
         </>}
         {/* Patru acțiuni egale, mereu încăpute (raportat: butoanele ieșeau din ecran);

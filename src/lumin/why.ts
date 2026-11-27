@@ -1,20 +1,17 @@
 import { usePacedPhotos } from './useLxPhotos';
 import { useEffect, useMemo, useState } from 'react';
-import { useStore } from '../state/store';
 import { contextEngine } from '../core/learning/ContextEngine';
 import { favoritePeople } from '../core/personTaste';
-import { reasonsFor, type ReasonInput } from './reasons';
+import { explainWhy, type WhyResult, type WhySignals } from './whyText';
 
 /**
  * lumin/why.ts
  * De ce ar păstra-o omul, spus ca o propoziție către el, nu ca etichete:
- * „Ai păstra-o: e Angi (păstrezi 9 din 10 poze cu Angi), zâmbește și e clară.”
- * Din ce a învățat Lumi (oamenii la care ții, subiectele pe care le păstrezi)
- * plus ce se vede în poză.
+ * „Am păstrat-o: e Angi — păstrezi 9 din 10 poze cu Angi, zâmbește și e clară.”
+ * Aici se adună ce știe Lumi (oamenii la care ții, subiectele pe care le păstrezi,
+ * seriile); textul îl scrie funcția pură din whyText.ts.
  */
-export interface WhyPhoto extends ReasonInput {
-  status: string;
-  aiScore: number;
+export interface WhyPhoto extends WhySignals {
   personNames: string[];
   sceneTags?: string[];
   groupId?: string;
@@ -25,12 +22,18 @@ export interface WhyContext {
   subjects: string[];
   /** Cel mai bun scor din fiecare serie: „mai e una aproape la fel, mai bună”. */
   groupBest?: ReadonlyMap<string, number>;
+  /** Claritatea celui mai bun cadru din fiecare serie: „…una mai clară”. */
+  groupBestSharp?: ReadonlyMap<string, number>;
+  /** Câte cadre are fiecare serie (doar seriile de cel puțin două contează). */
+  groupSize?: ReadonlyMap<string, number>;
 }
 
 type Tr = (key: string, vars?: Record<string, string | number>) => string;
 
 let cachedSubjects: string[] | null = null;
 const GENERIC = new Set(['person', 'people', 'face', 'smile', 'fun', 'selfie', 'skin', 'hair', 'eyelash', 'clothing', 'sleeve', 'jacket', 'happy', 'child', 'baby']);
+/** Cu cât trebuie să fie mai clar celălalt cadru ca să spunem „mai clară”, nu doar „mai reușită”. */
+const SHARPER_BY = 10;
 
 /** Ce știe Lumi despre gustul omului (subiectele se citesc o dată, apoi din memorie). */
 export function useWhyContext(): WhyContext {
@@ -43,41 +46,46 @@ export function useWhyContext(): WhyContext {
     }).catch(() => {});
   }, []);
   const photos = usePacedPhotos();
-  const groupBest = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of photos) if (p.groupId && !p.aside) m.set(p.groupId, Math.max(m.get(p.groupId) ?? 0, p.aiScore));
-    return m;
+  const series = useMemo(() => {
+    const best = new Map<string, number>();
+    const sharp = new Map<string, number>();
+    const size = new Map<string, number>();
+    for (const p of photos) {
+      if (!p.groupId || p.aside) continue;
+      size.set(p.groupId, (size.get(p.groupId) ?? 0) + 1);
+      if (p.aiScore > (best.get(p.groupId) ?? -1)) { best.set(p.groupId, p.aiScore); sharp.set(p.groupId, p.sharpness); }
+    }
+    return { best, sharp, size };
   }, [photos]);
-  return { loved: favoritePeople(), subjects, groupBest };
+  return { loved: favoritePeople(), subjects, groupBest: series.best, groupBestSharp: series.sharp, groupSize: series.size };
 }
 
-export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr, betterTwinShown = false): string {
-  // Când ecranul arată „Vezi poza mai reușită”, verdictul nu poate spune „ai păstra-o”
-  // (auditul: cele două se contraziceau una lângă alta).
-  const keep = p.status === 'selected' || (!betterTwinShown && p.status !== 'rejected' && p.aiScore >= 50);
-  const sure = p.status === 'selected' || p.status === 'rejected';
-  const lead = tr(keep ? (sure ? 'lx.why.keep' : 'lx.why.maybeKeep') : (sure ? 'lx.why.drop' : 'lx.why.maybeDrop'));
-  const parts: string[] = [];
+/**
+ * Propoziția și etichetele pentru o poză. `twin` = cadrul mai reușit arătat pe ecran
+ * (sau doar `true` când știm că e acolo, fără detalii).
+ */
+export function personalWhyFull(p: WhyPhoto, ctx: WhyContext, tr: Tr, twin?: boolean | { sharpness: number } | null): WhyResult {
+  const inSeries = !!p.groupId && (ctx.groupSize?.get(p.groupId) ?? 0) > 1;
+  const best = inSeries && p.groupId ? ctx.groupBest?.get(p.groupId) : undefined;
+  const bestSharp = inSeries && p.groupId ? ctx.groupBestSharp?.get(p.groupId) : undefined;
+  let betterTwin: { sharper: boolean } | null = null;
+  if (twin && typeof twin === 'object') betterTwin = { sharper: twin.sharpness >= p.sharpness + SHARPER_BY };
+  else if (twin) betterTwin = { sharper: false };
+  // Din serie, doar unde verdictul e deja „n-ai păstra-o” (nu contrazice eticheta AI-ului).
+  else if (best !== undefined && best > p.aiScore + 3 && (p.status === 'rejected' || (p.status !== 'selected' && p.aiScore < 50))) {
+    betterTwin = { sharper: bestSharp !== undefined && bestSharp >= p.sharpness + SHARPER_BY };
+  }
+  // „Genul de poză pe care o păstrezi” doar pe subiecte care spun ceva
+  // (nu „persoană”, „zâmbet”, prezente pe orice poză).
+  const keptSubject = (p.sceneTags ?? []).some(t => !GENERIC.has(t.toLowerCase()) && ctx.subjects.includes(t.toLowerCase()));
+  return explainWhy(p, {
+    loved: ctx.loved,
+    keptSubject,
+    betterTwin,
+    bestOfSeries: best !== undefined && p.aiScore >= best && !betterTwin
+  }, tr);
+}
 
-  // De ce pleacă: întâi cel mai convingător motiv — e o copie mai slabă a alteia.
-  const twin = !keep && p.groupId ? ctx.groupBest?.get(p.groupId) : undefined;
-  if ((twin !== undefined && twin > p.aiScore + 3) || (betterTwinShown && !keep)) parts.push(tr('lx.why.betterTwin'));
-
-  const loved = ctx.loved.find(l => p.personNames.includes(l.name));
-  if (loved) parts.push(tr('lx.why.person', { name: loved.name, ofTen: Math.round(loved.rate * 10) }));
-  else if (p.personNames.length) parts.push(tr('lx.why.isPerson', { name: p.personNames.slice(0, 2).join(tr('lx.why.and')) }));
-
-  // „Genul de poză pe care o păstrezi” doar când chiar ar păstra-o, și doar pe
-  // subiecte care spun ceva (nu „persoană”, „zâmbet”, prezente pe orice poză).
-  const subject = keep && !loved && (p.sceneTags ?? []).find(t => !GENERIC.has(t.toLowerCase()) && ctx.subjects.includes(t.toLowerCase()));
-  if (subject) parts.push(tr('lx.why.subject'));
-
-  const reasons = reasonsFor(p).filter(r => r.tone === (keep ? 'good' : 'bad') && r.key !== 'lx.reason.series');
-  for (const r of reasons.slice(0, keep ? 2 : 2)) parts.push(tr(`${r.key}.why`));
-
-  if (!parts.length) parts.push(tr(keep ? 'lx.why.fallbackKeep' : 'lx.why.fallbackDrop'));
-  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}${tr('lx.why.and')}${parts[parts.length - 1]}` : parts[0];
-  // Spus cinstit și cusurul (auditul: „arată bine” lângă eticheta „mișcată”).
-  const flaw = keep ? reasonsFor(p).find(r => r.tone === 'bad' && r.key !== 'lx.reason.series') : undefined;
-  return flaw ? `${lead}: ${list}, ${tr('lx.why.though')} ${tr(`${flaw.key}.why`)}.` : `${lead}: ${list}.`;
+export function personalWhy(p: WhyPhoto, ctx: WhyContext, tr: Tr, twin?: boolean | { sharpness: number } | null): string {
+  return personalWhyFull(p, ctx, tr, twin).sentence;
 }
