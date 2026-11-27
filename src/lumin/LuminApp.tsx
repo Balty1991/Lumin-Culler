@@ -5,7 +5,8 @@ import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useS
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from '../state/store';
-import { onTodayLaunch, scheduleDailyDigest, scheduleMorningMemory, startOfDay, updateHomeWidget } from '../core/todayDigest';
+import { onTodayLaunch, scheduleDailyDigest, scheduleMorningMemory, setDailyAssistant, startOfDay, updateHomeWidget } from '../core/todayDigest';
+import { composeDailyAssistant, dailyAssistantCounts, localDayKey } from './dailyAssistant';
 import { onThisDay } from './momentAlbums';
 import { framePicks, updateFrameWidget } from './frameWidget';
 import { intlTag } from '../i18n';
@@ -281,11 +282,21 @@ export function LuminApp() {
       if (action === 'map') { useLx.getState().setTab('days'); useLx.getState().setGalleryView('map'); return; }
       useLx.getState().setTab('today');
       if (action === 'share_memory' || action === 'see_memory') { void openMemoryAction(action); return; }
-      if (action !== 'today') { void openDayAction(action); return; }
+      if (action !== 'today' && action !== 'review_today') { void openDayAction(action); return; }
       void useStore.getState().importToday().then(async added => {
         if (added) { await (await import('./trainingGate')).holdUntilLearned().catch(() => 0); await decideRestIfAllowed(); }
         const result = summarizeToday(added ?? 0);
         if (result) useLx.getState().setAutoResult(result);
+        // Din mesajul copiei („te întreb doar de 4”): direct la „De ales” cu pozele de azi,
+        // cele mai grele întâi, ca butonul din Galerie. N-a mai rămas nimic: rămâi pe „Azi”.
+        if (action === 'review_today') {
+          const ask = visiblePhotos().filter(p => !p.aside && p.status === 'review' && startOfDay(p.capturedAt ?? p.importedAt) === startOfDay());
+          if (ask.length) {
+            const ids = [...ask].sort((a, b) => Math.abs(a.aiScore - 50) - Math.abs(b.aiScore - 50)).map(p => p.id);
+            useLx.getState().openSort(ids, t(useStore.getState().locale, 'lx.wall.waitingGoTitle'));
+          }
+          return;
+        }
         const day = groupDays(visiblePhotos()).find(d => d.start === startOfDay());
         // Notificarea de seară duce direct în ritualul zilei, când ai din ce alege.
         const todays = visiblePhotos().filter(p => !p.aside && startOfDay(p.capturedAt ?? p.importedAt) === startOfDay());
@@ -345,6 +356,10 @@ export function LuminApp() {
         const month = d.toLocaleDateString(intlTag(locale), { month: 'long', year: years > 0 ? undefined : 'numeric' });
         return { uri: p.mediaUri!, label: years > 0 ? t(locale, years === 1 ? 'lx.frame.year1' : 'lx.frame.yearN', { count: years, month }) : month };
       }));
+      // Mesajul de seară al copiei, din ziua reală: îl refacem cu fiecare schimbare, notificarea îl citește la 20:30.
+      const counts = dailyAssistantCounts(all);
+      const message = composeDailyAssistant(counts, (key, params) => t(locale, key, params));
+      void setDailyAssistant({ day: localDayKey(), title: message?.title ?? '', body: message?.body ?? '', action: message?.action ?? 'today', known: counts.known });
       void scheduleMorningMemory({
         title1: t(locale, 'lx.memory.notify.title1'), titleN: t(locale, 'lx.memory.notify.titleN'),
         body: t(locale, 'lx.memory.notify.body'), channel: t(locale, 'lx.memory.notify.channel'),
