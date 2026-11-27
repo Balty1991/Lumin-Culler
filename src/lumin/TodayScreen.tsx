@@ -1,6 +1,6 @@
 import { buildMorningReport, markMorningSeen, morningSeen } from './morningReport';
 import { useReaderYielding } from './readerYield';
-import { SampleResultCard } from './SampleFlow';
+import { GuessCard, SampleResultCard } from './SampleFlow';
 import { storedSampleResult } from './galleryReader';
 import { claimPaywall, setPaywallContext, trialDaysLeft } from './paywallMoment';
 import { formatBytes } from '../core/freedSpace';
@@ -251,6 +251,7 @@ export function TodayScreen() {
       )}
       {!reader && readerStopped() && readerStarted() && <ReaderStopped />}
       <SampleResultCard />
+      <GuessCard />
       {readerResult && !reader && (
         <section className="lx-card lx-auto-result" role="status">
           <button className="lx-auto-close" onClick={() => setReaderResult(null)} aria-label={tr('lx.close')}>✕</button>

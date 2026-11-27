@@ -2575,3 +2575,7 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work { overflow-y: auto; align-items: safe center; padding-block: 16px; }
 .lx-sort-guessed { margin: 0 0 8px; font-family: var(--font-display); font-size: 22px; font-weight: 800; text-align: center;
   background: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lx-guess { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.lx-guess > b { font-family: var(--font-display); font-size: 22px; }
+.lx-guess > span:not(.lx-eyebrow) { color: var(--text-dim); font-size: 14px; }
+.lx-guess .lx-btn { margin-top: 6px; }

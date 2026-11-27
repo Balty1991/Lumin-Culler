@@ -184,13 +184,7 @@ export function WorkModeOverlay() {
   // jumătate scoase, puse pe rând. Omul confirmă sau corectează cu un deget; fiecare răspuns
   // intră în „copia ta” (twin.ts), deci procentul „aleg ca tine” apare din prima zi. Scopul
   // aplicației e un AI care alege ca omul, nu un raport: asta e dovada, chiar de la început.
-  const guessIds = useMemo(() => {
-    const keep = live.real.filter(p => p.status === 'selected').sort((a, b) => b.aiScore - a.aiScore).slice(0, 6);
-    const drop = live.real.filter(p => p.status === 'rejected').sort((a, b) => a.aiScore - b.aiScore).slice(0, 6);
-    const out: string[] = [];
-    for (let i = 0; i < 6; i++) { if (keep[i]) out.push(keep[i].id); if (drop[i]) out.push(drop[i].id); }
-    return out;
-  }, [live.real]);
+  const guessIds = useMemo(() => pickGuessIds(live.real), [live.real]);
   // Ultimele poze citite, ca „orbită” în jurul inelului.
   // Pozele adevărate (nu capturile și documentele), cele mai noi citite.
   const orbit = useMemo(() => {
@@ -264,7 +258,7 @@ export function WorkModeOverlay() {
         {!finished && !forSample && eta && <p className="lx-work-eta">{eta}</p>}
         {!finished && <p className="lx-work-tip">{tr(forSample ? 'lx.sample.readingSub' : 'lx.work.tip')}</p>}
         {finished && guessIds.length >= 6 && (
-          <button className="lx-btn primary wide lx-work-guess" onClick={() => { close(); useLx.getState().openSort(guessIds, tr('lx.work.guessTitle'), true); }}>
+          <button className="lx-btn primary wide lx-work-guess" onClick={() => { close(); markGuessDone(); useLx.getState().openSort(guessIds, tr('lx.work.guessTitle'), true); }}>
             {tr('lx.work.guess', { count: guessIds.length })}
           </button>
         )}
@@ -316,5 +310,47 @@ function TastePairs({ pool }: { pool: readonly PhotoView[] }) {
         <button onClick={() => choose(pair[1], pair[0])} aria-label={tr('lx.work.pickRight')}><Thumb id={pair[1].id} lqip={pair[1].lqip} edits={pair[1].edits} /></button>
       </div>
     </div>
+  );
+}
+
+/** 12 alegeri ale AI-ului: jumătate păstrate (cele mai sigure), jumătate scoase, alternate. */
+export function pickGuessIds(photos: readonly PhotoView[]): string[] {
+  const real = photos.filter(p => !p.aside);
+  const keep = real.filter(p => p.status === 'selected').sort((a, b) => b.aiScore - a.aiScore).slice(0, 6);
+  const drop = real.filter(p => p.status === 'rejected').sort((a, b) => a.aiScore - b.aiScore).slice(0, 6);
+  const out: string[] = [];
+  for (let i = 0; i < 6; i++) { if (keep[i]) out.push(keep[i].id); if (drop[i]) out.push(drop[i].id); }
+  return out;
+}
+const GUESS_KEY = 'cp.guess.done';
+function guessDone(): boolean { try { return localStorage.getItem(GUESS_KEY) === '1'; } catch { return true; } }
+function markGuessDone(): void { try { localStorage.setItem(GUESS_KEY, '1'); } catch { /* fără stocare */ } }
+
+/**
+ * „Te-am ghicit?” rămâne pe Azi până omul face verificarea sau o închide (raportat: apărea doar
+ * o dată, la finalul primei citiri; închisă acolo, nu se mai găsea). Alegerile AI-ului din
+ * ultimele poze decise de el.
+ */
+export function GuessCard() {
+  const tr = useTr();
+  const photos = useLxPhotos();
+  const [hidden, setHidden] = useState(guessDone);
+  const ids = useMemo(() => {
+    if (hidden) return [];
+    const mine = photos.filter(p => p.aiDecided && !p.aside).sort((a, b) => b.importedAt - a.importedAt).slice(0, 300);
+    return pickGuessIds(mine);
+  }, [photos, hidden]);
+  if (hidden || ids.length < 6) return null;
+  const close = () => { markGuessDone(); setHidden(true); };
+  return (
+    <section className="lx-card lx-guess" role="status">
+      <button className="lx-auto-close" onClick={close} aria-label={tr('lx.close')}>✕</button>
+      <span className="lx-eyebrow">{tr('lx.guess.eyebrow')}</span>
+      <b>{tr('lx.work.guessTitle')}</b>
+      <span>{tr('lx.guess.sub', { count: ids.length })}</span>
+      <button className="lx-btn primary wide" onClick={() => { close(); useLx.getState().openSort(ids, tr('lx.work.guessTitle'), true); }}>
+        {tr('lx.guess.go')}
+      </button>
+    </section>
   );
 }
