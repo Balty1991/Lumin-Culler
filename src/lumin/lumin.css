@@ -2573,3 +2573,5 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work-pick-done { font-weight: 700; color: #a7f3d0 !important; margin: 6px 0 !important; animation: lx-work-in .4s ease-out both; }
 @media (max-height: 760px) { .lx-work-pick > div { grid-template-columns: 1fr 1fr; max-width: 260px; margin: 0 auto; } }
 .lx-work { overflow-y: auto; align-items: safe center; padding-block: 16px; }
+.lx-sort-guessed { margin: 0 0 8px; font-family: var(--font-display); font-size: 22px; font-weight: 800; text-align: center;
+  background: var(--lx-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }

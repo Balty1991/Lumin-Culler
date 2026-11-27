@@ -48,6 +48,8 @@ export function SwipeSort() {
   // Cronometrul ritualului: 60 s, fără presiune — după minut doar spune că a trecut.
   const [elapsed, setElapsed] = useState(0);
   const [took, setTook] = useState<number | null>(null);
+  /** De câte ori a ales AI-ul la fel ca omul în sesiunea asta (dovada „copiei tale”). */
+  const [guessed, setGuessed] = useState(0);
   const startedAt = useRef(Date.now());
   const photos = usePacedPhotos();
   const setStatus = useStore(s => s.setStatus);
@@ -161,6 +163,7 @@ export function SwipeSort() {
     const generic = shown.aiScore - (shown.aiPersonalDelta ?? 0);
     recordDailyGuess({ personal: aiKeep, generic: generic >= MIDPOINT }, keep);
     recordTwinDecision(aiKeep, keep, { firm: ai !== 'unsure', people: (shown.faceCount ?? 0) > 0 });
+    if (aiKeep === keep) setGuessed(n => n + 1);
     if (peek && peek !== current?.id) { setPeek(null); return; }
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');
@@ -339,6 +342,7 @@ export function SwipeSort() {
         </>
       ) : (
         <div className="lx-sort-done">
+          {ritual && decisions >= 5 && <p className="lx-sort-guessed">{tr('lx.sort.guessed', { hits: guessed, count: decisions })}</p>}
           {ritual && decisions > 0 && <DayRecap ids={queue} seconds={took} />}
           <div className="lx-done-wrap">
             <RitualDone ids={queue} decided={decisions} />

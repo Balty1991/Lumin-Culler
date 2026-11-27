@@ -2459,6 +2459,7 @@ export const en: Record<TranslationKey, string> = {
   "lx.work.pickRight": "Second photo",
   "lx.work.guess": "Did I guess you? Check {count} of my picks",
   "lx.work.guessTitle": "Did I guess you?",
+  "lx.sort.guessed": "I picked like you in {hits} of {count}",
   "lx.enhance.stylesTitle": "Or pick a style",
   "lx.enhance.resetAll": "Reset",
   "lx.enhance.shareBA": "Share before/after",

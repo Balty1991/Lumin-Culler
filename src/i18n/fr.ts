@@ -395,6 +395,7 @@ export const dict: Record<string, string> = {
   "lx.work.pickRight": "Deuxième photo",
   "lx.work.guess": "Je t’ai deviné ? Vérifie {count} de mes choix",
   "lx.work.guessTitle": "Je t’ai deviné ?",
+  "lx.sort.guessed": "J’ai choisi comme toi dans {hits} cas sur {count}",
   "lx.enhance.stylesTitle": "Ou choisis un style",
   "lx.enhance.resetAll": "Réinitialiser",
   "lx.enhance.shareBA": "Envoyer avant/après",
