@@ -2582,3 +2582,13 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
 .lx-work-who { width: 100%; text-align: left; animation: lx-work-in .5s ease-out .4s both; }
 .lx-work-who:empty { display: none; }
 .lx-work-who .lx-card { margin: 0; background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .14); color: #fff; }
+
+/* „De ce?” după o corectură: rând mic de motive, sub lecție; nu oprește pachetul. */
+.lx-reason {
+  position: absolute; left: 50%; top: calc(112px + var(--safe-top, env(safe-area-inset-top, 0px))); transform: translateX(-50%); z-index: 2;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; width: max-content; max-width: calc(100% - 32px);
+  padding: 6px 8px; border-radius: 16px; border: 1px solid var(--lx-line); background: var(--lx-glass); backdrop-filter: blur(10px);
+  animation: lx-in 0.25s var(--lx-ease) both;
+}
+.lx-reason-q { font-size: 12px; font-weight: 600; color: var(--text-dim); padding: 0 4px; }
+.lx-reason-chip { min-height: 32px; background: none; color: var(--text); border-color: var(--lx-line); }

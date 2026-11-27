@@ -24,6 +24,7 @@ import { readRitualDays } from '../core/ritualStreak';
 import { startOfDay } from '../core/todayDigest';
 import { beautyScore } from './beauty';
 import { recordPair } from '../core/learning/pairs';
+import { featuresOf, reasonsFor, recordReason, type CorrectionReason, type ReasonFeatures } from '../core/learning/reasons';
 
 type Verdict = 'keep' | 'drop' | 'unsure';
 /** Cât trebuie tras cardul ca să conteze ca decizie. */
@@ -73,6 +74,8 @@ export function SwipeSort() {
   const doneIds = useRef(new Set<string>());
   const [decisions, setDecisions] = useState(0);
   const [lesson, setLesson] = useState<string | null>(null);
+  /** „De ce?” după o corectură: pentru poza tocmai trecută, fără să oprească pachetul. */
+  const [ask, setAsk] = useState<{ id: string; kept: boolean; names: string[]; f: ReasonFeatures } | null>(null);
   /** Alt cadru din aceeași rafală, adus în față fără să schimbe rândul pachetului. */
   const [peek, setPeek] = useState<string | null>(null);
   const drag = useRef<{ x: number; y: number; id: number } | null>(null);
@@ -93,6 +96,7 @@ export function SwipeSort() {
     setDecisions(0);
     startedAt.current = Date.now(); setElapsed(0); setTook(null);
     setLesson(null);
+    setAsk(null);
     setPeek(null);
   }, [ids]);
 
@@ -128,6 +132,12 @@ export function SwipeSort() {
     const t = window.setTimeout(() => setLesson(null), 1800);
     return () => window.clearTimeout(t);
   }, [lesson]);
+  // Întrebarea pleacă singură după ~4 s: e o rugăminte, nu un pas obligatoriu.
+  useEffect(() => {
+    if (!ask) return;
+    const t = window.setTimeout(() => setAsk(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [ask]);
 
   // Seria, cea mai bună din ea și motivul AI-ului: o dată pe poză, nu la fiecare mișcare.
   const seriesInfo = useMemo(() => {
@@ -155,7 +165,10 @@ export function SwipeSort() {
     const ai = aiView.get(shown.id) ?? 'unsure';
     void setStatus(shown.id, keep ? 'selected' : 'rejected');
     recordPersonDecision(shown.personNames, keep);
-    if ((ai === 'keep' && !keep) || (ai === 'drop' && keep)) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
+    const corrected = (ai === 'keep' && !keep) || (ai === 'drop' && keep);
+    if (corrected) setLesson(tr(keep ? 'lx.sort.lessonKeep' : 'lx.sort.lessonDrop'));
+    // O decizie nouă închide întrebarea veche; o corectură nouă o pune pe a ei.
+    setAsk(corrected ? { id: shown.id, kept: keep, names: shown.personNames, f: featuresOf(shown) } : null);
     // Și la pozele „nesigure” AI-ul are o înclinație (scorul față de mijloc), luată ÎNAINTE de
     // alegerea omului. Fără ea, sesiunile (făcute mai ales din poze nesigure) nu numărau nimic,
     // iar după 90 de alegeri tot scria „Antrenează-l” (raportat).
@@ -168,6 +181,15 @@ export function SwipeSort() {
     setDecisions(n => n + 1);
     setFlying(keep ? 'right' : 'left');
     window.setTimeout(() => { setFlying(null); resetCard(); setPeek(null); advance(); }, FLY_MS);
+  };
+  /** Motivul ales dintr-o atingere: notat local; „e cu cineva drag” mai numără o dată persoanele. */
+  const giveReason = (r: CorrectionReason) => {
+    if (!ask) return;
+    haptic('tick');
+    recordReason(ask.id, r, ask.f);
+    if (r === 'person' && ask.names.length) recordPersonDecision(ask.names, true);
+    setAsk(null);
+    setLesson(tr('lx.sort.reason.thanks'));
   };
   const later = () => {
     if (!shown || flying) return;
@@ -326,6 +348,14 @@ export function SwipeSort() {
 
           {comparing && <CompareView a={comparing[0]} b={comparing[1]} onPick={pickInCompare} onClose={() => setComparing(null)} />}
           {lesson && <div className="lx-lesson" role="status">{lesson}</div>}
+          {ask && (
+            <div className="lx-reason" role="group" aria-label={tr('lx.sort.reason.ask')} onPointerDown={e => e.stopPropagation()}>
+              <span className="lx-reason-q">{tr('lx.sort.reason.ask')}</span>
+              {reasonsFor(ask.kept).map(r => (
+                <button key={r} type="button" className="lx-chip lx-reason-chip" onClick={() => giveReason(r)}>{tr(`lx.sort.reason.${r}`)}</button>
+              ))}
+            </div>
+          )}
           {ritual && !lesson && elapsed >= 60 && elapsed < 66 && <div className="lx-lesson" role="status">{tr('lx.ritual60.over')}</div>}
 
           <div className="lx-sort-actions">
