@@ -261,6 +261,13 @@ export async function enginesReadyForGallery(): Promise<boolean> {
   const { dataMode, enginesPromptPending, enginesWaitWaived } = await import('./dataMode');
   if (enginesWaitWaived()) return true;
   if (dataMode() === null) return !enginesPromptPending();
+  // „Doar pe Wi-Fi” și omul nu e pe Wi-Fi: nu-l lăsăm cu ecranul gol până ajunge acasă. Citirea
+  // pornește acum cu modelele din aplicație (fețe, ochi, claritate, serii, etichete), iar CLIP-ul
+  // se adaugă singur pe Wi-Fi (clipBackfill rulează la fiecare pornire și după importuri).
+  if (dataMode() === 'wifi') {
+    const { syncDownloadGate } = await import('./aiModels');
+    if (!(await syncDownloadGate().catch(() => true))) return true;
+  }
   await refreshEngines();
   // Doar cele esențiale (descărcarea în trepte): restul vin în fundal sau la prima folosire.
   return ENGINES.filter(e => ESSENTIAL_ENGINES.includes(e.id)).every(e => engineReady(e));
