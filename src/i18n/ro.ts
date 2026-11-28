@@ -2551,6 +2551,8 @@ export const ro = {
   "lx.work.pickDone": "Mulțumesc! Am învățat din {count} alegeri.",
   "lx.work.pickLeft": "Prima poză",
   "lx.work.pickRight": "A doua poză",
+  "lx.work.pickBoth": "Amândouă",
+  "lx.work.pickNone": "Niciuna",
   "lx.work.guess": "Te-am ghicit? Verifică {count} alegeri de-ale mele",
   "lx.work.guessTitle": "Te-am ghicit?",
   "lx.sort.guessed": "Am ales ca tine în {hits} din {count} cazuri",

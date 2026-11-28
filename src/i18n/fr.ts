@@ -401,6 +401,8 @@ export const dict: Record<string, string> = {
   "lx.work.pickDone": "Merci ! J’ai appris de {count} choix.",
   "lx.work.pickLeft": "Première photo",
   "lx.work.pickRight": "Deuxième photo",
+  "lx.work.pickBoth": "Les deux",
+  "lx.work.pickNone": "Aucune",
   "lx.work.guess": "Je t’ai deviné ? Vérifie {count} de mes choix",
   "lx.work.guessTitle": "Je t’ai deviné ?",
   "lx.sort.guessed": "J’ai choisi comme toi dans {hits} cas sur {count}",

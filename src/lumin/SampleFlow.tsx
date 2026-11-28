@@ -300,6 +300,11 @@ function TastePairs({ pool }: { pool: readonly PhotoView[] }) {
   useEffect(() => { if (!pair && done < PAIRS_WANTED) setPair(pickPair(pool, used)); }, [pool, used, pair, done]);
   if (done >= PAIRS_WANTED) return <p className="lx-work-pick-done">✓ {tr('lx.work.pickDone', { count: done })}</p>;
   if (!pair) return null;
+  const skip = () => {
+    setUsed(u => new Set([...u, pair[0].id, pair[1].id]));
+    setDone(d => d + 1);
+    setPair(null);
+  };
   const choose = (w: PhotoView, l: PhotoView) => {
     recordPair(w.id, l.id);
     setUsed(u => new Set([...u, w.id, l.id]));
@@ -312,6 +317,11 @@ function TastePairs({ pool }: { pool: readonly PhotoView[] }) {
       <div>
         <button onClick={() => choose(pair[0], pair[1])} aria-label={tr('lx.work.pickLeft')}><Thumb id={pair[0].id} lqip={pair[0].lqip} edits={pair[0].edits} /></button>
         <button onClick={() => choose(pair[1], pair[0])} aria-label={tr('lx.work.pickRight')}><Thumb id={pair[1].id} lqip={pair[1].lqip} edits={pair[1].edits} /></button>
+      </div>
+      {/* Uneori îți plac amândouă sau niciuna (cerut): fără pereche forțată, doar trecem mai departe. */}
+      <div className="lx-work-pick-alt">
+        <button onClick={skip}>{tr('lx.work.pickBoth')}</button>
+        <button onClick={skip}>{tr('lx.work.pickNone')}</button>
       </div>
     </div>
   );

@@ -2598,3 +2598,7 @@ img.lx-lqip { filter: blur(14px) saturate(1.15); transform: scale(1.12); }
    telefon care analizează poze în același timp, aurora rotită pe tot ecranul sacada (raportat). */
 .lx-work.scanning .lx-work-aurora { animation-play-state: paused; }
 .lx-work-orbit, .lx-work-orbit span > i { backface-visibility: hidden; transform: translateZ(0); }
+.lx-work-pick-alt { display: flex; justify-content: center; gap: 8px; }
+.lx-work-pick-alt button { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff;
+  background: rgb(255 255 255 / .07); border: 1px solid rgb(255 255 255 / .16); }
+.lx-work-pick-alt button:active { background: rgb(255 255 255 / .16); }
