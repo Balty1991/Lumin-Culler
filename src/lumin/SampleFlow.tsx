@@ -16,6 +16,7 @@ import { useEngines } from './engines';
 import { useModelsState } from './aiModels';
 import { recordPair } from '../core/learning/pairs';
 import { WhoIsThis } from './WhoIsThis';
+import { openBatterySettings, readBatteryRestriction, type BatteryRestriction } from '../core/backgroundAnalysis';
 
 /**
  * lumin/SampleFlow.tsx
@@ -36,6 +37,15 @@ export function SampleResultCard() {
   const photos = useLxPhotos();
   const [editing, setEditing] = useState<PhotoView | null>(null);
   const result = live ?? storedSampleResult();
+  // Pentru toată galeria: Android să nu oprească citirea când omul iese din aplicație.
+  const [battery, setBattery] = useState<BatteryRestriction>('unknown');
+  useEffect(() => {
+    let alive = true;
+    const read = () => { void readBatteryRestriction().then(b => { if (alive) setBattery(b); }); };
+    read();
+    document.addEventListener('visibilitychange', read);
+    return () => { alive = false; document.removeEventListener('visibilitychange', read); };
+  }, []);
   const sum = useMemo(() => {
     if (!result) return null;
     const ids = new Set(result.ids);
@@ -72,6 +82,7 @@ export function SampleResultCard() {
     <section className="lx-card lx-sample" role="status">
       <span className="lx-eyebrow">{tr('lx.sample.eyebrow')}</span>
       <b className="lx-sample-title">{tr('lx.sample.title', { total: sum.total, kept: sum.kept })}</b>
+      {result.left > 0 && <span className="lx-sample-partial">{tr('lx.sample.partial', { total: sum.total, left: result.left })}</span>}
       {facts.length > 0 && <div className="lx-sample-facts">{facts.map(f => <span key={f}>{f}</span>)}</div>}
       {sum.best.length > 0 && (
         <div className="lx-sample-best" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
@@ -97,10 +108,27 @@ export function SampleResultCard() {
           <i aria-hidden="true">🖼️</i><span><b>{tr('lx.sample.see')}</b><small>{tr('lx.sample.seeSub')}</small></span>
         </button>
       </div>
+      {/* Sortarea întregii galerii, pregătită ca lumea (cerut): în fundal permis, la încărcat,
+          fără să umble omul prin aplicație cât lucrează; te anunț când termin. */}
+      <div className="lx-sample-prep">
+        <b>{tr('lx.sample.prepTitle')}</b>
+        {battery !== 'unknown' && (
+          <div className="lx-sample-prep-row">
+            <i aria-hidden="true">🔋</i>
+            <span><b>{tr('lx.sample.bg')}</b><small>{tr('lx.sample.bgSub')}</small></span>
+            {battery === 'unrestricted'
+              ? <em className="lx-pill ok">✓ {tr('lx.sample.bgOk')}</em>
+              : <button className="lx-btn ghost small" onClick={() => void openBatterySettings()}>{tr('lx.sample.bgAllow')}</button>}
+          </div>
+        )}
+        <div className="lx-sample-prep-row">
+          <i aria-hidden="true">🔌</i>
+          <span><b>{tr('lx.sample.charge')}</b><small>{tr('lx.sample.chargeSub')}</small></span>
+        </div>
+      </div>
       <button className="lx-btn primary wide" onClick={full}>
         {result.left > 0 ? tr('lx.sample.full', { count: result.left }) : tr('lx.sample.fullPlain')}
       </button>
-      <small className="lx-sample-note">{tr('lx.sample.fullNote')}</small>
       {editing && <EnhanceSheet photo={editing} recipe="perfect" onClose={() => setEditing(null)} />}
     </section>
   );
