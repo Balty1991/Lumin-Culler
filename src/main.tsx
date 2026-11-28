@@ -1,3 +1,4 @@
+import { devUnlimitedAvailable } from './core/entitlement';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
@@ -64,9 +65,9 @@ void (async () => {
   const raport = await lastRunReport();
   if (!raport?.crashed || !raport.crashedAt) return;
   logError('crash', `Închidere neașteptată la: ${raport.crashedAt}`);
-  useStore.setState({
-    notice: `Repornire dupa o inchidere neasteptata. S-a oprit la: ${raport.crashedAt}`
-  });
+  // Doar în build-urile de test: în aplicația din magazin e un mesaj tehnic, fără folos
+  // pentru om (rămâne în jurnalul de probleme din Setări).
+  if (devUnlimitedAvailable) useStore.setState({ notice: `Repornire după o închidere neașteptată. S-a oprit la: ${raport.crashedAt}` });
   await forgetLastRun();
 })();
 

@@ -200,7 +200,14 @@ export function TodayScreen() {
           <div className="lx-hero-text">
             <h1 className="lx-h1">
               {tr(plural(today.photos.length - today.aside.length, 'lx.today.from.one', 'lx.today.from'), { count: today.photos.length - today.aside.length })}{' '}
-              <em>{tr(plural(today.kept.length, 'lx.today.kept.one', 'lx.today.kept'), { count: today.kept.length })}</em>
+              {/* „am ales 0” părea o greșeală (raportat de două ori): spus ce se întâmplă de fapt. */}
+              <em>{today.kept.length > 0
+                ? tr(plural(today.kept.length, 'lx.today.kept.one', 'lx.today.kept'), { count: today.kept.length })
+                : today.waiting.some(p => p.status === 'pending' || p.status === 'candidate')
+                  ? tr('lx.today.keptNone.busy')
+                  : today.waiting.length > 0
+                    ? tr(plural(today.waiting.length, 'lx.today.keptNone.ask.one', 'lx.today.keptNone.ask'), { count: today.waiting.length })
+                    : tr('lx.today.keptNone')}</em>
             </h1>
             {today.waiting.length === 0 && <p className="lx-sub">{tr('lx.today.allDone')}</p>}
           </div>
