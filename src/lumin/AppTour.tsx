@@ -3,6 +3,7 @@ import { useLx, type LxTab } from './lxStore';
 import { useTr } from './context';
 import { Orb } from './Orb';
 import { markTourDone } from './tour';
+import { analysisPool } from '../core/workerPool';
 
 /**
  * lumin/AppTour.tsx
@@ -40,6 +41,9 @@ export function AppTour({ onClose }: { onClose: () => void }) {
   const last = i === STEPS.length - 1;
 
   useEffect(() => { if (step.tab) setTab(step.tab); }, [step.tab, setTab]);
+  // Cât e deschis turul, analiza din fundal așteaptă: „Ultimele detalii” ocupa procesorul și
+  // turul sacada (raportat cu înregistrare). Se reia singură la închidere.
+  useEffect(() => analysisPool.holdForUi(), []);
 
   useLayoutEffect(() => {
     if (step.dock === undefined) { setRect(null); return; }
