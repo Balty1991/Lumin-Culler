@@ -758,7 +758,9 @@ export function EnhanceSheet({ photo, onClose, recipe }: { photo: PhotoView; onC
       setIssues(foundIssues);
       setGeo({ width, height, faces });
       setTilt(t);
-      if (Math.abs(t) >= 1.5) setStraight(true);
+      // Îndreptarea orizontului NU se mai pune singură, doar se propune (butonul 📐): detectarea
+      // greșea pe străzi în pantă și la oameni cu fața acoperită, iar rotirea + mărirea care umple
+      // cadrul deforma poza (raportat: „distorsionarea asta nu trebuia”).
       setSrc(url);
       setOrig(original);
       setBase(lightOnly);
